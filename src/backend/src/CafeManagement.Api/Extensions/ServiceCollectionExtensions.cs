@@ -101,12 +101,6 @@ public static class ServiceCollectionExtensions
         // Authorization
         services.AddAuthorization();
 
-        // Rate Limiting
-        services.AddMemoryCache();
-        services.Configure<IpRateLimitOptions>(configuration.GetSection("RateLimiting"));
-        services.AddInMemoryRateLimiting();
-        services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
-
         // Health checks
         services.AddHealthChecks();
 

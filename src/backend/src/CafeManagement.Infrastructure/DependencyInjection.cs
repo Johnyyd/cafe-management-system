@@ -1,9 +1,13 @@
 using CafeManagement.Application.Common.Interfaces;
-using CafeManagement.Domain.Shops;
+using CafeManagement.Domain.Common;
+using CafeManagement.Domain.Staff;
+using CafeManagement.Domain.Menu;
+using CafeManagement.Domain.Orders;
 using CafeManagement.Infrastructure.Persistence;
 using CafeManagement.Infrastructure.Services;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using MongoDB.Bson.Serialization;
 using MongoDB.Driver;
 
 namespace CafeManagement.Infrastructure;
@@ -25,6 +29,9 @@ public static class DependencyInjection
 
         // Repositories
         services.AddScoped<IShopRepository, ShopRepository>();
+        services.AddScoped<IStaffRepository, StaffRepository>();
+        services.AddScoped<IMenuItemRepository, MenuItemRepository>();
+        services.AddScoped<IOrderRepository, OrderRepository>();
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, MongoDbUnitOfWork>();
