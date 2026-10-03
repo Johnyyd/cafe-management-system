@@ -1,0 +1,6 @@
+/openrig-specs
+.env
+node_modules/
+.cache/
+/bin
+/obj

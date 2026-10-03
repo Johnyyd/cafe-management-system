@@ -15,15 +15,20 @@ The system will cover:
 - Multi-shop management
 
 ## Technology Stack
-- **Backend**: C# (.NET 8) with ASP.NET Core Web API
-- **Database**: MongoDB (embedded document model, under 10 collections)
-- **Frontend**: React 18 with Tailwind CSS for styling
+- **Backend**: C# (.NET 8) with ASP.NET Core Web API (**Clean Architecture**: Domain, Application, Infrastructure, API layers)
+- **Database**: MongoDB (embedded document model, under 10 collections) - **Official MongoDB.Driver**
+- **Frontend**: React 18 with Tailwind CSS for styling - **Vite + TypeScript**
+- **State Management**: **TanStack Query (React Query)** for server state + **Zustand** for client state
+- **Authentication**: **ASP.NET Core Identity** with JWT tokens
 - **Additional Tools**: 
-  - Docker for containerization
-  - JWT for authentication
-  - Swagger for API documentation
+  - Docker / Docker Compose for containerization
+  - Swagger/OpenAPI for API documentation
   - Jest and React Testing Library for frontend tests
   - xUnit for backend tests
+  - **Testcontainers** for MongoDB integration tests
+  - **Serilog + Seq** for logging and observability
+  - **GitHub Actions** for CI/CD
+  - Deployment: **Docker Compose on VM**
 
 ## Modules / Components
 1. **Authentication & Authorization**

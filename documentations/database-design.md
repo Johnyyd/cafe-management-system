@@ -5,6 +5,8 @@
 - Use references (by ID) for data that may be shared across multiple parent documents or when the embedded data would become too large.
 - Aim for under 10 collections.
 - Each document should represent a single unit of data that is typically accessed together.
+- **All collections include soft delete (deletedAt) and audit fields (createdBy, updatedBy) for traceability.**
+- **Prices stored as Decimal128 for precise financial calculations.**
 
 ## Collections
 
@@ -34,7 +36,10 @@ Contains information about each coffee shop location.
   ],
   "status": "enum",  // active, under_maintenance, closed
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",  // null if not deleted
+  "createdBy": "ObjectId",  // Reference to Staff/Admin who created
+  "updatedBy": "ObjectId"   // Reference to Staff/Admin who last updated
 }
 ```
 
@@ -55,7 +60,10 @@ Information about employees. References the shop they are currently assigned to.
   "hireDate": "ISODate",
   "shopId": ObjectId,  // Reference to Shops
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -69,7 +77,7 @@ Items available for sale. Embedded ingredients and allergens arrays. Each shop c
   "category": "string",  // e.g., Coffee, Tea, Pastry, Sandwich
   "name": "string",
   "description": "string",
-  "price": "decimal",  // Store as number in minor units (cents) or use Decimal128
+  "price": "Decimal128",  // Store as Decimal128 for precise financial calculations
   "ingredients": [ "string" ],  // List of ingredient names
   "allergens": [ "string" ],   // e.g., nuts, dairy, gluten
   "availability": {
@@ -79,7 +87,10 @@ Items available for sale. Embedded ingredients and allergens arrays. Each shop c
   },
   "status": "enum",  // available, unavailable, seasonal
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -95,7 +106,12 @@ Tracks stock of ingredients and supplies per shop.
   "quantity": "number",
   "reorderLevel": "number",
   "supplierId": ObjectId,  // Reference to Suppliers (can be null if not tracked)
-  "lastUpdated": "ISODate"
+  "lastUpdated": "ISODate",
+  "createdAt": "ISODate",
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -114,7 +130,10 @@ Information about suppliers for inventory items.
   "materialsSupplied": [ "string" ],  // e.g., coffee beans, milk, bread
   "rating": "number",  // 1-5
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -136,19 +155,22 @@ Customer orders. Embeds customer information and ordered items (which denormaliz
       "menuItemId": ObjectId,  // Reference to MenuItems (for tracking, but we denormalize below)
       "name": "string",  // Denormalized from MenuItems at time of order
       "description": "string",  // optional
-      "unitPrice": "decimal",  // Price at time of order
+      "unitPrice": "Decimal128",  // Price at time of order (Decimal128)
       "quantity": "number",
       "specialInstructions": "string",  // e.g., "extra hot", "no sugar"
-      "totalPrice": "decimal"  // quantity * unitPrice
+      "totalPrice": "Decimal128"  // quantity * unitPrice
     }
   ],
   "status": "enum",  // placed, preparing, ready, completed, cancelled
   "paymentStatus": "enum",  // pending, paid, failed, refunded
-  "totalAmount": "decimal",
+  "totalAmount": "Decimal128",
   "orderTime": "ISODate",
   "completedTime": "ISODate",  // null until completed
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -171,7 +193,10 @@ Defines checklists for service or product quality assurance.
   "frequency": "enum",  // daily, per_shift, weekly
   "isActive": "boolean",
   "createdAt": "ISODate",
-  "updatedAt": "ISODate"
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -196,7 +221,11 @@ Records of performed QA checks, referencing the checklist and including findings
   ],
   "inspectorNotes": "string",
   "date": "ISODate",  // When the check was performed
-  "createdAt": "ISODate"
+  "createdAt": "ISODate",
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -213,7 +242,11 @@ Feedback from customers, optionally linked to an order.
   "ratingProduct": "number",  // 1-5
   "comments": "string",
   "date": "ISODate",
-  "createdAt": "ISODate"
+  "createdAt": "ISODate",
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -229,7 +262,11 @@ Work shifts for staff, referencing shop and staff.
   "endTime": "ISODate",
   "breakDuration": "number",  // in minutes
   "notes": "string",
-  "createdAt": "ISODate"
+  "createdAt": "ISODate",
+  "updatedAt": "ISODate",
+  "deletedAt": "ISODate",
+  "createdBy": "ObjectId",
+  "updatedBy": "ObjectId"
 }
 ```
 
@@ -239,20 +276,24 @@ We have 10 collections. If we need to reduce, consider:
 - Combining Suppliers into Inventory as an embedded supplier document? But then we lose the ability to track supplier performance across multiple inventory items. We'll keep as is.
 
 ## Indexing Strategy (brief)
-- Shops: _id (primary)
-- Staff: _id, shopId
-- MenuItems: _id, shopId, status, category
-- Inventory: _id, shopId, itemName
-- Suppliers: _id
-- Orders: _id, shopId, staffId, status, paymentStatus, orderTime
-- QAChecklists: _id, shopId, type, isActive
-- QARecords: _id, checklistId, shopId, staffId, date
-- CustomerFeedback: _id, orderId, shopId, date
-- Shifts: _id, shopId, staffId, startTime, endTime
+- Shops: _id (primary), status, createdAt
+- Staff: _id, shopId, employmentStatus, createdAt
+- MenuItems: _id, shopId, status, category, createdAt
+- Inventory: _id, shopId, itemName, quantity, createdAt
+- Suppliers: _id, rating, createdAt
+- Orders: _id, shopId, staffId, status, paymentStatus, orderTime, createdAt
+- QAChecklists: _id, shopId, type, isActive, createdAt
+- QARecords: _id, checklistId, shopId, staffId, date, createdAt
+- CustomerFeedback: _id, orderId, shopId, date, createdAt
+- Shifts: _id, shopId, staffId, startTime, endTime, createdAt
+
+**All collections have indexes on deletedAt for soft delete filtering and createdAt for audit queries.**
 
 ## Notes on Embedding
 - We embedded customer information in Orders to avoid needing a separate Customers collection and to capture details at the time of order.
 - We embedded menu item details (name, price) in Orders.items to have a snapshot of what was ordered and at what price, even if the menu changes later.
 - We embedded checklist criteria in QAChecklists and findings in QARecords for similar reasons.
 - Inventory items reference Suppliers but do not embed supplier details to avoid duplication and allow supplier updates to reflect across inventory.
+- **All collections include soft delete (deletedAt) and audit fields (createdBy, updatedBy) for full traceability.**
+- **Prices use Decimal128 for precise financial calculations without floating-point errors.**
 
