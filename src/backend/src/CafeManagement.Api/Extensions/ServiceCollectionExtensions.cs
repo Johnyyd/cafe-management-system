@@ -78,32 +78,6 @@ public static class ServiceCollectionExtensions
             }
         });
 
-        // Authentication
-        services.AddAuthentication("Bearer")
-            .AddJwtBearer("Bearer", options =>
-            {
-                options.Authority = configuration["Jwt:Issuer"];
-                options.Audience = configuration["Jwt:Audience"];
-                options.RequireHttpsMetadata = false;
-                options.TokenValidationParameters = new Microsoft.IdentityModel.Tokens.TokenValidationParameters
-                {
-                    ValidateIssuer = true,
-                    ValidateAudience = true,
-                    ValidateLifetime = true,
-                    ValidateIssuerSigningKey = true,
-                    ValidIssuer = configuration["Jwt:Issuer"],
-                    ValidAudience = configuration["Jwt:Audience"],
-                    IssuerSigningKey = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(
-                        System.Text.Encoding.UTF8.GetBytes(configuration["Jwt:Key"]!))
-                };
-            });
-
-        // Authorization
-        services.AddAuthorization();
-
-        // Performance metrics service
-        services.AddSingleton<IPerformanceMetricsService, PerformanceMetricsService>();
-
         // Health checks
         services.AddHealthChecks();
 

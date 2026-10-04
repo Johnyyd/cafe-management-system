@@ -1,8 +1,9 @@
+using CafeManagement.Application.Inventory.Commands;
 using CafeManagement.Application.Inventory.Queries;
 using CafeManagement.Application.Inventory.Responses;
 using MediatR;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Versioning;
+using MongoDB.Bson;
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -11,8 +12,7 @@ using System.Threading.Tasks;
 namespace CafeManagement.Api.Controllers;
 
 [ApiController]
-[ApiVersion("1.0")]
-[Route("api/v{version:apiVersion}/inventory")]
+[Route("api/[controller]")]
 public class InventoryController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -165,7 +165,7 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeactivateInventoryItem(ObjectId id, CancellationToken cancellationToken)
     {
-        var command = new DeactivateInventoryItemCommand(id);
+        var command = new DeactivateInventoryItemCommand(id, null);
         var result = await _mediator.Send(command, cancellationToken);
         if (result.IsFailed)
             return NotFound(result.Errors);

@@ -1,6 +1,8 @@
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Inventory;
+using FluentResults;
+using MongoDB.Bson;
 using MongoDB.Driver;
 
 namespace CafeManagement.Infrastructure.Services;
@@ -16,11 +18,10 @@ public class InventoryService : IInventoryService
 
     public async Task<Result<Domain.Inventory.InventoryItem>> CreateAsync(ObjectId shopId, string itemName, string unit, decimal quantity, decimal reorderLevel, ObjectId? supplierId = null, ObjectId? createdBy = null)
     {
-        var result = await DomainResult.Create(() =>
-            InventoryItem.Create(shopId, itemName, unit, quantity, reorderLevel, supplierId, createdBy));
+        var result = InventoryItem.Create(shopId, itemName, unit, quantity, reorderLevel, supplierId, createdBy);
 
         if (result.IsFailed)
-            return Result.Fail<Domain.Inventory.InventoryItem>(new Error("Inventory Creation Failed", result.Error.ToString()));
+            return Result.Fail<Domain.Inventory.InventoryItem>(result.Errors);
 
         var item = result.Value;
         await _inventoryItemRepository.AddAsync(item, CancellationToken.None);
@@ -31,29 +32,27 @@ public class InventoryService : IInventoryService
     {
         var existing = await _inventoryItemRepository.GetByIdAsync(id);
         if (existing == null)
-            return Result.Fail<Domain.Inventory.InventoryItem>(DomainErrors.NotFound("Inventory Item", id));
+            return Result.Fail<Domain.Inventory.InventoryItem>(DomainErrors.General.NotFound("Inventory Item", id));
 
-        var result = await DomainResult.Create(() =>
-            existing.Update(itemName, unit, reorderLevel, supplierId, updatedBy));
+        var result = existing.Update(itemName, unit, reorderLevel, supplierId, updatedBy);
 
         if (result.IsFailed)
-            return Result.Fail<Domain.Inventory.InventoryItem>(result.Error);
+            return Result.Fail<Domain.Inventory.InventoryItem>(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(existing, CancellationToken.None);
-        return Result.Ok(result.Value);
+        return Result.Ok(existing);
     }
 
     public async Task<Result> AdjustQuantityAsync(ObjectId id, decimal quantityChange, string reason, ObjectId? adjustedBy = null)
     {
         var existing = await _inventoryItemRepository.GetByIdAsync(id);
         if (existing == null)
-            return Result.Fail(new Error("Inventory Item Not Found", $"Inventory item with id '{id}' was not found"));
+            return Result.Fail("Inventory Item Not Found");
 
-        var result = await DomainResult.Create(() =>
-            existing.AdjustQuantity(quantityChange, reason, adjustedBy));
+        var result = existing.AdjustQuantity(quantityChange, reason, adjustedBy);
 
         if (result.IsFailed)
-            return Result.Fail(result.Error);
+            return Result.Fail(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(existing, CancellationToken.None);
         return Result.Ok();
@@ -63,13 +62,12 @@ public class InventoryService : IInventoryService
     {
         var existing = await _inventoryItemRepository.GetByIdAsync(id);
         if (existing == null)
-            return Result.Fail(new Error("Inventory Item Not Found", $"Inventory item with id '{id}' was not found"));
+            return Result.Fail("Inventory Item Not Found");
 
-        var result = await DomainResult.Create(() =>
-            existing.SetQuantity(quantity, updatedBy));
+        var result = existing.SetQuantity(quantity, updatedBy);
 
         if (result.IsFailed)
-            return Result.Fail(result.Error);
+            return Result.Fail(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(existing, CancellationToken.None);
         return Result.Ok();
@@ -79,13 +77,12 @@ public class InventoryService : IInventoryService
     {
         var existing = await _inventoryItemRepository.GetByIdAsync(id);
         if (existing == null)
-            return Result.Fail(new Error("Inventory Item Not Found", $"Inventory item with id '{id}' was not found"));
+            return Result.Fail("Inventory Item Not Found");
 
-        var result = await DomainResult.Create(() =>
-            existing.Deactivate(deletedBy));
+        var result = existing.Deactivate(deletedBy);
 
         if (result.IsFailed)
-            return Result.Fail(result.Error);
+            return Result.Fail(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(existing, CancellationToken.None);
         return Result.Ok();
@@ -110,7 +107,7 @@ public class InventoryService : IInventoryService
     {
         var existing = await _inventoryItemRepository.GetByShopIdAndNameAsync(shopId, name);
         if (existing == null)
-            return Result.Fail<Domain.Inventory.InventoryItem>(DomainErrors.NotFound("Inventory Item", new object[] { shopId, name }));
+            return Result.Fail<Domain.Inventory.InventoryItem>(DomainErrors.General.NotFound("Inventory Item", new object[] { shopId, name }));
 
         return Result.Ok(existing);
     }

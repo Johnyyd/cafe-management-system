@@ -33,3 +33,19 @@ public record OperatingHoursDto(
     TimeSpan OpenTime,
     TimeSpan CloseTime
 );
+
+public record AuthResultDto(
+    string AccessToken,
+    string RefreshToken,
+    int ExpiresIn,
+    string TokenType,
+    UserDto User
+);
+
+public record UserDto(
+    ObjectId Id,
+    string Email,
+    string FullName,
+    ObjectId? ShopId,
+    IEnumerable<string> Roles
+);

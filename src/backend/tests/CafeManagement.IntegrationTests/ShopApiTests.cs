@@ -4,21 +4,19 @@ using CafeManagement.Api;
 using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Domain.Shops;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc.Testing;
 using MongoDB.Bson;
-using Testcontainers.MongoDb;
 using Xunit;
 
 namespace CafeManagement.IntegrationTests;
 
-public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
+public class ShopApiTests
 {
     private readonly HttpClient _client;
-    private readonly MongoDbContainer _mongoDbContainer;
 
-    public ShopApiTests(CustomWebApplicationFactory<Program> factory)
+    public ShopApiTests()
     {
-        _client = factory.CreateClient();
-        _mongoDbContainer = factory.MongoDbContainer;
+        _client = IntegrationTestFixture.Client;
     }
 
     [Fact]
@@ -42,19 +40,18 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var createdShop = await response.Content.ReadFromJsonAsync<ObjectIdDto>();
-        createdShop.Should().NotBeNull();
-        createdShop!.Id.Should().NotBeEmpty();
+        var createdShopId = await response.Content.ReadFromJsonAsync<string>();
+        createdShopId.Should().NotBeNullOrEmpty();
 
         // Verify the shop was actually created by fetching it
-        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShop.Id}");
+        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShopId}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var retrievedShop = await getResponse.Content.ReadFromJsonAsync<ShopDto>();
         retrievedShop.Should().NotBeNull();
         retrievedShop!.Name.Should().Be(createShopDto.Name);
-        retrievedShop.Address.Should.BeEquivalentTo(createShopDto.Address);
-        retrievedShop.Contact.Should.BeEquivalentTo(createShopDto.Contact);
+        retrievedShop.Address.Should().BeEquivalentTo(createShopDto.Address);
+        retrievedShop.Contact.Should().BeEquivalentTo(createShopDto.Contact);
     }
 
     [Fact]
@@ -103,10 +100,10 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var createResponse = await _client.PostAsJsonAsync("/api/v1/shops", createShopDto);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var createdShop = await createResponse.Content.ReadFromJsonAsync<ObjectIdDto>();
+        var createdShopId = await createResponse.Content.ReadFromJsonAsync<string>();
 
         // Act
-        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShop!.Id}");
+        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShopId}");
 
         // Assert
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -114,7 +111,7 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var retrievedShop = await getResponse.Content.ReadFromJsonAsync<ShopDto>();
         retrievedShop.Should().NotBeNull();
         retrievedShop!.Name.Should().Be(createShopDto.Name);
-        retrievedShop.Id.Should().Be(createdShop.Id);
+        retrievedShop.Id.Should().Be(ObjectId.Parse(createdShopId));
     }
 
     [Fact]
@@ -191,30 +188,30 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var createResponse = await _client.PostAsJsonAsync("/api/v1/shops", createShopDto);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var createdShop = await createResponse.Content.ReadFromJsonAsync<ObjectIdDto>();
+        var createdShopId = await createResponse.Content.ReadFromJsonAsync<string>();
 
         var updateShopDto = new CafeManagement.Application.Shops.Commands.UpdateShopCommand(
-            ObjectId.Parse(createdShop!.Id),
+            ObjectId.Parse(createdShopId!),
             "Updated Cafe Name",
             new AddressDto("999 Updated Street", "Hanoi", "Dong Da", "100000"),
             new ContactInfoDto("0333444555", "updated@example.com")
         );
 
         // Act
-        var response = await _client.PutAsJsonAsync($"/api/v1/shops/{createdShop.Id}", updateShopDto);
+        var response = await _client.PutAsJsonAsync($"/api/v1/shops/{createdShopId}", updateShopDto);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verify the update
-        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShop.Id}");
+        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShopId}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var updatedShop = await getResponse.Content.ReadFromJsonAsync<ShopDto>();
         updatedShop.Should().NotBeNull();
         updatedShop!.Name.Should().Be(updateShopDto.Name);
-        updatedShop.Address.Should.BeEquivalentTo(updateShopDto.Address);
-        updatedShop.Contact.Should.BeEquivalentTo(updateShopDto.Contact);
+        updatedShop.Address.Should().BeEquivalentTo(updateShopDto.Address);
+        updatedShop.Contact.Should().BeEquivalentTo(updateShopDto.Contact);
     }
 
     [Fact]
@@ -234,16 +231,16 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var createResponse = await _client.PostAsJsonAsync("/api/v1/shops", createShopDto);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var createdShop = await createResponse.Content.ReadFromJsonAsync<ObjectIdDto>();
+        var createdShopId = await createResponse.Content.ReadFromJsonAsync<string>();
 
         // Act
-        var response = await _client.DeleteAsync($"/api/v1/shops/{createdShop!.Id}");
+        var response = await _client.DeleteAsync($"/api/v1/shops/{createdShopId}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verify the shop is deactivated (soft deleted)
-        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShop.Id}");
+        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShopId}");
         getResponse.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
@@ -264,10 +261,10 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         var createResponse = await _client.PostAsJsonAsync("/api/v1/shops", createShopDto);
         createResponse.StatusCode.Should().Be(HttpStatusCode.Created);
 
-        var createdShop = await createResponse.Content.ReadFromJsonAsync<ObjectIdDto>();
+        var createdShopId = await createResponse.Content.ReadFromJsonAsync<string>();
 
         var updateHoursDto = new CafeManagement.Application.Shops.Commands.UpdateOperatingHoursCommand(
-            ObjectId.Parse(createdShop!.Id),
+            ObjectId.Parse(createdShopId!),
             new List<OperatingHoursDto>
             {
                 new OperatingHoursDto(0, new TimeSpan(9, 0, 0), new TimeSpan(18, 0, 0)), // Sunday
@@ -276,13 +273,13 @@ public class ShopApiTests : IClassFixture<CustomWebApplicationFactory<Program>>
         );
 
         // Act
-        var response = await _client.PutAsJsonAsync($"/api/v1/shops/{createdShop.Id}/hours", updateHoursDto);
+        var response = await _client.PutAsJsonAsync($"/api/v1/shops/{createdShopId}/hours", updateHoursDto);
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NoContent);
 
         // Verify the operating hours were updated
-        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShop.Id}/hours");
+        var getResponse = await _client.GetAsync($"/api/v1/shops/{createdShopId}/hours");
         getResponse.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var hours = await getResponse.Content.ReadFromJsonAsync<List<OperatingHoursDto>>();

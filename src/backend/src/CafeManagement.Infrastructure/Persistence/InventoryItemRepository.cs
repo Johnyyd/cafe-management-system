@@ -49,7 +49,7 @@ public class InventoryItemRepository : RepositoryBase<Domain.Inventory.Inventory
     {
         var filter = Builders<Domain.Inventory.InventoryItem>.Filter.And(
             Builders<Domain.Inventory.InventoryItem>.Filter.Eq(i => i.DeletedAt, (DateTime?)null),
-            Builders<Domain.Inventory.InventoryItem>.Filter.Lte(i => i.Quantity, i.ReorderLevel));
+            Builders<Domain.Inventory.InventoryItem>.Filter.Lte("Quantity", "$ReorderLevel"));
         return await Collection.Find(filter).ToListAsync(cancellationToken);
     }
 

@@ -42,7 +42,7 @@ public class MetricsController : ControllerBase
     /// Get a specific performance metric by name and optional tags.
     /// </summary>
     /// <param name="name">The metric name.</param>
-    /// <param name="tags">Optional tags as query parameters (e.g., ?method=GET&path=/api/v1/shops).</param>
+    /// <param name="tags">Optional tags as query parameters.</param>
     /// <returns>The metric snapshot if found, null otherwise.</returns>
     [HttpGet("{name}")]
     public IActionResult GetMetric(string name, [FromQuery] Dictionary<string, string> tags)

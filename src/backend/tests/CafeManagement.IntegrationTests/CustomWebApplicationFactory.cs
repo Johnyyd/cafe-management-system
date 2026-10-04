@@ -1,73 +1,119 @@
 using System;
 using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+using System.IO;
 using CafeManagement.Api;
+using CafeManagement.Application.Common.Interfaces;
+using CafeManagement.Infrastructure.Persistence;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using MongoDB.Driver;
+using Serilog;
 using Testcontainers.MongoDb;
 
 namespace CafeManagement.IntegrationTests;
 
-public class CustomWebApplicationFactory<TProgram> : WebApplicationFactory<TProgram> where TProgram : class
+/// <summary>
+/// Custom WebApplicationFactory for integration tests with Testcontainers MongoDB
+/// This is a singleton that never gets disposed
+/// </summary>
+public class CustomWebApplicationFactory : WebApplicationFactory<Program>
 {
-    public MongoDbContainer MongoDbContainer { get; private set; } = default!;
+    private readonly MongoDbContainer _mongoDbContainer;
+
+    public CustomWebApplicationFactory(MongoDbContainer mongoDbContainer)
+    {
+        Console.WriteLine("[CustomWebApplicationFactory] Constructor called");
+        _mongoDbContainer = mongoDbContainer;
+        Console.WriteLine("[CustomWebApplicationFactory] Constructor complete");
+    }
+
+    public MongoDbContainer MongoDbContainer => _mongoDbContainer;
+
+    protected override IHostBuilder CreateHostBuilder()
+    {
+        Console.WriteLine("[CustomWebApplicationFactory] CreateHostBuilder called");
+        var builder = base.CreateHostBuilder()!;
+        Console.WriteLine("[CustomWebApplicationFactory] CreateHostBuilder complete");
+        return builder;
+    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
-        builder.ConfigureServices(services =>
+        var container = _mongoDbContainer;
+
+        Console.WriteLine("[CustomWebApplicationFactory] ConfigureWebHost called");
+
+        // Set test environment variable before building
+        Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_TEST", "true");
+
+        // Get connection string early to avoid any issues
+        var connectionString = container.GetConnectionString();
+        Console.WriteLine($"[CustomWebApplicationFactory] Connection string obtained: {connectionString}");
+
+        // Completely override the configuration before the host is built
+        builder.ConfigureAppConfiguration((context, config) =>
         {
-            // Remove the existing MongoDbContext registration
-            var descriptor = services.SingleOrDefault(
-                d => d.ServiceType == typeof(IMongoDbContext));
-            if (descriptor != null)
+            // Clear existing configuration
+            config.Sources.Clear();
+
+            // Load test settings first
+            var testSettingsPath = Path.Combine(AppContext.BaseDirectory, "appsettings.Test.json");
+            if (File.Exists(testSettingsPath))
             {
-                services.Remove(descriptor);
+                config.AddJsonFile(testSettingsPath, optional: false, reloadOnChange: false);
             }
 
-            // Add MongoDB container
-            services.AddSingleton<IMongoDbContext>(sp =>
+            config.AddInMemoryCollection(new Dictionary<string, string?>
             {
-                // Create MongoDB container if not already created
-                MongoDbContainer ??= new MongoDbBuilder()
-                    .WithImage("mongo:6.0")
-                    .WithPortBinding(27017, true)
-                    .Build();
-
-                MongoDbContainer.Start();
-
-                // Get the connection string
-                var connectionString = MongoDbContainer.GetConnectionString();
-
-                // Create MongoClient and IMongoDatabase
-                var mongoClient = new MongoClient(connectionString);
-                var mongoDatabase = mongoClient.GetDatabase("cafe_management_test");
-
-                // Return a MongoDbContext instance using the IMongoDatabase constructor
-                return new MongoDbContext(mongoDatabase);
+                ["Jwt:Key"] = "your-super-secret-key-min-32-chars-change-in-production",
+                ["Jwt:Issuer"] = "cafe-management",
+                ["Jwt:Audience"] = "cafe-management-client",
+                ["Jwt:AccessTokenExpiryMinutes"] = "15",
+                ["Jwt:RefreshTokenExpiryDays"] = "7",
+                ["ConnectionStrings:MongoDB"] = connectionString,
+                ["ConnectionStrings:DatabaseName"] = "cafe_management_test",
+                ["Seq:ServerUrl"] = "",
+                // Completely override Serilog configuration - no Seq sink
+                ["Serilog:MinimumLevel"] = "Information",
+                ["Serilog:WriteTo:0:Name"] = "Console",
+                ["Serilog:WriteTo:0:Args:theme"] = "Serilog.Sinks.SystemConsole.Themes.AnsiConsoleTheme::Code, Serilog.Sinks.Console",
+                ["Serilog:Using:0"] = "Serilog.Sinks.Console",
             });
         });
+
+        // Override the host to use our Serilog configuration
+        builder.ConfigureServices(services =>
+        {
+            Console.WriteLine("[CustomWebApplicationFactory] ConfigureServices called");
+            // Remove the existing MongoDbContext registration
+            var mongoDescriptor = services.SingleOrDefault(
+                d => d.ServiceType == typeof(IMongoDbContext));
+            if (mongoDescriptor != null)
+            {
+                services.Remove(mongoDescriptor);
+                Console.WriteLine("[CustomWebApplicationFactory] Removed existing IMongoDbContext registration");
+            }
+
+            // Create MongoClient and IMongoDatabase
+            var mongoClient = new MongoClient(connectionString);
+            var mongoDatabase = mongoClient.GetDatabase("cafe_management_test");
+
+            // Add MongoDB context
+            services.AddSingleton<IMongoDbContext>(new MongoDbContext(mongoDatabase));
+            Console.WriteLine("[CustomWebApplicationFactory] Added IMongoDbContext singleton");
+        });
+
+        builder.UseEnvironment("Development");
+        Console.WriteLine("[CustomWebApplicationFactory] ConfigureWebHost complete");
     }
 
-    public async Task InitializeDatabaseAsync()
+    protected override void Dispose(bool disposing)
     {
-        // Ensure MongoDB container is started
-        if (MongoDbContainer == null)
-        {
-            MongoDbContainer = new MongoDbBuilder()
-                .WithImage("mongo:6.0")
-                .WithPortBinding(27017, true)
-                .Build();
-
-            MongoDbContainer.Start();
-        }
-
-        // Give MongoDB a moment to be ready
-        await Task.Delay(1000);
+        // NEVER dispose - we keep the factory alive for the entire test run
+        // base.Dispose(disposing);
     }
 }

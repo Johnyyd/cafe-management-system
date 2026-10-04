@@ -39,9 +39,7 @@ public class CreateInventoryItemHandler : IRequestHandler<CreateInventoryItemCom
             return Result.Fail<InventoryItemResponse>(result.Errors);
 
         var item = result.Value;
-        var saveResult = await _inventoryItemRepository.AddAsync(item, cancellationToken);
-        if (saveResult.IsFailed)
-            return Result.Fail<InventoryItemResponse>(saveResult.Errors);
+        await _inventoryItemRepository.AddAsync(item, cancellationToken);
 
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
