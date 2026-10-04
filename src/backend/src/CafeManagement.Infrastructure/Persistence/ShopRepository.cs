@@ -1,17 +1,24 @@
 using CafeManagement.Application.Common.Interfaces;
+using CafeManagement.Api.Services;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Shops;
+using CafeManagement.Infrastructure.Services;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
 using MongoDB.Driver;
+using System.Diagnostics;
 
 namespace CafeManagement.Infrastructure.Persistence;
 
 public class ShopRepository : RepositoryBase<Shop>, IShopRepository
 {
-    public ShopRepository(IMongoDbContext mongoDbContext) : base(mongoDbContext, "shops")
+    private readonly IPerformanceMetricsService _metricsService;
+
+    public ShopRepository(IMongoDbContext mongoDbContext, IPerformanceMetricsService metricsService) : base(mongoDbContext, "shops")
     {
+        _metricsService = metricsService;
+
         // Register Bson class maps if not already registered
         if (!BsonClassMap.IsClassMapRegistered(typeof(Shop)))
         {
@@ -21,18 +28,74 @@ public class ShopRepository : RepositoryBase<Shop>, IShopRepository
 
     public async Task<Shop?> GetByNameAsync(string name, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Shop>.Filter.And(
-            Builders<Shop>.Filter.Eq(s => s.Name, name),
-            Builders<Shop>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
-        return await Collection.Find(filter).SingleOrDefaultAsync(cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            var filter = Builders<Shop>.Filter.And(
+                Builders<Shop>.Filter.Eq(s => s.Name, name),
+                Builders<Shop>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
+
+            var result = await Collection.Find(filter).SingleOrDefaultAsync(cancellationToken);
+
+            stopwatch.Stop();
+            _metricsService.RecordTiming("mongodb.shop.getbyname", stopwatch.Elapsed);
+            _metricsService.RecordMetric("mongodb.query.count", 1, new Dictionary<string, string>
+            {
+                ["operation"] = "GetByName",
+                ["collection"] = "shops"
+            });
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _metricsService.RecordTiming("mongodb.shop.getbyname", stopwatch.Elapsed);
+            _metricsService.RecordMetric("mongodb.query.error", 1, new Dictionary<string, string>
+            {
+                ["operation"] = "GetByName",
+                ["collection"] = "shops",
+                ["error"] = ex.GetType().Name
+            });
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<Shop>> GetByStatusAsync(ShopStatus status, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Shop>.Filter.And(
-            Builders<Shop>.Filter.Eq(s => s.Status, status),
-            Builders<Shop>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
-        return await Collection.Find(filter).ToListAsync(cancellationToken);
+        var stopwatch = Stopwatch.StartNew();
+
+        try
+        {
+            var filter = Builders<Shop>.Filter.And(
+                Builders<Shop>.Filter.Eq(s => s.Status, status),
+                Builders<Shop>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
+
+            var result = await Collection.Find(filter).ToListAsync(cancellationToken);
+
+            stopwatch.Stop();
+            _metricsService.RecordTiming("mongodb.shop.getbystatus", stopwatch.Elapsed);
+            _metricsService.RecordMetric("mongodb.query.count", 1, new Dictionary<string, string>
+            {
+                ["operation"] = "GetByStatus",
+                ["collection"] = "shops"
+            });
+
+            return result;
+        }
+        catch (Exception ex)
+        {
+            stopwatch.Stop();
+            _metricsService.RecordTiming("mongodb.shop.getbystatus", stopwatch.Elapsed);
+            _metricsService.RecordMetric("mongodb.query.error", 1, new Dictionary<string, string>
+            {
+                ["operation"] = "GetByStatus",
+                ["collection"] = "shops",
+                ["error"] = ex.GetType().Name
+            });
+            throw;
+        }
     }
 
     private void RegisterShopClassMap()

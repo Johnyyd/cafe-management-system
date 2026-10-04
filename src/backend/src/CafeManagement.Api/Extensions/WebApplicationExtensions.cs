@@ -1,6 +1,7 @@
 using AspNetCoreRateLimit;
 using CafeManagement.Api.Middleware;
 using Serilog;
+using System.Diagnostics;
 
 namespace CafeManagement.Api.Extensions;
 
@@ -16,6 +17,9 @@ public static class WebApplicationExtensions
 
         // Correlation ID
         app.UseMiddleware<CorrelationIdMiddleware>();
+
+        // Performance monitoring
+        app.UseMiddleware<PerformanceMonitoringMiddleware>();
 
         // Global error handling
         app.UseMiddleware<ErrorHandlingMiddleware>();

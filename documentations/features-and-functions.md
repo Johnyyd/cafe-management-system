@@ -112,14 +112,25 @@ POST and PUT endpoints support `Idempotency-Key` header for safe retries.
 - Record inventory usage (linked to orders or manual adjustment)
 - Manage supplier information
 - View inventory valuation and reports
+- Adjust inventory quantities with reason tracking
+- Set inventory quantities directly
+- Get low stock and out of stock items
+- Get inventory item names by shop
+- Get inventory item by shop and item name
 
 ### Functions (API Endpoints)
-- `GET /api/v1/inventory` - List inventory items (with pagination, filtering by shopId, low stock)
+- `GET /api/v1/inventory` - List inventory items (with pagination, filtering by shopId)
 - `GET /api/v1/inventory/{id}` - Get inventory item by ID
 - `POST /api/v1/inventory` - Add new inventory item
-- `PUT /api/v1/inventory/{id}` - Update inventory item (quantity, etc.)
-- `DELETE /api/v1/inventory/{id}` - Remove inventory item
-- `POST /api/v1/inventory/{id}/adjust` - Adjust inventory quantity (increase/decrease with reason)
+- `PUT /api/v1/inventory/{id}` - Update inventory item
+- `DELETE /api/v1/inventory/{id}` - Deactivate inventory item
+- `POST /api/v1/inventory/{id}/adjust-quantity` - Adjust inventory quantity (increase/decrease with reason)
+- `POST /api/v1/inventory/{id}/set-quantity` - Set inventory quantity directly
+- `GET /api/v1/inventory/low-stock` - Get low stock inventory items
+- `GET /api/v1/inventory/out-of-stock` - Get out of stock inventory items
+- `GET /api/v1/inventory/item-names` - Get inventory item names (with shopId filter)
+- `GET /api/v1/inventory/{shopId}/{itemName}` - Get inventory item by shop ID and item name
+- `POST /api/v1/inventory/{id}/deactivate` - Deactivate inventory item (alternative endpoint)
 - `GET /api/v1/suppliers` - List suppliers
 - `GET /api/v1/suppliers/{id}` - Get supplier by ID
 - `POST /api/v1/suppliers` - Add new supplier

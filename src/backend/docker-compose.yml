@@ -11,7 +11,7 @@ services:
     environment:
       MONGO_INITDB_DATABASE: cafe_management
     healthcheck:
-      test: ["CMD", "mongo", "--eval", "db.adminCommand('ping')"]
+      test: ["CMD", "mongosh", "--eval", "db.adminCommand('ping')"]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -23,13 +23,14 @@ services:
       - "7892:80"
     environment:
       ACCEPT_EULA: "Y"
+      SEQ_FIRSTRUN_NOAUTHENTICATION: "true"
     volumes:
       - seq_data:/data
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5341/api/health"]
-      interval: 15s
-      timeout: 10s
-      retries: 5
+      interval: 30s
+      timeout: 15s
+      retries: 10
 
   api:
     build:
@@ -55,8 +56,8 @@ services:
         condition: service_healthy
       seq:
         condition: service_healthy
-    volumes:
-      - ./src/backend:/app
+    # volumes:
+    #   - ./src/backend:/app
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
       interval: 15s

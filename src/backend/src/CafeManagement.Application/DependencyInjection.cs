@@ -1,4 +1,5 @@
 using CafeManagement.Application.Common.Behaviors;
+using CafeManagement.Application.Inventory.Handlers;
 using CafeManagement.Application.Shops.Handlers;
 using FluentValidation;
 using MediatR;

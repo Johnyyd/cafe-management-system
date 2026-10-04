@@ -1,4 +1,5 @@
 using CafeManagement.Application.Common.Interfaces;
+using CafeManagement.Api.Services;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Staff;
 using CafeManagement.Domain.Menu;
@@ -32,12 +33,15 @@ public static class DependencyInjection
         services.AddScoped<IStaffRepository, StaffRepository>();
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
+        services.AddScoped<IInventoryItemRepository, Infrastructure.Persistence.InventoryItemRepository>();
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, MongoDbUnitOfWork>();
 
         // Services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
+        services.AddSingleton<IInventoryService, Infrastructure.Services.InventoryService>();
+        services.AddSingleton<IPerformanceMetricsService, PerformanceMetricsService>();
 
         return services;
     }

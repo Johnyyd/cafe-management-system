@@ -4,3 +4,9 @@
 *.cache
 *bin
 *obj
+/feature
+/.claude
+/backend
+/.openrig
+/frontend
+/docs

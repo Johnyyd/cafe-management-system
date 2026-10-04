@@ -101,6 +101,9 @@ public static class ServiceCollectionExtensions
         // Authorization
         services.AddAuthorization();
 
+        // Performance metrics service
+        services.AddSingleton<IPerformanceMetricsService, PerformanceMetricsService>();
+
         // Health checks
         services.AddHealthChecks();
 

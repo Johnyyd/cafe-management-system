@@ -20,6 +20,17 @@ The Cafe Management System (CMS) is designed to streamline the management of cof
 
 The system aims to improve operational efficiency, maintain service quality across locations, and enhance customer satisfaction.
 
+## Inventory Management Features
+The system now includes comprehensive inventory management capabilities:
+- Track inventory items (ingredients, supplies) per shop
+- Set reorder levels and receive low stock alerts
+- Record inventory usage (linked to orders or manual adjustment)
+- Manage supplier information
+- View inventory valuation and reports
+- Adjust inventory quantities with reason tracking
+- Set inventory quantities directly
+- Deactivate/delete inventory items
+
 ## Technology Stack
 - **Backend**: C# (.NET 8) with ASP.NET Core Web API (**Clean Architecture**: Domain, Application, Infrastructure, API layers)
 - **Database**: MongoDB (NoSQL, document-oriented) - **Official MongoDB.Driver**
