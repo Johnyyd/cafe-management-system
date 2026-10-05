@@ -1,5 +1,6 @@
 using CafeManagement.Application;
 using CafeManagement.Infrastructure;
+using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace CafeManagement.Api.Extensions;
 
@@ -21,6 +22,22 @@ public static class ServiceCollectionExtensions
     {
         services.AddControllers();
         services.AddEndpointsApiExplorer();
+
+        // CORS Policy - Configure allowed origins
+        services.AddCors(options =>
+        {
+            options.AddPolicy("CafeCorsPolicy", builder =>
+            {
+                var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
+                    ?? new[] { "http://localhost:3000", "http://localhost:5173", "https://cafe-management.example.com" };
+
+                builder.WithOrigins(allowedOrigins)
+                    .AllowAnyMethod()
+                    .AllowAnyHeader()
+                    .AllowCredentials()
+                    .SetPreflightMaxAge(TimeSpan.FromHours(1));
+            });
+        });
 
         // API Versioning
         services.AddApiVersioning(options =>

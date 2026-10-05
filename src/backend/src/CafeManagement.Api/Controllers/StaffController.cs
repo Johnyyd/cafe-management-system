@@ -3,6 +3,7 @@ using CafeManagement.Application.Staff.Commands;
 using CafeManagement.Application.Staff.Queries;
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 
@@ -11,6 +12,7 @@ namespace CafeManagement.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/staff")]
+[Authorize]
 public class StaffController : ControllerBase
 {
     private readonly IMediator _mediator;
@@ -98,11 +100,39 @@ public class StaffController : ControllerBase
         return NoContent();
     }
 
-    [HttpPost("{id}/transfer")]
+    [HttpPost("{id}/assign-shop")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> TransferStaff(ObjectId id, [FromBody] TransferStaffCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> AssignStaffToShop(ObjectId id, [FromBody] AssignStaffToShopCommand command, CancellationToken cancellationToken)
+    {
+        var updateCommand = command with { Id = id };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+        if (result.IsFailed)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id}/unassign-shop")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UnassignStaffFromShop(ObjectId id, [FromBody] UnassignStaffFromShopCommand command, CancellationToken cancellationToken)
+    {
+        var updateCommand = command with { Id = id };
+        var result = await _mediator.Send(updateCommand, cancellationToken);
+        if (result.IsFailed)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id}/set-primary-shop")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> SetStaffPrimaryShop(ObjectId id, [FromBody] SetStaffPrimaryShopCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
         var result = await _mediator.Send(updateCommand, cancellationToken);

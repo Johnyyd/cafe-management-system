@@ -3,6 +3,7 @@ using CafeManagement.Application.Auth.Queries;
 using CafeManagement.Application.Common.Dtos;
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CafeManagement.Api.Controllers;
@@ -10,6 +11,7 @@ namespace CafeManagement.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/auth")]
+[AllowAnonymous]
 public class AuthController : ControllerBase
 {
     private readonly IMediator _mediator;

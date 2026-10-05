@@ -3,6 +3,7 @@ using CafeManagement.Application.Orders.Commands;
 using CafeManagement.Application.Orders.Queries;
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 
@@ -11,6 +12,7 @@ namespace CafeManagement.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/orders")]
+[Authorize]
 public class OrdersController : ControllerBase
 {
     private readonly IMediator _mediator;

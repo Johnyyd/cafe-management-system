@@ -1,4 +1,5 @@
 using CafeManagement.Api.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace CafeManagement.Api.Controllers;
@@ -8,6 +9,7 @@ namespace CafeManagement.Api.Controllers;
 /// </summary>
 [ApiController]
 [Route("api/v1/metrics")]
+[Authorize]
 public class MetricsController : ControllerBase
 {
     private readonly IPerformanceMetricsService _metricsService;

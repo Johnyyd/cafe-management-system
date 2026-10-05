@@ -2,6 +2,7 @@ using CafeManagement.Application.Inventory.Commands;
 using CafeManagement.Application.Inventory.Queries;
 using CafeManagement.Application.Inventory.Responses;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 using System;
@@ -13,6 +14,7 @@ namespace CafeManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/[controller]")]
+[Authorize]
 public class InventoryController : ControllerBase
 {
     private readonly IMediator _mediator;

@@ -3,6 +3,7 @@ using CafeManagement.Application.Menu.Commands;
 using CafeManagement.Application.Menu.Queries;
 using Asp.Versioning;
 using MediatR;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MongoDB.Bson;
 
@@ -11,6 +12,7 @@ namespace CafeManagement.Api.Controllers;
 [ApiController]
 [ApiVersion("1.0")]
 [Route("api/v{version:apiVersion}/menu")]
+[Authorize]
 public class MenuController : ControllerBase
 {
     private readonly IMediator _mediator;

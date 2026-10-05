@@ -15,6 +15,9 @@ public static class WebApplicationExtensions
         // Serilog request logging
         app.UseSerilogRequestLogging();
 
+        // Security headers - Must be early in pipeline
+        app.UseSecurityHeaders();
+
         // Correlation ID
         app.UseMiddleware<CorrelationIdMiddleware>();
 
@@ -29,6 +32,9 @@ public static class WebApplicationExtensions
         {
             app.UseHttpsRedirection();
         }
+
+        // CORS - Must be before Authentication/Authorization
+        app.UseCors("CafeCorsPolicy");
 
         // Swagger
         app.UseSwagger();

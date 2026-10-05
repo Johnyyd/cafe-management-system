@@ -43,7 +43,11 @@ namespace CafeManagement.Api
 
                 app.UseApiPipeline();
 
-                app.Run();
+                // Don't call app.Run() in test mode - let WebApplicationFactory handle the server
+                if (!isTest)
+                {
+                    app.Run();
+                }
             }
             catch (Exception ex)
             {
