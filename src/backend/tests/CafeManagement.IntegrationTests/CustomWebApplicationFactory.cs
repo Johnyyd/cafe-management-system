@@ -27,28 +27,21 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
     public CustomWebApplicationFactory(MongoDbContainer mongoDbContainer)
     {
         Console.WriteLine("[CustomWebApplicationFactory] Constructor called");
+        // Set test environment variables EARLY, before host builder is created
+        Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_TEST", "true");
+        Environment.SetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS", "3600");
         _mongoDbContainer = mongoDbContainer;
+        Console.WriteLine("[CustomWebApplicationFactory] Environment variables set in constructor");
         Console.WriteLine("[CustomWebApplicationFactory] Constructor complete");
     }
 
     public MongoDbContainer MongoDbContainer => _mongoDbContainer;
-
-    protected override IHostBuilder CreateHostBuilder()
-    {
-        Console.WriteLine("[CustomWebApplicationFactory] CreateHostBuilder called");
-        var builder = base.CreateHostBuilder()!;
-        Console.WriteLine("[CustomWebApplicationFactory] CreateHostBuilder complete");
-        return builder;
-    }
 
     protected override void ConfigureWebHost(IWebHostBuilder builder)
     {
         var container = _mongoDbContainer;
 
         Console.WriteLine("[CustomWebApplicationFactory] ConfigureWebHost called");
-
-        // Set test environment variable before building
-        Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_TEST", "true");
 
         // Get connection string early to avoid any issues
         var connectionString = container.GetConnectionString();

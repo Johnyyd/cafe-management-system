@@ -7,10 +7,10 @@ using Testcontainers.MongoDb;
 namespace CafeManagement.IntegrationTests;
 
 /// <summary>
-/// Static singleton that provides a shared WebApplicationFactory for all integration tests
+/// Singleton that provides a shared WebApplicationFactory for all integration tests
 /// Initializes once per test assembly using ModuleInitializer
 /// </summary>
-public static class IntegrationTestFixture
+public class IntegrationTestFixture
 {
     private static CustomWebApplicationFactory? _factory;
     private static HttpClient? _client;
@@ -63,6 +63,9 @@ public static class IntegrationTestFixture
     public static void Initialize()
     {
         Console.WriteLine("[IntegrationTestFixture] ModuleInitializer starting");
+
+        // Set timeout early for the entire test process
+        Environment.SetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS", "3600");
 
         // Create and start MongoDB container ONCE here, before factory creation
         Console.WriteLine("[IntegrationTestFixture] Creating MongoDB container");

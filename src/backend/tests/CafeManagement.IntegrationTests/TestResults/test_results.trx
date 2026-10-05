@@ -1,0 +1,504 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<TestRun id="274f6fc2-73e9-4d02-9032-a64d515f06e4" name="@omarchy 2026-10-05 12:39:20" xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
+  <Times creation="2026-10-05T12:39:20.8211190+07:00" queuing="2026-10-05T12:39:20.8211191+07:00" start="2026-10-05T12:34:01.4920537+07:00" finish="2026-10-05T12:39:21.5479373+07:00" />
+  <TestSettings name="default" id="4ac592e0-f485-48c1-befd-520597f7a41a">
+    <Deployment runDeploymentRoot="_omarchy_2026-10-05_12_39_20" />
+  </TestSettings>
+  <Results>
+    <UnitTestResult executionId="e9e264ea-eb9b-4a04-acb8-c7ab4f868571" testId="9048662d-2e99-0834-80d5-1a65af835333" testName="CafeManagement.IntegrationTests.ShopApiTests.UpdateShop_WithValidData_ReturnsNoContent" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.3934862+07:00" endTime="2026-10-05T12:39:20.3934864+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="e9e264ea-eb9b-4a04-acb8-c7ab4f868571">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="a85f25cc-b66d-489d-9b29-4af4b91d639d" testId="ab2d53d7-c164-338a-b179-93c5f3d8d4af" testName="CafeManagement.IntegrationTests.ShopApiTests.UpdateOperatingHours_WithValidData_ReturnsNoContent" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.3557077+07:00" endTime="2026-10-05T12:39:20.3557079+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="a85f25cc-b66d-489d-9b29-4af4b91d639d">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="82a1988c-6f06-4fbf-86dd-49c1b3e9681e" testId="9c9c7089-9c56-0db6-362b-5b993410f4cf" testName="CafeManagement.IntegrationTests.ShopApiTests.DeactivateShop_WithValidId_ReturnsNoContent" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.2140713+07:00" endTime="2026-10-05T12:39:20.2140715+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="82a1988c-6f06-4fbf-86dd-49c1b3e9681e">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="44cb76aa-0111-46d2-bcaf-99434e5d2e75" testId="dbeb7c42-b653-e6db-d77d-53fa0ec6e25a" testName="CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithValidData_ReturnsCreatedShop" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.2852209+07:00" endTime="2026-10-05T12:39:20.2852211+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="44cb76aa-0111-46d2-bcaf-99434e5d2e75">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="196070ec-7102-454b-84a6-f79de46f7ce8" testId="393e70ac-6d85-781a-80e3-317f198689c2" testName="CafeManagement.IntegrationTests.ShopApiTests.GetShops_ReturnsPagedListOfShops" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.2514050+07:00" endTime="2026-10-05T12:39:20.2514051+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="196070ec-7102-454b-84a6-f79de46f7ce8">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="b44de3e4-44a6-4642-8d15-4dc2c3c747fa" testId="7e5ef666-912a-4b85-9732-81ee41bb40ad" testName="CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithInvalidId_ReturnsNotFound" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.3299949+07:00" endTime="2026-10-05T12:39:20.3299951+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="b44de3e4-44a6-4642-8d15-4dc2c3c747fa">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="414d8bfa-90ba-44dd-bf71-dc09e1c6227f" testId="8aa14a7e-1571-106e-0530-3875ec08bb7e" testName="CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithValidId_ReturnsShop" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.2004261+07:00" endTime="2026-10-05T12:39:20.2004263+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="414d8bfa-90ba-44dd-bf71-dc09e1c6227f">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+   at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+   at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+   at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+   at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0() in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+   at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource) in /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs:line 42
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+    <UnitTestResult executionId="f1ee758b-28e2-4c17-a691-6c659b1afff1" testId="1a1aef05-48cb-4e4e-55aa-f41e4469f923" testName="CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithDuplicateName_ReturnsBadRequest" computerName="omarchy" duration="00:00:00.0010000" startTime="2026-10-05T12:39:20.0645447+07:00" endTime="2026-10-05T12:39:20.0646223+07:00" testType="13cdc9d9-ddb5-4fa4-a97d-d965ccfc6d4b" outcome="Failed" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" relativeResultsDirectory="f1ee758b-28e2-4c17-a691-6c659b1afff1">
+      <Output>
+        <ErrorInfo>
+          <Message>System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.</Message>
+          <StackTrace>   at CafeManagement.IntegrationTests.CustomWebApplicationFactory.&lt;&gt;c__DisplayClass5_0.&lt;ConfigureWebHost&gt;b__1(IServiceCollection services)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.HostBuilderAdapter.ApplyChanges()
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at CafeManagement.Api.Program.Main(String[] args) in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Api/Program.cs:line 42
+--- End of stack trace from previous location ---
+----- Inner Stack Trace -----
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()</StackTrace>
+        </ErrorInfo>
+      </Output>
+    </UnitTestResult>
+  </Results>
+  <TestDefinitions>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithValidData_ReturnsCreatedShop" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="dbeb7c42-b653-e6db-d77d-53fa0ec6e25a">
+      <Execution id="44cb76aa-0111-46d2-bcaf-99434e5d2e75" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="CreateShop_WithValidData_ReturnsCreatedShop" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithInvalidId_ReturnsNotFound" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="7e5ef666-912a-4b85-9732-81ee41bb40ad">
+      <Execution id="b44de3e4-44a6-4642-8d15-4dc2c3c747fa" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="GetShopById_WithInvalidId_ReturnsNotFound" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.GetShops_ReturnsPagedListOfShops" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="393e70ac-6d85-781a-80e3-317f198689c2">
+      <Execution id="196070ec-7102-454b-84a6-f79de46f7ce8" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="GetShops_ReturnsPagedListOfShops" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.UpdateOperatingHours_WithValidData_ReturnsNoContent" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="ab2d53d7-c164-338a-b179-93c5f3d8d4af">
+      <Execution id="a85f25cc-b66d-489d-9b29-4af4b91d639d" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="UpdateOperatingHours_WithValidData_ReturnsNoContent" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.UpdateShop_WithValidData_ReturnsNoContent" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="9048662d-2e99-0834-80d5-1a65af835333">
+      <Execution id="e9e264ea-eb9b-4a04-acb8-c7ab4f868571" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="UpdateShop_WithValidData_ReturnsNoContent" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithValidId_ReturnsShop" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="8aa14a7e-1571-106e-0530-3875ec08bb7e">
+      <Execution id="414d8bfa-90ba-44dd-bf71-dc09e1c6227f" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="GetShopById_WithValidId_ReturnsShop" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.DeactivateShop_WithValidId_ReturnsNoContent" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="9c9c7089-9c56-0db6-362b-5b993410f4cf">
+      <Execution id="82a1988c-6f06-4fbf-86dd-49c1b3e9681e" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="DeactivateShop_WithValidId_ReturnsNoContent" />
+    </UnitTest>
+    <UnitTest name="CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithDuplicateName_ReturnsBadRequest" storage="/home/tringuyen/documents/github/cafe-management-system/src/backend/tests/cafemanagement.integrationtests/bin/debug/net8.0/cafemanagement.integrationtests.dll" id="1a1aef05-48cb-4e4e-55aa-f41e4469f923">
+      <Execution id="f1ee758b-28e2-4c17-a691-6c659b1afff1" />
+      <TestMethod codeBase="/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/bin/Debug/net8.0/CafeManagement.IntegrationTests.dll" adapterTypeName="executor://xunit/VsTestRunner2/netcoreapp" className="CafeManagement.IntegrationTests.ShopApiTests" name="CreateShop_WithDuplicateName_ReturnsBadRequest" />
+    </UnitTest>
+  </TestDefinitions>
+  <TestEntries>
+    <TestEntry testId="9048662d-2e99-0834-80d5-1a65af835333" executionId="e9e264ea-eb9b-4a04-acb8-c7ab4f868571" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="ab2d53d7-c164-338a-b179-93c5f3d8d4af" executionId="a85f25cc-b66d-489d-9b29-4af4b91d639d" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="9c9c7089-9c56-0db6-362b-5b993410f4cf" executionId="82a1988c-6f06-4fbf-86dd-49c1b3e9681e" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="dbeb7c42-b653-e6db-d77d-53fa0ec6e25a" executionId="44cb76aa-0111-46d2-bcaf-99434e5d2e75" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="393e70ac-6d85-781a-80e3-317f198689c2" executionId="196070ec-7102-454b-84a6-f79de46f7ce8" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="7e5ef666-912a-4b85-9732-81ee41bb40ad" executionId="b44de3e4-44a6-4642-8d15-4dc2c3c747fa" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="8aa14a7e-1571-106e-0530-3875ec08bb7e" executionId="414d8bfa-90ba-44dd-bf71-dc09e1c6227f" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestEntry testId="1a1aef05-48cb-4e4e-55aa-f41e4469f923" executionId="f1ee758b-28e2-4c17-a691-6c659b1afff1" testListId="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+  </TestEntries>
+  <TestLists>
+    <TestList name="Results Not in a List" id="8c84fa94-04c1-424b-9868-57a2d4851a1d" />
+    <TestList name="All Loaded Results" id="19431567-8539-422a-85d7-44ee4e166bda" />
+  </TestLists>
+  <ResultSummary outcome="Failed">
+    <Counters total="8" executed="8" passed="0" failed="8" error="0" timeout="0" aborted="0" inconclusive="0" passedButRunAborted="0" notRunnable="0" notExecuted="0" disconnected="0" warning="0" completed="0" inProgress="0" pending="0" />
+    <Output>
+      <StdOut>[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.8)
+[xUnit.net 00:00:00.36]   Discovering: CafeManagement.IntegrationTests
+[xUnit.net 00:00:00.85]   Discovered:  CafeManagement.IntegrationTests
+[xUnit.net 00:00:00.86]   Starting:    CafeManagement.IntegrationTests
+[IntegrationTestFixture] ModuleInitializer starting
+[IntegrationTestFixture] Creating MongoDB container
+[testcontainers.org 00:00:00.64] Connected to Docker:
+  Host: unix:///var/run/docker.sock
+  Server Version: 29.8.2
+  Kernel Version: 7.2.8-arch1-2
+  API Version: 1.56
+  Operating System: Omarchy
+  Total Memory: 15.53 GB
+[testcontainers.org 00:00:01.67] Docker container 6ed82d5ccecf created
+[testcontainers.org 00:00:01.97] Start Docker container 6ed82d5ccecf
+[testcontainers.org 00:00:02.49] Wait for Docker container 6ed82d5ccecf to complete readiness checks
+[testcontainers.org 00:00:02.51] Docker container 6ed82d5ccecf ready
+[testcontainers.org 00:00:02.94] Docker container 0fb285afc1d7 created
+[testcontainers.org 00:00:02.97] Start Docker container 0fb285afc1d7
+[testcontainers.org 00:00:03.56] Wait for Docker container 0fb285afc1d7 to complete readiness checks
+[testcontainers.org 00:00:12.96] Docker container 0fb285afc1d7 ready
+[IntegrationTestFixture] MongoDB container ready
+[IntegrationTestFixture] Creating new CustomWebApplicationFactory
+[CustomWebApplicationFactory] Constructor called
+[CustomWebApplicationFactory] Constructor complete
+[IntegrationTestFixture] CustomWebApplicationFactory created
+[IntegrationTestFixture] Factory accessed in ModuleInitializer
+[IntegrationTestFixture] Creating HttpClient from Factory.Server
+[CustomWebApplicationFactory] CreateHostBuilder called
+[CustomWebApplicationFactory] CreateHostBuilder complete
+[CustomWebApplicationFactory] ConfigureWebHost called
+[CustomWebApplicationFactory] Connection string obtained: mongodb://mongo:mongo@127.0.0.1:32803/
+[CustomWebApplicationFactory] ConfigureWebHost complete
+[12:39:19 FTL] Application terminated unexpectedly
+System.TypeInitializationException: The type initializer for '&lt;Module&gt;' threw an exception.
+ ---&gt; System.InvalidOperationException: Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+   at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+   at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+   at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 46
+   at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize() in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs:line 83
+   at .cctor()
+   --- End of inner exception stack trace ---
+   at CafeManagement.IntegrationTests.CustomWebApplicationFactory.&lt;&gt;c__DisplayClass5_0.&lt;ConfigureWebHost&gt;b__1(IServiceCollection services)
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.HostBuilderAdapter.ApplyChanges()
+   at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+   at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+   at CafeManagement.Api.Program.Main(String[] args) in /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Api/Program.cs:line 42
+--- End of stack trace from previous location ---
+   at Xunit.Sdk.ExceptionAggregator.RunAsync[T](Func`1 code) in /_/src/xunit.core/Sdk/ExceptionAggregator.cs:line 107
+[xUnit.net 00:05:15.97]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:15.99]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:15.99]       Stack Trace:
+[xUnit.net 00:05:16.00]            at CafeManagement.IntegrationTests.CustomWebApplicationFactory.&lt;&gt;c__DisplayClass5_0.&lt;ConfigureWebHost&gt;b__1(IServiceCollection services)
+[xUnit.net 00:05:16.00]            at Microsoft.Extensions.Hosting.HostApplicationBuilder.HostBuilderAdapter.ApplyChanges()
+[xUnit.net 00:05:16.00]            at Microsoft.Extensions.Hosting.HostApplicationBuilder.Build()
+[xUnit.net 00:05:16.00]            at Microsoft.AspNetCore.Builder.WebApplicationBuilder.Build()
+[xUnit.net 00:05:16.00]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Api/Program.cs(42,0): at CafeManagement.Api.Program.Main(String[] args)
+[xUnit.net 00:05:16.01]         --- End of stack trace from previous location ---
+[xUnit.net 00:05:16.01]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.01]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.01]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.01]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.01]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.01]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.01]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.01]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.01]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.01]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.01]            at .cctor()
+[xUnit.net 00:05:16.17]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.17]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.17]       Stack Trace:
+[xUnit.net 00:05:16.17]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.17]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.17]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.17]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.17]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.17]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.17]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.17]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.17]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.17]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.17]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.17]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.17]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.18]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.18]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.18]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.18]            at .cctor()
+[xUnit.net 00:05:16.18]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.19]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.19]       Stack Trace:
+[xUnit.net 00:05:16.19]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.19]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.19]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.19]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.19]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.19]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.19]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.19]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.19]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.19]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.19]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.19]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.20]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.20]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.20]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.20]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.20]            at .cctor()
+[xUnit.net 00:05:16.21]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.21]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.21]       Stack Trace:
+[xUnit.net 00:05:16.21]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.21]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.22]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.22]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.22]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.23]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.23]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.23]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.23]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.23]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.23]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.23]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.23]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.23]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.23]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.23]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.23]            at .cctor()
+[xUnit.net 00:05:16.23]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.24]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.26]       Stack Trace:
+[xUnit.net 00:05:16.26]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.26]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.26]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.26]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.26]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.26]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.26]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.26]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.27]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.27]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.27]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.27]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.27]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.27]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.27]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.27]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.27]            at .cctor()
+[xUnit.net 00:05:16.28]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.29]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.29]       Stack Trace:
+[xUnit.net 00:05:16.29]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.29]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.29]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.29]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.29]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.29]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.29]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.29]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.29]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.29]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.29]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.30]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.30]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.31]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.31]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.31]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.31]            at .cctor()
+[xUnit.net 00:05:16.32]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.32]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.32]       Stack Trace:
+[xUnit.net 00:05:16.33]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.34]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.34]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.34]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.34]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.34]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.34]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.34]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.34]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.34]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.34]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.34]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.34]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.34]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.34]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.34]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.34]            at .cctor()
+[xUnit.net 00:05:16.35]       System.TypeInitializationException : The type initializer for '&lt;Module&gt;' threw an exception.
+[xUnit.net 00:05:16.35]       ---- System.InvalidOperationException : Timed out waiting for the entry point to build the IHost after 00:05:00. This timeout can be modified using the 'DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS' environment variable.
+[xUnit.net 00:05:16.35]       Stack Trace:
+[xUnit.net 00:05:16.35]            at System.RuntimeTypeHandle.GetActivationInfo(RuntimeType rt, &amp; pfnAllocator, Void*&amp; vAllocatorFirstArg, &amp; pfnCtor, Boolean&amp; ctorIsPublic)
+[xUnit.net 00:05:16.35]            at System.RuntimeType.ActivatorCache..ctor(RuntimeType rt)
+[xUnit.net 00:05:16.35]            at System.RuntimeType.CreateInstanceDefaultCtor(Boolean publicOnly, Boolean wrapExceptions)
+[xUnit.net 00:05:16.35]            at System.RuntimeType.CreateInstanceImpl(BindingFlags bindingAttr, Binder binder, Object[] args, CultureInfo culture)
+[xUnit.net 00:05:16.36]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.&lt;&gt;c__DisplayClass0_0.&lt;CreateTestClass&gt;b__0()
+[xUnit.net 00:05:16.36]         /_/src/xunit.execution/Extensions/ReflectionAbstractionExtensions.cs(42,0): at ReflectionAbstractionExtensions.CreateTestClass(ITest test, Type testClassType, Object[] constructorArguments, IMessageBus messageBus, ExecutionTimer timer, CancellationTokenSource cancellationTokenSource)
+[xUnit.net 00:05:16.36]         ----- Inner Stack Trace -----
+[xUnit.net 00:05:16.36]            at Microsoft.Extensions.Hosting.HostFactoryResolver.HostingListener.CreateHost()
+[xUnit.net 00:05:16.36]            at Microsoft.Extensions.Hosting.HostFactoryResolver.&lt;&gt;c__DisplayClass10_0.&lt;ResolveHostFactory&gt;b__0(String[] args)
+[xUnit.net 00:05:16.36]            at Microsoft.AspNetCore.Mvc.Testing.DeferredHostBuilder.Build()
+[xUnit.net 00:05:16.36]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.CreateHost(IHostBuilder builder)
+[xUnit.net 00:05:16.37]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.ConfigureHostBuilder(IHostBuilder hostBuilder)
+[xUnit.net 00:05:16.37]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.EnsureServer()
+[xUnit.net 00:05:16.37]            at Microsoft.AspNetCore.Mvc.Testing.WebApplicationFactory`1.get_Server()
+[xUnit.net 00:05:16.37]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(46,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.get_Client()
+[xUnit.net 00:05:16.37]         /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(83,0): at CafeManagement.IntegrationTests.IntegrationTestFixture.Initialize()
+[xUnit.net 00:05:16.38]            at .cctor()
+[xUnit.net 00:05:16.42]   Finished:    CafeManagement.IntegrationTests
+</StdOut>
+    </Output>
+    <RunInfos>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:19.9908388+07:00">
+        <Text>[xUnit.net 00:05:15.97]     CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithDuplicateName_ReturnsBadRequest [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2632075+07:00">
+        <Text>[xUnit.net 00:05:16.17]     CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithValidId_ReturnsShop [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2633449+07:00">
+        <Text>[xUnit.net 00:05:16.18]     CafeManagement.IntegrationTests.ShopApiTests.DeactivateShop_WithValidId_ReturnsNoContent [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2874940+07:00">
+        <Text>[xUnit.net 00:05:16.21]     CafeManagement.IntegrationTests.ShopApiTests.GetShops_ReturnsPagedListOfShops [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2876554+07:00">
+        <Text>[xUnit.net 00:05:16.23]     CafeManagement.IntegrationTests.ShopApiTests.CreateShop_WithValidData_ReturnsCreatedShop [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2877766+07:00">
+        <Text>[xUnit.net 00:05:16.27]     CafeManagement.IntegrationTests.ShopApiTests.GetShopById_WithInvalidId_ReturnsNotFound [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2879101+07:00">
+        <Text>[xUnit.net 00:05:16.32]     CafeManagement.IntegrationTests.ShopApiTests.UpdateOperatingHours_WithValidData_ReturnsNoContent [FAIL]</Text>
+      </RunInfo>
+      <RunInfo computerName="omarchy" outcome="Error" timestamp="2026-10-05T12:39:21.2880670+07:00">
+        <Text>[xUnit.net 00:05:16.35]     CafeManagement.IntegrationTests.ShopApiTests.UpdateShop_WithValidData_ReturnsNoContent [FAIL]</Text>
+      </RunInfo>
+    </RunInfos>
+  </ResultSummary>
+</TestRun>
