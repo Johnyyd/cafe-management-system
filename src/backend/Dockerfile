@@ -23,11 +23,11 @@ FROM build AS publish
 RUN dotnet publish "CafeManagement.Backend.sln" -c Release -o /app/publish /p:UseAppHost=false
 
 # Build runtime image
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS base
 WORKDIR /app
 EXPOSE 8080
 
-FROM publish AS final
+FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "CafeManagement.Api.dll"]

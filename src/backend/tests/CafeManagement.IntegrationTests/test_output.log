@@ -1,0 +1,7 @@
+  Determining projects to restore...
+  All projects are up-to-date for restore.
+  CafeManagement.Domain -> /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Domain/bin/Debug/net8.0/CafeManagement.Domain.dll
+  CafeManagement.Application -> /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Application/bin/Debug/net8.0/CafeManagement.Application.dll
+  CafeManagement.Infrastructure -> /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Infrastructure/bin/Debug/net8.0/CafeManagement.Infrastructure.dll
+  CafeManagement.Api -> /home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/src/CafeManagement.Api/bin/Debug/net8.0/CafeManagement.Api.dll
+/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/IntegrationTestFixture.cs(69,29): error CS8600: Converting null literal or possible null value to non-nullable type. [/home/tringuyen/Documents/GitHub/cafe-management-system/src/backend/tests/CafeManagement.IntegrationTests/CafeManagement.IntegrationTests.csproj]

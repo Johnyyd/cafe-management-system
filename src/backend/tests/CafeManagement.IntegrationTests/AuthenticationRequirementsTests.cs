@@ -5,6 +5,7 @@ using CafeManagement.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
 using FluentAssertions;
 using Xunit;
+using System.Diagnostics;
 
 namespace CafeManagement.IntegrationTests;
 
@@ -15,13 +16,16 @@ public class AuthenticationRequirementsTests
     public AuthenticationRequirementsTests()
     {
         _client = IntegrationTestFixture.Client;
+        Console.WriteLine("[AuthenticationRequirementsTests] Constructor called");
     }
 
     [Fact]
     public async Task Get_Shops_WithoutToken_ShouldReturnUnauthorized()
     {
+        Console.WriteLine("[AuthenticationRequirementsTests] Get_Shops_WithoutToken_ShouldReturnUnauthorized started");
         // Act
         var response = await _client.GetAsync("/api/v1/shops");
+        Console.WriteLine($"[AuthenticationRequirementsTests] Get_Shops_WithoutToken_ShouldReturnUnauthorized response: {response.StatusCode}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.Unauthorized);
@@ -67,8 +71,10 @@ public class AuthenticationRequirementsTests
     [Fact]
     public async Task Get_HealthEndpoint_WithoutToken_ShouldAllowAnonymous()
     {
+        Console.WriteLine("[AuthenticationRequirementsTests] Get_HealthEndpoint_WithoutToken_ShouldAllowAnonymous started");
         // Act
         var response = await _client.GetAsync("/healthz");
+        Console.WriteLine($"[AuthenticationRequirementsTests] Get_HealthEndpoint_WithoutToken_ShouldAllowAnonymous response: {response.StatusCode}");
 
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -12,6 +12,13 @@ namespace CafeManagement.IntegrationTests;
 /// </summary>
 public class IntegrationTestFixture
 {
+    // Static constructor to set environment variable as early as possible
+    static IntegrationTestFixture()
+    {
+        Console.WriteLine("[IntegrationTestFixture] Static constructor setting timeout");
+        Environment.SetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS", "14400"); // 4 hours
+    }
+
     private static CustomWebApplicationFactory? _factory;
     private static HttpClient? _client;
     private static MongoDbContainer? _mongoDbContainer;
@@ -64,8 +71,9 @@ public class IntegrationTestFixture
     {
         Console.WriteLine("[IntegrationTestFixture] ModuleInitializer starting");
 
-        // Set timeout early for the entire test process
-        Environment.SetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS", "3600");
+        // Verify timeout is still set
+        string timeoutVar = Environment.GetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS") ?? "not set";
+        Console.WriteLine($"[IntegrationTestFixture] DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS = {timeoutVar}");
 
         // Create and start MongoDB container ONCE here, before factory creation
         Console.WriteLine("[IntegrationTestFixture] Creating MongoDB container");
