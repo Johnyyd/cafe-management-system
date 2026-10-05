@@ -89,6 +89,9 @@ Detailed documentation is available in the `documentations/` directory:
 2. [Database Design](documentations/database-design.md) - MongoDB collections and structure
 3. [Features and Functions](documentations/features-and-functions.md) - Feature list and corresponding API endpoints
 
+**Security Documentation (in `docs/`):**
+4. [API Security Guide](docs/API_SECURITY_GUIDE.md) - Security headers, JWT configuration, CORS policy, and authentication requirements
+
 ## Getting Started
 *Note: This project is currently in the design phase. Implementation steps will follow.*
 
