@@ -53,14 +53,20 @@ public static class DependencyInjection
         .AddRoleStore<RoleStore>()
         .AddDefaultTokenProviders();
 
-        // JWT Authentication
-        var jwtKey = configuration["Jwt:Key"];
-        var jwtIssuer = configuration["Jwt:Issuer"] ?? "cafe-management";
-        var jwtAudience = configuration["Jwt:Audience"] ?? "cafe-management-client";
+        // JWT Authentication - Read from environment variable for security
+        var jwtKey = configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+        var jwtIssuer = configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "cafe-management";
+        var jwtAudience = configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "cafe-management-client";
 
         // Only configure JWT if key is provided (allows tests to run without JWT)
         if (!string.IsNullOrEmpty(jwtKey))
         {
+            // Validate key length for production security
+            if (jwtKey.Length < 32)
+            {
+                throw new InvalidOperationException("JWT Key must be at least 32 characters long for security. Set JWT_KEY environment variable or Jwt:Key in configuration.");
+            }
+
             services.AddAuthentication(options =>
             {
                 options.DefaultAuthenticateScheme = JwtBearerDefaults.AuthenticationScheme;
@@ -103,6 +109,9 @@ public static class DependencyInjection
         services.AddScoped<IMenuItemRepository, MenuItemRepository>();
         services.AddScoped<IOrderRepository, OrderRepository>();
         services.AddScoped<IInventoryItemRepository, Infrastructure.Persistence.InventoryItemRepository>();
+        services.AddScoped<IShiftRepository, ShiftRepository>();
+        services.AddScoped<ITimeOffRequestRepository, TimeOffRequestRepository>();
+        services.AddScoped<IShiftSwapRepository, ShiftSwapRepository>();
 
         // Unit of Work
         services.AddScoped<IUnitOfWork, MongoDbUnitOfWork>();

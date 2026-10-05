@@ -138,19 +138,19 @@ public class UserStore :
         await UpdateAsync(user, cancellationToken);
     }
 
-    public async Task<IList<string>> GetRolesAsync(ApplicationUser user, CancellationToken cancellationToken)
-        => user.Roles.ToList();
+    public Task<IList<string>> GetRolesAsync(ApplicationUser user, CancellationToken cancellationToken)
+        => Task.FromResult<IList<string>>(user.Roles.ToList());
 
-    public async Task<bool> IsInRoleAsync(ApplicationUser user, string roleName, CancellationToken cancellationToken)
-        => user.Roles.Contains(roleName);
+    public Task<bool> IsInRoleAsync(ApplicationUser user, string roleName, CancellationToken cancellationToken)
+        => Task.FromResult(user.Roles.Contains(roleName));
 
     public async Task<IList<ApplicationUser>> GetUsersInRoleAsync(string roleName, CancellationToken cancellationToken)
     {
         return await _users.Find(u => u.Roles.Contains(roleName)).ToListAsync(cancellationToken);
     }
 
-    public async Task<IList<Claim>> GetClaimsAsync(ApplicationUser user, CancellationToken cancellationToken)
-        => user.Claims.Select(c => new Claim(c.ClaimType ?? string.Empty, c.ClaimValue ?? string.Empty)).ToList();
+    public Task<IList<Claim>> GetClaimsAsync(ApplicationUser user, CancellationToken cancellationToken)
+        => Task.FromResult<IList<Claim>>(user.Claims.Select(c => new Claim(c.ClaimType ?? string.Empty, c.ClaimValue ?? string.Empty)).ToList());
 
     public async Task AddClaimsAsync(ApplicationUser user, IEnumerable<Claim> claims, CancellationToken cancellationToken)
     {
@@ -217,8 +217,8 @@ public class UserStore :
         }
     }
 
-    public async Task<IList<UserLoginInfo>> GetLoginsAsync(ApplicationUser user, CancellationToken cancellationToken)
-        => user.Logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList();
+    public Task<IList<UserLoginInfo>> GetLoginsAsync(ApplicationUser user, CancellationToken cancellationToken)
+        => Task.FromResult<IList<UserLoginInfo>>(user.Logins.Select(l => new UserLoginInfo(l.LoginProvider, l.ProviderKey, l.ProviderDisplayName)).ToList());
 
     public async Task<ApplicationUser?> FindByLoginAsync(string loginProvider, string providerKey, CancellationToken cancellationToken)
     {

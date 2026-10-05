@@ -111,13 +111,13 @@ public class AuthService : IAuthService
         token.RevokedByIp = _currentUserService.User?.FindFirst("ip")?.Value ?? "unknown";
 
         // Generate new tokens
-        var newAccessToken = GenerateJwtToken(user);
+        var newAccessToken = await GenerateJwtTokenAsync(user);
         var newRefreshToken = GenerateRefreshToken();
         user.RefreshTokens.Add(newRefreshToken);
 
         await _userManager.UpdateAsync(user);
 
-        return CreateAuthResult(newAccessToken, newRefreshToken.Token, user);
+        return await CreateAuthResultAsync(newAccessToken, newRefreshToken.Token, user);
     }
 
     public async Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword)
@@ -222,28 +222,34 @@ public class AuthService : IAuthService
 
     private async Task<Result<AuthResultDto>> GenerateAuthResultAsync(ApplicationUser user)
     {
-        var accessToken = GenerateJwtToken(user);
+        var accessToken = await GenerateJwtTokenAsync(user);
         var refreshToken = GenerateRefreshToken();
         user.RefreshTokens.Add(refreshToken);
         await _userManager.UpdateAsync(user);
 
-        return CreateAuthResult(accessToken, refreshToken.Token, user);
+        return await CreateAuthResultAsync(accessToken, refreshToken.Token, user);
     }
 
-    private AuthResultDto CreateAuthResult(string accessToken, string refreshToken, ApplicationUser user)
+    private async Task<AuthResultDto> CreateAuthResultAsync(string accessToken, string refreshToken, ApplicationUser user)
     {
         return new AuthResultDto(
             AccessToken: accessToken,
             RefreshToken: refreshToken,
             ExpiresIn: GetAccessTokenExpiryMinutes() * 60,
             TokenType: "Bearer",
-            User: MapToUserDtoSync(user)
+            User: await MapToUserDtoAsync(user)
         );
     }
 
-    private string GenerateJwtToken(ApplicationUser user)
+    private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
     {
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
+        var jwtKey = _configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+        if (string.IsNullOrEmpty(jwtKey))
+        {
+            throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY environment variable or Jwt:Key in configuration.");
+        }
+
+        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwtKey));
         var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
 
         var claims = new List<Claim>
@@ -255,15 +261,15 @@ public class AuthService : IAuthService
             new("shopId", user.ShopId?.ToString() ?? string.Empty)
         };
 
-        var roles = _userManager.GetRolesAsync(user).GetAwaiter().GetResult();
+        var roles = await _userManager.GetRolesAsync(user);
         foreach (var role in roles)
         {
             claims.Add(new Claim(ClaimTypes.Role, role));
         }
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: _configuration["Jwt:Issuer"] ?? "cafe-management",
+            audience: _configuration["Jwt:Audience"] ?? "cafe-management-client",
             claims: claims,
             expires: DateTime.UtcNow.AddMinutes(GetAccessTokenExpiryMinutes()),
             signingCredentials: creds
@@ -291,18 +297,6 @@ public class AuthService : IAuthService
 
     private int GetRefreshTokenExpiryDays()
         => int.TryParse(_configuration["Jwt:RefreshTokenExpiryDays"], out var days) ? days : 7;
-
-    private UserDto MapToUserDtoSync(ApplicationUser user)
-    {
-        var roles = _userManager.GetRolesAsync(user).GetAwaiter().GetResult();
-        return new UserDto(
-            Id: user.Id,
-            Email: user.Email ?? string.Empty,
-            FullName: user.FullName,
-            ShopId: user.ShopId,
-            Roles: roles
-        );
-    }
 
     private async Task<UserDto> MapToUserDtoAsync(ApplicationUser user)
     {

@@ -29,7 +29,7 @@ public class StaffRepository : RepositoryBase<Staff>, IStaffRepository
     public async Task<IReadOnlyList<Staff>> GetByShopIdAsync(ObjectId shopId, CancellationToken cancellationToken = default)
     {
         var filter = Builders<Staff>.Filter.And(
-            Builders<Staff>.Filter.Eq(s => s.ShopId, shopId),
+            Builders<Staff>.Filter.ElemMatch(s => s.ShopAssignments, a => a.ShopId == shopId && a.IsActive),
             Builders<Staff>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
         return await Collection.Find(filter).ToListAsync(cancellationToken);
     }
@@ -69,7 +69,7 @@ public class StaffRepository : RepositoryBase<Staff>, IStaffRepository
             cm.MapMember(c => c.Contact);
             cm.MapMember(c => c.EmploymentStatus);
             cm.MapMember(c => c.HireDate);
-            cm.MapMember(c => c.ShopId);
+            cm.MapMember(c => c.ShopAssignments);
             cm.MapMember(c => c.CreatedAt);
             cm.MapMember(c => c.UpdatedAt);
             cm.MapMember(c => c.DeletedAt);
