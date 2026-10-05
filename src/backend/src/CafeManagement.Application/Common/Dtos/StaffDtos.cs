@@ -12,10 +12,19 @@ public record StaffDto(
     ContactInfoDto Contact,
     EmploymentStatus EmploymentStatus,
     DateTime HireDate,
-    ObjectId ShopId,
+    IReadOnlyList<StaffShopAssignmentDto> ShopAssignments,
     DateTime CreatedAt,
     DateTime UpdatedAt,
     DateTime? DeletedAt
+);
+
+public record StaffShopAssignmentDto(
+    ObjectId Id,
+    ObjectId StaffId,
+    ObjectId ShopId,
+    DateTime AssignedDate,
+    DateTime? UnassignedDate,
+    bool IsPrimary
 );
 
 public record StaffSummaryDto(

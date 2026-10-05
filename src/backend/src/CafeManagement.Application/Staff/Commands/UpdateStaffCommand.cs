@@ -24,7 +24,18 @@ public record UpdateStaffEmploymentStatusCommand(
     EmploymentStatus Status
 ) : IRequest<Result>;
 
-public record TransferStaffCommand(
+public record AssignStaffToShopCommand(
+    ObjectId Id,
+    ObjectId ShopId,
+    bool IsPrimary
+) : IRequest<Result>;
+
+public record UnassignStaffFromShopCommand(
+    ObjectId Id,
+    ObjectId ShopId
+) : IRequest<Result>;
+
+public record SetStaffPrimaryShopCommand(
     ObjectId Id,
     ObjectId ShopId
 ) : IRequest<Result>;

@@ -105,7 +105,7 @@ public class UpdateStaffEmploymentStatusHandler : IRequestHandler<UpdateStaffEmp
     }
 }
 
-public class TransferStaffHandler : IRequestHandler<TransferStaffCommand, FluentResults.Result>
+public class TransferStaffHandler : IRequestHandler<AssignStaffToShopCommand, FluentResults.Result>
 {
     private readonly IStaffRepository _staffRepository;
     private readonly IUnitOfWork _unitOfWork;
@@ -118,20 +118,82 @@ public class TransferStaffHandler : IRequestHandler<TransferStaffCommand, Fluent
         _logger = logger;
     }
 
-    public async Task<FluentResults.Result> Handle(TransferStaffCommand request, CancellationToken cancellationToken)
+    public async Task<FluentResults.Result> Handle(AssignStaffToShopCommand request, CancellationToken cancellationToken)
     {
         var staff = await _staffRepository.GetByIdAsync(request.Id, cancellationToken);
         if (staff == null)
             return FluentResults.Result.Fail(DomainErrors.General.NotFound("Staff", request.Id));
 
-        var result = staff.TransferToShop(request.ShopId);
+        var result = staff.AssignToShop(request.ShopId, request.IsPrimary);
         if (result.IsFailed)
             return FluentResults.Result.Fail(result.Errors);
 
         await _staffRepository.UpdateAsync(staff, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Staff transferred: {StaffId}", staff.Id);
+        _logger.LogInformation("Staff assigned to shop: {StaffId} -> {ShopId}", staff.Id, request.ShopId);
+        return FluentResults.Result.Ok();
+    }
+}
+
+public class UnassignStaffFromShopHandler : IRequestHandler<UnassignStaffFromShopCommand, FluentResults.Result>
+{
+    private readonly IStaffRepository _staffRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<UnassignStaffFromShopHandler> _logger;
+
+    public UnassignStaffFromShopHandler(IStaffRepository staffRepository, IUnitOfWork unitOfWork, ILogger<UnassignStaffFromShopHandler> logger)
+    {
+        _staffRepository = staffRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<FluentResults.Result> Handle(UnassignStaffFromShopCommand request, CancellationToken cancellationToken)
+    {
+        var staff = await _staffRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (staff == null)
+            return FluentResults.Result.Fail(DomainErrors.General.NotFound("Staff", request.Id));
+
+        var result = staff.UnassignFromShop(request.ShopId);
+        if (result.IsFailed)
+            return FluentResults.Result.Fail(result.Errors);
+
+        await _staffRepository.UpdateAsync(staff, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Staff unassigned from shop: {StaffId} -> {ShopId}", staff.Id, request.ShopId);
+        return FluentResults.Result.Ok();
+    }
+}
+
+public class SetStaffPrimaryShopHandler : IRequestHandler<SetStaffPrimaryShopCommand, FluentResults.Result>
+{
+    private readonly IStaffRepository _staffRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<SetStaffPrimaryShopHandler> _logger;
+
+    public SetStaffPrimaryShopHandler(IStaffRepository staffRepository, IUnitOfWork unitOfWork, ILogger<SetStaffPrimaryShopHandler> logger)
+    {
+        _staffRepository = staffRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<FluentResults.Result> Handle(SetStaffPrimaryShopCommand request, CancellationToken cancellationToken)
+    {
+        var staff = await _staffRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (staff == null)
+            return FluentResults.Result.Fail(DomainErrors.General.NotFound("Staff", request.Id));
+
+        var result = staff.SetPrimaryShop(request.ShopId);
+        if (result.IsFailed)
+            return FluentResults.Result.Fail(result.Errors);
+
+        await _staffRepository.UpdateAsync(staff, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Staff primary shop set: {StaffId} -> {ShopId}", staff.Id, request.ShopId);
         return FluentResults.Result.Ok();
     }
 }

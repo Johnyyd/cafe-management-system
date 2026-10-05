@@ -42,9 +42,27 @@ public class UpdateStaffEmploymentStatusCommandValidator : AbstractValidator<Upd
     }
 }
 
-public class TransferStaffCommandValidator : AbstractValidator<TransferStaffCommand>
+public class AssignStaffToShopCommandValidator : AbstractValidator<AssignStaffToShopCommand>
 {
-    public TransferStaffCommandValidator()
+    public AssignStaffToShopCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Staff ID is required");
+        RuleFor(x => x.ShopId).NotEmpty().WithMessage("Target shop ID is required");
+    }
+}
+
+public class UnassignStaffFromShopCommandValidator : AbstractValidator<UnassignStaffFromShopCommand>
+{
+    public UnassignStaffFromShopCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Staff ID is required");
+        RuleFor(x => x.ShopId).NotEmpty().WithMessage("Target shop ID is required");
+    }
+}
+
+public class SetStaffPrimaryShopCommandValidator : AbstractValidator<SetStaffPrimaryShopCommand>
+{
+    public SetStaffPrimaryShopCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty().WithMessage("Staff ID is required");
         RuleFor(x => x.ShopId).NotEmpty().WithMessage("Target shop ID is required");
