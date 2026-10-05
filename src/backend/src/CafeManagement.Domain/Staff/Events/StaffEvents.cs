@@ -10,17 +10,16 @@ public record StaffHiredEvent : DomainEvent
     public string FirstName { get; init; } = string.Empty;
     public string LastName { get; init; } = string.Empty;
     public StaffRole Role { get; init; }
-    public ObjectId ShopId { get; init; }
     public ObjectId? CreatedBy { get; init; }
 
-    public StaffHiredEvent(ObjectId staffId, string firstName, string lastName, StaffRole role, ObjectId shopId, ObjectId? createdBy = null)
+    public StaffHiredEvent(ObjectId staffId, string firstName, string lastName, StaffRole role, ObjectId? createdBy = null)
     {
         StaffId = staffId;
         FirstName = firstName;
         LastName = lastName;
         Role = role;
-        ShopId = shopId;
         CreatedBy = createdBy;
+        EventType = nameof(StaffHiredEvent);
     }
 }
 
@@ -37,6 +36,7 @@ public record StaffUpdatedEvent : DomainEvent
         FirstName = firstName;
         LastName = lastName;
         UpdatedBy = updatedBy;
+        EventType = nameof(StaffUpdatedEvent);
     }
 }
 
@@ -53,6 +53,7 @@ public record StaffRoleChangedEvent : DomainEvent
         OldRole = oldRole;
         NewRole = newRole;
         UpdatedBy = updatedBy;
+        EventType = nameof(StaffRoleChangedEvent);
     }
 }
 
@@ -69,6 +70,7 @@ public record StaffEmploymentStatusChangedEvent : DomainEvent
         OldStatus = oldStatus;
         NewStatus = newStatus;
         UpdatedBy = updatedBy;
+        EventType = nameof(StaffEmploymentStatusChangedEvent);
     }
 }
 
@@ -85,6 +87,7 @@ public record StaffTerminatedEvent : DomainEvent
         FirstName = firstName;
         LastName = lastName;
         TerminatedBy = terminatedBy;
+        EventType = nameof(StaffTerminatedEvent);
     }
 }
 
@@ -101,5 +104,75 @@ public record StaffTransferredEvent : DomainEvent
         OldShopId = oldShopId;
         NewShopId = newShopId;
         UpdatedBy = updatedBy;
+        EventType = nameof(StaffTransferredEvent);
+    }
+}
+
+public record StaffShopAssignedEvent : DomainEvent
+{
+    public ObjectId EventId { get; init; }
+    public ObjectId StaffId { get; init; }
+    public ObjectId ShopId { get; init; }
+    public DateTime AssignedDate { get; init; }
+    public bool IsPrimary { get; init; }
+    public ObjectId? AssignedBy { get; init; }
+
+    public StaffShopAssignedEvent(ObjectId eventId, ObjectId staffId, ObjectId shopId, DateTime assignedDate, bool isPrimary, ObjectId? assignedBy = null)
+    {
+        EventId = eventId;
+        StaffId = staffId;
+        ShopId = shopId;
+        AssignedDate = assignedDate;
+        IsPrimary = isPrimary;
+        AssignedBy = assignedBy;
+        EventType = nameof(StaffShopAssignedEvent);
+    }
+}
+
+public record StaffShopUnassignedEvent : DomainEvent
+{
+    public ObjectId EventId { get; init; }
+    public ObjectId StaffId { get; init; }
+    public ObjectId ShopId { get; init; }
+    public DateTime AssignedDate { get; init; }
+    public DateTime UnassignedDate { get; init; }
+    public bool WasPrimary { get; init; }
+    public ObjectId? UnassignedBy { get; init; }
+
+    public StaffShopUnassignedEvent(ObjectId eventId, ObjectId staffId, ObjectId shopId, DateTime assignedDate, DateTime unassignedDate, bool wasPrimary, ObjectId? unassignedBy = null)
+    {
+        EventId = eventId;
+        StaffId = staffId;
+        ShopId = shopId;
+        AssignedDate = assignedDate;
+        UnassignedDate = unassignedDate;
+        WasPrimary = wasPrimary;
+        UnassignedBy = unassignedBy;
+        EventType = nameof(StaffShopUnassignedEvent);
+    }
+}
+
+public record StaffShopAssignmentUpdatedEvent : DomainEvent
+{
+    public ObjectId EventId { get; init; }
+    public ObjectId StaffId { get; init; }
+    public ObjectId ShopId { get; init; }
+    public DateTime AssignedDate { get; init; }
+    public DateTime? UnassignedDate { get; init; }
+    public bool WasPrimary { get; init; }
+    public bool IsPrimary { get; init; }
+    public ObjectId? UpdatedBy { get; init; }
+
+    public StaffShopAssignmentUpdatedEvent(ObjectId eventId, ObjectId staffId, ObjectId shopId, DateTime assignedDate, DateTime? unassignedDate, bool wasPrimary, bool isPrimary, ObjectId? updatedBy = null)
+    {
+        EventId = eventId;
+        StaffId = staffId;
+        ShopId = shopId;
+        AssignedDate = assignedDate;
+        UnassignedDate = unassignedDate;
+        WasPrimary = wasPrimary;
+        IsPrimary = isPrimary;
+        UpdatedBy = updatedBy;
+        EventType = nameof(StaffShopAssignmentUpdatedEvent);
     }
 }

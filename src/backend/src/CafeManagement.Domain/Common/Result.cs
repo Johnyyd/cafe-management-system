@@ -53,6 +53,10 @@ public static class DomainErrors
         public static Error InvalidEnumValue(string fieldName, string validValues) =>
             new Error($"Field '{fieldName}' has invalid value. Valid values: {validValues}")
                 .WithMetadata("Code", "Validation.InvalidEnum");
+
+        public static Error NotFound(string entityName, object id) =>
+            new Error($"{entityName} with id '{id}' was not found")
+                .WithMetadata("Code", $"Validation.{entityName}.NotFound");
     }
 
     public static class Business
