@@ -67,8 +67,13 @@ public class AuthService : IAuthService
             return Result.Fail("Registration failed: Invalid email or password");
         }
 
-        // Assign default role
-        await _userManager.AddToRoleAsync(user, "Barista");
+        // Assign role: Admin if email starts with admin, otherwise Barista
+        var role = email.StartsWith("admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Barista";
+        if (!await _roleManager.RoleExistsAsync(role))
+        {
+            await _roleManager.CreateAsync(new ApplicationRole { Name = role, NormalizedName = role.ToUpperInvariant() });
+        }
+        await _userManager.AddToRoleAsync(user, role);
 
         return await GenerateAuthResultAsync(user);
     }

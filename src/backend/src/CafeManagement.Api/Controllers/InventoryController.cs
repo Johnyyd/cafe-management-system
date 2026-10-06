@@ -13,6 +13,7 @@ using System.Threading.Tasks;
 namespace CafeManagement.Api.Controllers;
 
 [ApiController]
+[Route("api/v1/[controller]")]
 [Route("api/[controller]")]
 [Authorize]
 public class InventoryController : ControllerBase
@@ -104,7 +105,7 @@ public class InventoryController : ControllerBase
         if (result.IsFailed)
             return BadRequest(result.Errors);
 
-        return CreatedAtAction(nameof(GetInventoryItemById), new { id = result.Value.Id }, result.Value);
+        return StatusCode(StatusCodes.Status201Created, result.Value);
     }
 
     [HttpPut("{id}")]

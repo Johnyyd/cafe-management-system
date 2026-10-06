@@ -1,5 +1,7 @@
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Application.Staff.Commands;
+using CafeManagement.Application.Staff.Queries;
+using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Staff;
 using CafeManagement.Domain.Shared;
@@ -226,5 +228,133 @@ public class DeactivateStaffHandler : IRequestHandler<DeactivateStaffCommand, Fl
 
         _logger.LogInformation("Staff deactivated: {StaffId}", staff.Id);
         return FluentResults.Result.Ok();
+    }
+}
+
+public class GetStaffHandler : IRequestHandler<GetStaffQuery, Result<PagedResult<StaffDto>>>
+{
+    private readonly IStaffRepository _staffRepository;
+
+    public GetStaffHandler(IStaffRepository staffRepository)
+    {
+        _staffRepository = staffRepository;
+    }
+
+    public async Task<Result<PagedResult<StaffDto>>> Handle(GetStaffQuery request, CancellationToken cancellationToken)
+    {
+        var staffList = await _staffRepository.ListAsync(cancellationToken);
+
+        if (request.ShopId.HasValue && request.ShopId.Value != ObjectId.Empty)
+            staffList = staffList.Where(s => s.ShopAssignments.Any(sa => sa.ShopId == request.ShopId.Value && sa.UnassignedDate == null)).ToList();
+
+        if (request.Role.HasValue)
+            staffList = staffList.Where(s => s.Role == request.Role.Value).ToList();
+
+        if (request.Status.HasValue)
+            staffList = staffList.Where(s => s.EmploymentStatus == request.Status.Value).ToList();
+
+        var totalCount = staffList.Count;
+        var pagedStaff = staffList
+            .Skip((request.Page - 1) * request.PageSize)
+            .Take(request.PageSize)
+            .Select(s => new StaffDto(
+                s.Id,
+                s.FirstName,
+                s.LastName,
+                s.Role,
+                new ContactInfoDto(s.Contact.Phone, s.Contact.Email),
+                s.EmploymentStatus,
+                s.HireDate,
+                s.ShopAssignments.Select(sa => new StaffShopAssignmentDto(
+                    sa.Id,
+                    sa.StaffId,
+                    sa.ShopId,
+                    sa.AssignedDate,
+                    sa.UnassignedDate,
+                    sa.IsPrimary
+                )).ToList(),
+                s.CreatedAt,
+                s.UpdatedAt,
+                s.DeletedAt))
+            .ToList();
+
+        var result = new PagedResult<StaffDto>(pagedStaff, totalCount, request.Page, request.PageSize);
+        return Result.Ok(result);
+    }
+}
+
+public class GetStaffByIdHandler : IRequestHandler<GetStaffByIdQuery, Result<StaffDto>>
+{
+    private readonly IStaffRepository _staffRepository;
+
+    public GetStaffByIdHandler(IStaffRepository staffRepository)
+    {
+        _staffRepository = staffRepository;
+    }
+
+    public async Task<Result<StaffDto>> Handle(GetStaffByIdQuery request, CancellationToken cancellationToken)
+    {
+        var staff = await _staffRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (staff == null)
+            return Result.Fail(DomainErrors.General.NotFound("Staff", request.Id));
+
+        var dto = new StaffDto(
+            staff.Id,
+            staff.FirstName,
+            staff.LastName,
+            staff.Role,
+            new ContactInfoDto(staff.Contact.Phone, staff.Contact.Email),
+            staff.EmploymentStatus,
+            staff.HireDate,
+            staff.ShopAssignments.Select(sa => new StaffShopAssignmentDto(
+                sa.Id,
+                sa.StaffId,
+                sa.ShopId,
+                sa.AssignedDate,
+                sa.UnassignedDate,
+                sa.IsPrimary
+            )).ToList(),
+            staff.CreatedAt,
+            staff.UpdatedAt,
+            staff.DeletedAt);
+
+        return Result.Ok(dto);
+    }
+}
+
+public class GetStaffByShopHandler : IRequestHandler<GetStaffByShopQuery, Result<IReadOnlyList<StaffDto>>>
+{
+    private readonly IStaffRepository _staffRepository;
+
+    public GetStaffByShopHandler(IStaffRepository staffRepository)
+    {
+        _staffRepository = staffRepository;
+    }
+
+    public async Task<Result<IReadOnlyList<StaffDto>>> Handle(GetStaffByShopQuery request, CancellationToken cancellationToken)
+    {
+        var staffList = await _staffRepository.GetByShopIdAsync(request.ShopId, cancellationToken);
+
+        var dtoList = staffList.Select(s => new StaffDto(
+            s.Id,
+            s.FirstName,
+            s.LastName,
+            s.Role,
+            new ContactInfoDto(s.Contact.Phone, s.Contact.Email),
+            s.EmploymentStatus,
+            s.HireDate,
+            s.ShopAssignments.Select(sa => new StaffShopAssignmentDto(
+                sa.Id,
+                sa.StaffId,
+                sa.ShopId,
+                sa.AssignedDate,
+                sa.UnassignedDate,
+                sa.IsPrimary
+            )).ToList(),
+            s.CreatedAt,
+            s.UpdatedAt,
+            s.DeletedAt)).ToList();
+
+        return Result.Ok<IReadOnlyList<StaffDto>>(dtoList);
     }
 }

@@ -77,7 +77,7 @@ public class ErrorHandlingMiddleware
                 problemDetails.Title = "An error occurred while processing your request.";
                 problemDetails.Status = (int)HttpStatusCode.InternalServerError;
                 problemDetails.Type = "https://tools.ietf.org/html/rfc7231#section-6.6.1";
-                problemDetails.Detail = "An unexpected error occurred.";
+                problemDetails.Detail = exception.ToString();
                 break;
         }
 

@@ -7,6 +7,7 @@ using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Inventory;
 using FluentResults;
 using MediatR;
+using MongoDB.Bson;
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -207,7 +208,9 @@ public class GetInventoryItemsHandler : IRequestHandler<GetInventoryItemsQuery, 
 
     public async Task<Result<IReadOnlyList<InventoryItemResponse>>> Handle(GetInventoryItemsQuery request, CancellationToken cancellationToken)
     {
-        var items = await _inventoryItemRepository.GetByShopIdAsync(request.ShopId, cancellationToken);
+        var items = request.ShopId == ObjectId.Empty
+            ? await _inventoryItemRepository.ListAsync(cancellationToken)
+            : await _inventoryItemRepository.GetByShopIdAsync(request.ShopId, cancellationToken);
         var list = items.Select(i => new InventoryItemResponse(
             i.Id,
             i.ShopId,

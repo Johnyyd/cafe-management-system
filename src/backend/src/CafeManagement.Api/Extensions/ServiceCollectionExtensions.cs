@@ -22,7 +22,12 @@ public static class ServiceCollectionExtensions
 
     public static IServiceCollection AddApiServices(this IServiceCollection services, IConfiguration configuration)
     {
-        services.AddControllers();
+        services.AddControllers()
+            .AddJsonOptions(options =>
+            {
+                options.JsonSerializerOptions.Converters.Add(new CafeManagement.Api.Converters.ObjectIdJsonConverter());
+                options.JsonSerializerOptions.Converters.Add(new CafeManagement.Api.Converters.NullableObjectIdJsonConverter());
+            });
         services.AddEndpointsApiExplorer();
 
         // CORS Policy - Configure allowed origins

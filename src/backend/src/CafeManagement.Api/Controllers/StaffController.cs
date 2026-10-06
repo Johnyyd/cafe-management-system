@@ -31,7 +31,7 @@ public class StaffController : ControllerBase
         if (result.IsFailed)
             return BadRequest(result.Errors);
 
-        return CreatedAtAction(nameof(GetStaffById), new { id = result.Value }, result.Value);
+        return StatusCode(StatusCodes.Status201Created, result.Value);
     }
 
     [HttpGet("{id}")]
