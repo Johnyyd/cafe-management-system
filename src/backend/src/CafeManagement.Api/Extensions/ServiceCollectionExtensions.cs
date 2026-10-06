@@ -1,3 +1,5 @@
+using AspNetCoreRateLimit;
+using CafeManagement.Api.Services;
 using CafeManagement.Application;
 using CafeManagement.Infrastructure;
 using Microsoft.AspNetCore.Cors.Infrastructure;
@@ -94,6 +96,15 @@ public static class ServiceCollectionExtensions
                 options.IncludeXmlComments(xmlPath);
             }
         });
+
+        // Rate Limiting
+        services.AddMemoryCache();
+        services.Configure<IpRateLimitOptions>(configuration.GetSection("RateLimiting"));
+        services.AddInMemoryRateLimiting();
+        services.AddSingleton<IRateLimitConfiguration, RateLimitConfiguration>();
+
+        // Performance metrics service
+        services.AddSingleton<IPerformanceMetricsService, PerformanceMetricsService>();
 
         // Health checks
         services.AddHealthChecks();
