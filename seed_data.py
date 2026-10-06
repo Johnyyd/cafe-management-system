@@ -316,11 +316,11 @@ def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
     return res if isinstance(res, list) else res.get("items", [])
 
 def seed_inventory(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
-    print("\n[5/6] Đồng bộ Kho & Nguyên Vật Liệu (Inventory)...")
-    res = http_request(f"{API_BASE}/inventory", headers=headers)
+    res = http_request(f"{API_BASE}/inventory?shopId={shop_id}", headers=headers)
     existing_inv = res if isinstance(res, list) else res.get("items", [])
 
     if len(existing_inv) >= 6:
+        print(f" -> Đã có {len(existing_inv)} mặt hàng nguyên liệu cho chi nhánh [{shop_id}].")
         print(f" -> Đã có {len(existing_inv)} mặt hàng nguyên liệu trong kho:")
         for i in existing_inv:
             print(f"    * [{i.get('id')}] {i.get('itemName')}: {i.get('quantity', i.get('currentStock', 0))} {i.get('unit')}")
@@ -399,11 +399,11 @@ def seed_staff(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
     return res if isinstance(res, list) else res.get("items", [])
 
 def seed_sample_orders(headers: Dict[str, str], shop_id: str, staff_id: str, menu_items: List[Dict[str, Any]]):
-    res = http_request(f"{API_BASE}/orders", headers=headers)
+    res = http_request(f"{API_BASE}/orders?shopId={shop_id}&pageSize=50", headers=headers)
     existing_orders = res if isinstance(res, list) else res.get("items", [])
 
-    if len(existing_orders) >= 3:
-        print(f" -> Đã có {len(existing_orders)} đơn hàng trong hệ thống.")
+    if len(existing_orders) >= 1:
+        print(f" -> Đã có {len(existing_orders)} đơn hàng cho chi nhánh [{shop_id}].")
         return
 
     if not menu_items:
@@ -501,16 +501,23 @@ def main():
     # 4. Seed Menu Items
     menu_items = seed_menu(auth_headers, primary_shop_id)
 
-    # 5. Seed Inventory
-    seed_inventory(auth_headers, primary_shop_id)
-
-    # 6. Seed Staff
+    # 5. Seed Staff
     staff_list = seed_staff(auth_headers, primary_shop_id)
     primary_staff_id = staff_list[0].get("id") if staff_list else ""
 
-    # 7. Seed Orders
+    # 6. Seed Inventory & Orders for each shop
+    print("\n[5/6] Đồng bộ Kho & Nguyên Vật Liệu cho tất cả chi nhánh...")
+    for s in shops:
+        s_id = s.get("id")
+        if s_id:
+            seed_inventory(auth_headers, s_id)
+
+    print("\n[6/6] Đồng bộ Đơn hàng mẫu cho các chi nhánh...")
     if primary_staff_id and menu_items:
-        seed_sample_orders(auth_headers, primary_shop_id, primary_staff_id, menu_items)
+        for s in shops:
+            s_id = s.get("id")
+            if s_id:
+                seed_sample_orders(auth_headers, s_id, primary_staff_id, menu_items)
 
     print("\n================================================================")
     print("  HOÀN TẤT SEED DỮ LIỆU THẬT VÀO MONGODB THÀNH CÔNG 100%!       ")
