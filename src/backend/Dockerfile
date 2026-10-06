@@ -16,11 +16,10 @@ RUN dotnet restore "CafeManagement.Backend.sln"
 
 # Copy everything else and build
 COPY . .
-WORKDIR "/src"
-RUN dotnet build "CafeManagement.Backend.sln" -c Release -o /app/build
+RUN dotnet build "src/CafeManagement.Api/CafeManagement.Api.csproj" -c Release -o /app/build
 
 FROM build AS publish
-RUN dotnet publish "CafeManagement.Backend.sln" -c Release -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "src/CafeManagement.Api/CafeManagement.Api.csproj" -c Release -o /app/publish /p:UseAppHost=false
 
 # Build runtime image
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS base
