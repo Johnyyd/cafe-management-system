@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using CafeManagement.Api;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Mvc.Testing;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Testcontainers.MongoDb;
 
@@ -27,7 +28,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
         Environment.SetEnvironmentVariable("DOTNET_RUNNING_IN_TEST", "true");
         Environment.SetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS", "14400");
 
-        var builder = base.CreateHostBuilder();
+        var builder = base.CreateHostBuilder()
+            ?? throw new InvalidOperationException("Failed to create host builder.");
 
         var connectionString = _mongoDbContainer.GetConnectionString();
         builder.ConfigureAppConfiguration((context, config) =>
