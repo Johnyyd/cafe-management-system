@@ -64,8 +64,7 @@ public class AuthService : IAuthService
         var result = await _userManager.CreateAsync(user, password);
         if (!result.Succeeded)
         {
-            var errors = string.Join(", ", result.Errors.Select(e => e.Description));
-            return Result.Fail($"Registration failed: {errors}");
+            return Result.Fail("Registration failed: Invalid email or password");
         }
 
         // Assign default role
@@ -154,7 +153,7 @@ public class AuthService : IAuthService
 
         var token = await _userManager.GeneratePasswordResetTokenAsync(user);
         // In production, send email with token
-        _logger.LogInformation("Password reset token for {Email}: {Token}", email, token);
+        _logger.LogInformation("Password reset token generated for {Email}", email);
 
         return Result.Ok();
     }

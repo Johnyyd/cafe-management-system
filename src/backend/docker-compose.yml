@@ -45,7 +45,7 @@ services:
       ConnectionStrings__MongoDB: "mongodb://mongodb:27017"
       ConnectionStrings__DatabaseName: "cafe_management"
       Seq__ServerUrl: "http://seq:80"
-      Jwt__Key: "${JWT_KEY:-your-super-secret-key-min-32-chars-change-in-production}"
+      Jwt__Key: "${JWT_KEY:-super-very-very-secret-32-char-key}"
       Jwt__Issuer: "cafe-management"
       Jwt__Audience: "cafe-management-client"
       RateLimiting__DefaultPermitLimit: "100"
@@ -59,7 +59,7 @@ services:
     # volumes:
     #   - ./src/backend:/app
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8080/healthz"]
+      test: ["CMD", "curl", "-f", "--max-time", "20", "--http1.0", "http://localhost:8080/healthz"]
       interval: 15s
       timeout: 10s
       retries: 5

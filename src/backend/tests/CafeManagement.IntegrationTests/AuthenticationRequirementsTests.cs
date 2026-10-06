@@ -165,7 +165,7 @@ public class AuthenticationRequirementsTests
             new System.Security.Claims.Claim("email", "test@test.com")
         };
 
-        var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes("your-super-secret-key-min-32-chars-change-in-production"));
+        var key = new Microsoft.IdentityModel.Tokens.SymmetricSecurityKey(System.Text.Encoding.UTF8.GetBytes(Environment.GetEnvironmentVariable("JWT_KEY") ?? ""));
         var creds = new Microsoft.IdentityModel.Tokens.SigningCredentials(key, Microsoft.IdentityModel.Tokens.SecurityAlgorithms.HmacSha256);
 
         var token = new System.IdentityModel.Tokens.Jwt.JwtSecurityToken(

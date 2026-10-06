@@ -91,6 +91,7 @@ public class Staff : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot assign a deleted staff member to a shop"));
+
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
@@ -158,6 +159,7 @@ public class Staff : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot set primary shop for a deleted staff member"));
+
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
