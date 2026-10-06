@@ -33,6 +33,13 @@ public class PerformanceMonitoringMiddleware
         // Start timing
         var stopwatch = Stopwatch.StartNew();
 
+        // Add custom header with response time before response starts
+        context.Response.OnStarting(() =>
+        {
+            context.Response.Headers["X-Response-Time-Ms"] = stopwatch.Elapsed.TotalMilliseconds.ToString("F2");
+            return Task.CompletedTask;
+        });
+
         // Log request start
         _logger.LogInformation("Request started: {Method} {Path} from {RemoteIpAddress}",
             context.Request.Method,
@@ -70,13 +77,6 @@ public class PerformanceMonitoringMiddleware
                 context.Request.Path,
                 statusCode,
                 stopwatch.Elapsed.TotalMilliseconds);
-
-            // Add custom header with response time for client visibility
-            context.Response.OnStarting(() =>
-            {
-                context.Response.Headers["X-Response-Time-Ms"] = stopwatch.Elapsed.TotalMilliseconds.ToString("F2");
-                return Task.CompletedTask;
-            });
         }
         catch (Exception ex)
         {
