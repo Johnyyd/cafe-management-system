@@ -275,16 +275,23 @@ POST and PUT endpoints support `Idempotency-Key` header for safe retries.
 ## 11. Real Data Seeding Pipeline (Python)
 
 - **Script:** `seed_data.py`
-- **Tích hợp Tỉnh thành Việt Nam:** Tải dữ liệu các Tỉnh/Thành phố trực tiếp từ Vietnam Provinces OpenAPI (`src/backend/openapi.json`), ánh xạ tên tỉnh/thành thực tế vào địa chỉ các chi nhánh quán cà phê.
-- **Vòng đời dữ liệu thực tế:** Khởi tạo dữ liệu quán, thực đơn cà phê truyền thống và hiện đại, nguyên liệu tồn kho theo định mức an toàn, nhân viên theo vai trò và đơn hàng theo các trạng thái (`Placed`, `Preparing`, `Completed`, `Paid`).
+- **Tích hợp Tỉnh thành Việt Nam:** Tải dữ liệu các Tỉnh/Thành phố trực tiếp từ Vietnam Provinces OpenAPI (`src/backend/openapi.json`), ánh xạ tên tỉnh/thành thực tế vào địa chỉ các chi nhánh quán cà phê trên toàn quốc.
+- **Dữ liệu đa chi nhánh toàn diện (Multi-Branch Seeding):** 
+  - Khởi tạo 8 chi nhánh tiêu chuẩn: TP.HCM (Quận 1, Thủ Đức, Bình Thạnh), Hà Nội (Hoàn Kiếm, Nhà Hát Lớn), Đà Nẵng (Cầu Rồng), Đà Lạt (Cầu Đất), Đắk Lắk (Buôn Ma Thuột).
+  - Tự động nhập kho nguyên vật liệu và định mức tồn kho tối thiểu (reorder level) cho **toàn bộ 8 chi nhánh**, tích hợp sẵn các mặt hàng chạm ngưỡng để kiểm tra tính năng cảnh báo nhập hàng.
+  - Tạo các đơn hàng thực tế kèm thông tin khách hàng, số bàn và các món nước đặc thù cho từng chi nhánh với đầy đủ vòng đời trạng thái (`Đã nhận đơn`, `Đang pha chế`, `Hoàn tất`), hỗ trợ tính toán doanh thu và chỉ số vận hành riêng biệt.
 
 ---
 
 ## 12. Frontend Web Application Architecture
 
-- **Công nghệ:** React 18, Vite, TypeScript, Tailwind CSS, Zustand.
-- **Phong cách thiết kế:** Industrial Flat Minimalism (màu chủ đạo: Cam `#EA580C`, Đen `#0A0A0A`, Trắng `#FFFFFF`). Không sử dụng gradient, không dùng emoji.
-- **Ràng buộc & Kiểm tra dữ liệu (Validation):** Thực hiện kiểm tra dữ liệu nghiêm ngặt ở tầng giao diện bằng **Zod Schema** kết hợp **React Hook Form**.
-- **Bản địa hóa:** Giao diện và các nhãn vai trò được dịch sang tiếng Việt thân thiện với người vận hành (`Quản trị viên`, `Quản lý quán`, `Thu ngân`, `Pha chế`, `Thủ kho`).
-- **Tích hợp Backend 100%:** Toàn bộ trang (Tổng quan, Quán & Chi nhánh, Thực đơn, Kho, Bán hàng POS, Nhân sự, Giám sát) kết nối trực tiếp với backend API qua `src/frontend/src/api/client.ts`.
+- **Công nghệ cốt lõi:** React 18, Vite, TypeScript, Tailwind CSS, Zustand.
+- **Phong cách thiết kế:** Industrial Flat Minimalism (màu chủ đạo: Cam `#EA580C`, Đen `#0A0A0A`, Trắng `#FFFFFF`). Không sử dụng gradient, không dùng emoji, viền phẳng sắc nét, typography tương phản cao.
+- **Chuyển đổi Chi nhánh Thời gian thực (Reactive Multi-Branch Scoping):**
+  - **Quản lý ngữ cảnh (`useAppStore`):** Lưu trữ `currentShopId` tập trung, ghi nhớ qua `localStorage` (`cms_current_shop_id`).
+  - **Bảng điều khiển Tổng quan (Dashboard):** Đăng ký reactive state từ Zustand; khi người dùng chọn chi nhánh trên Header dropdown, toàn bộ 4 thẻ KPI (Doanh thu hoàn tất, Đơn hàng trong ngày, Cảnh báo nguyên liệu, Trạng thái chi nhánh), bảng Đơn hàng gần đây và danh sách Cảnh báo kho lập tức được lọc và tính toán lại tương ứng với cơ sở đó.
+  - **Bán hàng (POS) & Kiểm kê kho:** Tự động đồng bộ hóa danh sách đơn hàng và danh mục tồn kho theo chi nhánh đang hoạt động, đồng thời gán mặc định chi nhánh khi tạo đơn hoặc nhập kho mới.
+- **Ràng buộc & Kiểm tra dữ liệu (Validation):** Thực hiện kiểm tra dữ liệu nghiêm ngặt ở tầng giao diện bằng **Zod Schema** kết hợp **React Hook Form** trước khi gửi yêu cầu đến backend.
+- **Bản địa hóa thuần Việt:** Toàn bộ giao diện, nhãn định danh và vai trò người dùng được dịch chuẩn xác sang tiếng Việt (`Quản trị viên`, `Quản lý quán`, `Thu ngân`, `Pha chế`, `Thủ kho`).
+- **Tích hợp Backend 100%:** Toàn bộ trang (Tổng quan, Quán & Chi nhánh, Thực đơn, Kho, Bán hàng POS, Nhân sự, Giám sát) kết nối trực tiếp với backend API qua `src/frontend/src/api/client.ts`, không sử dụng mockup data.
 

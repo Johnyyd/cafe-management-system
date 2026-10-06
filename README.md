@@ -20,9 +20,10 @@ Hệ thống quản lý và điều hành chuỗi quán cà phê quy chuẩn cô
 ## Tổng Quan Hệ Thống
 
 Hệ thống được phát triển theo mô hình Client - Server hiện đại với kiến trúc phân tầng chuyên nghiệp:
+- **Chuyển đổi Chi nhánh Động (Real-time Branch Scoping):** Cho phép người dùng chuyển đổi linh hoạt giữa các chi nhánh trên thanh điều hướng đầu trang (Header). Toàn bộ dữ liệu Bảng điều khiển (doanh thu hoàn tất, đơn hàng trong ngày, cảnh báo tồn kho, danh sách đơn hàng gần đây) cùng các phân hệ Bán hàng POS và Tồn kho được tự động lọc và cập nhật ngay lập tức theo chi nhánh đang chọn, đồng thời ghi nhớ trạng thái qua các phiên làm việc (`localStorage`).
 - **Quản lý Quán & Chi nhánh:** Quản lý thông tin chuỗi cửa hàng theo địa bàn các Tỉnh/Thành phố tại Việt Nam, giờ mở cửa, trạng thái hoạt động.
 - **Thực đơn Đồ uống:** Danh mục món, định giá, thành phần nguyên liệu, chất gây dị ứng và tình trạng khả dụng.
-- **Kho & Nguyên liệu:** Theo dõi lượng tồn kho thời gian thực, định mức tái đặt hàng (reorder level), cảnh báo thiếu hụt.
+- **Kho & Nguyên liệu:** Theo dõi lượng tồn kho thời gian thực, định mức tái đặt hàng (reorder level), cảnh báo thiếu hụt theo từng cơ sở.
 - **Bán hàng & Thu ngân (POS):** Giao diện bán hàng trực tiếp tại quầy, tính tiền tự động theo thuế VAT 8%, xử lý vòng đời đơn hàng (`Đã nhận đơn` → `Đang pha chế` → `Hoàn tất`).
 - **Nhân sự & Ca làm việc:** Quản lý hồ sơ nhân viên, phân quyền vai trò (RBAC) gắn với chi nhánh cửa hàng.
 - **Giám sát Hệ thống:** Theo dõi thời gian phản hồi (latency), tỷ lệ lỗi, thông lượng API và tài nguyên máy chủ.
@@ -123,11 +124,12 @@ python seed_data.py
 ```
 Script sẽ tự động:
 1. Đồng bộ danh sách Tỉnh/Thành phố tại Việt Nam từ Vietnam Provinces API.
-2. Khởi tạo tài khoản Quản trị viên (`admin@cafemanagement.com`).
+2. Khởi tạo tài khoản Quản trị viên (`admin@cafemanagement.com`, mật khẩu: `Password123!`).
 3. Tạo 8 chi nhánh quán cà phê gắn với các thành phố trọng điểm (TP. Hồ Chí Minh, Hà Nội, Đà Lạt, Đà Nẵng, Buôn Ma Thuột,...).
 4. Tạo thực đơn đồ uống chuẩn Việt Nam (Cà phê sữa đá, Bạc xỉu, Trà sen vàng,...).
-5. Tạo danh mục tồn kho nguyên liệu gắn với từng chi nhánh.
-6. Tạo hồ sơ nhân viên và các đơn hàng mẫu theo đầy đủ vòng đời vận hành.
+5. Đồng bộ kho và định mức tồn kho an toàn cho **toàn bộ 8 chi nhánh** (bao gồm các mặt hàng chạm ngưỡng cảnh báo để kiểm thử tính năng).
+6. Tạo hồ sơ nhân sự phân quyền theo vai trò (Quản trị viên, Quản lý quán, Thu ngân, Pha chế, Thủ kho).
+7. Khởi tạo các đơn hàng mẫu thực tế cho **tất cả các chi nhánh** theo đa dạng hình thức (Tại quán, Mang đi, Giao hàng) và đầy đủ các trạng thái vận hành (`Đã nhận đơn`, `Đang pha chế`, `Hoàn tất`), sẵn sàng kiểm thử chuyển đổi chi nhánh tức thời trên giao diện.
 
 ### Bước 3: Khởi động Giao diện Frontend
 Từ thư mục gốc dự án:
