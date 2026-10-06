@@ -270,3 +270,21 @@ POST and PUT endpoints support `Idempotency-Key` header for safe retries.
 - **Idempotency supported via `Idempotency-Key` header** for POST/PUT endpoints.
 - **Rate limiting** applied to all endpoints (configurable per endpoint).
 
+---
+
+## 11. Real Data Seeding Pipeline (Python)
+
+- **Script:** `seed_data.py`
+- **Tích hợp Tỉnh thành Việt Nam:** Tải dữ liệu các Tỉnh/Thành phố trực tiếp từ Vietnam Provinces OpenAPI (`src/backend/openapi.json`), ánh xạ tên tỉnh/thành thực tế vào địa chỉ các chi nhánh quán cà phê.
+- **Vòng đời dữ liệu thực tế:** Khởi tạo dữ liệu quán, thực đơn cà phê truyền thống và hiện đại, nguyên liệu tồn kho theo định mức an toàn, nhân viên theo vai trò và đơn hàng theo các trạng thái (`Placed`, `Preparing`, `Completed`, `Paid`).
+
+---
+
+## 12. Frontend Web Application Architecture
+
+- **Công nghệ:** React 18, Vite, TypeScript, Tailwind CSS, Zustand.
+- **Phong cách thiết kế:** Industrial Flat Minimalism (màu chủ đạo: Cam `#EA580C`, Đen `#0A0A0A`, Trắng `#FFFFFF`). Không sử dụng gradient, không dùng emoji.
+- **Ràng buộc & Kiểm tra dữ liệu (Validation):** Thực hiện kiểm tra dữ liệu nghiêm ngặt ở tầng giao diện bằng **Zod Schema** kết hợp **React Hook Form**.
+- **Bản địa hóa:** Giao diện và các nhãn vai trò được dịch sang tiếng Việt thân thiện với người vận hành (`Quản trị viên`, `Quản lý quán`, `Thu ngân`, `Pha chế`, `Thủ kho`).
+- **Tích hợp Backend 100%:** Toàn bộ trang (Tổng quan, Quán & Chi nhánh, Thực đơn, Kho, Bán hàng POS, Nhân sự, Giám sát) kết nối trực tiếp với backend API qua `src/frontend/src/api/client.ts`.
+
