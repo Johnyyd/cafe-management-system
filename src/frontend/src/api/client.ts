@@ -175,8 +175,9 @@ export const api = {
   },
 
   // Inventory
-  getInventory: async (): Promise<InventoryItem[]> => {
-    const res = await fetchJson<any>('/inventory');
+  getInventory: async (shopId?: string): Promise<InventoryItem[]> => {
+    const url = shopId ? `/inventory?shopId=${encodeURIComponent(shopId)}` : '/inventory';
+    const res = await fetchJson<any>(url);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
     return rawItems.map((i) => ({
       id: typeof i.id === 'string' ? i.id : i.id?.toString?.() || '',
@@ -229,8 +230,9 @@ export const api = {
   },
 
   // Orders
-  getOrders: async (): Promise<Order[]> => {
-    const res = await fetchJson<any>('/orders');
+  getOrders: async (shopId?: string): Promise<Order[]> => {
+    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}&pageSize=100` : '?pageSize=100';
+    const res = await fetchJson<any>(`/orders${query}`);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
     return rawItems.map((o) => {
       const subTotal = (o.items || []).reduce(

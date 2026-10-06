@@ -19,7 +19,7 @@ export const Header: React.FC = () => {
         setCurrentShopId(res[0].id);
       }
     }).catch(() => {});
-  }, [currentShopId, setCurrentShopId]);
+  }, []);
 
   const handleLogout = () => {
     logout();

@@ -42,19 +42,20 @@ export const OrdersPage: React.FC = () => {
     },
   });
 
-  const loadData = async () => {
+  const loadData = async (shopId?: string) => {
     setLoading(true);
     try {
       const [ordersData, menuData, shopsData] = await Promise.all([
-        api.getOrders(),
+        api.getOrders(shopId),
         api.getMenuItems(),
         api.getShops(),
       ]);
       setOrders(ordersData);
       setMenuItems(menuData);
       setShops(shopsData);
-      if (shopsData.length > 0 && !watch('shopId')) {
-        setValue('shopId', shopsData[0].id);
+      const targetShopId = shopId || currentShopId || (shopsData.length > 0 ? shopsData[0].id : '');
+      if (targetShopId) {
+        setValue('shopId', targetShopId);
       }
     } catch (err: any) {
       notify('error', err.message || 'Không thể tải dữ liệu đơn hàng');
@@ -64,8 +65,11 @@ export const OrdersPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(currentShopId);
+    if (currentShopId) {
+      setValue('shopId', currentShopId);
+    }
+  }, [currentShopId]);
 
   const selectedOrderType = watch('type');
 
@@ -151,6 +155,8 @@ export const OrdersPage: React.FC = () => {
     );
     notify('info', `Đã cập nhật trạng thái đơn thành ${nextStatus}`);
   };
+
+  const displayedOrders = currentShopId ? orders.filter((o) => o.shopId === currentShopId) : orders;
 
   return (
     <PageContainer
@@ -390,14 +396,14 @@ export const OrdersPage: React.FC = () => {
                     Đang tải danh sách đơn hàng từ máy chủ...
                   </td>
                 </tr>
-              ) : orders.length === 0 ? (
+              ) : displayedOrders.length === 0 ? (
                 <tr>
                   <td colSpan={7} className="py-8 text-center text-neutral-500">
-                    Chưa có đơn hàng nào hôm nay.
+                    Chưa có đơn hàng nào tại chi nhánh này hôm nay.
                   </td>
                 </tr>
               ) : (
-                orders.map((o) => {
+                displayedOrders.map((o) => {
                   const statusBadge = {
                     Completed: <Badge variant="success" size="sm">Hoàn tất</Badge>,
                     Preparing: <Badge variant="warning" size="sm">Đang pha chế</Badge>,

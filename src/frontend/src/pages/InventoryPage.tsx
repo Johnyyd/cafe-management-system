@@ -25,12 +25,12 @@ export const InventoryPage: React.FC = () => {
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [adjustingItem, setAdjustingItem] = useState<InventoryItem | null>(null);
   const [onlyLowStock, setOnlyLowStock] = useState(false);
-  const { notify } = useAppStore();
+  const { currentShopId, notify } = useAppStore();
 
-  const loadInventory = async () => {
+  const loadInventory = async (shopId?: string) => {
     setLoading(true);
     try {
-      const data = await api.getInventory();
+      const data = await api.getInventory(shopId);
       setInventory(data);
     } catch (err: any) {
       notify('error', err.message || 'Không thể tải danh sách tồn kho');
@@ -40,12 +40,16 @@ export const InventoryPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadInventory();
-  }, []);
+    loadInventory(currentShopId);
+  }, [currentShopId]);
+
+  const currentShopInventory = currentShopId
+    ? inventory.filter((item) => item.shopId === currentShopId)
+    : inventory;
 
   const filteredInventory = onlyLowStock
-    ? inventory.filter((item) => item.currentStock <= item.reorderLevel)
-    : inventory;
+    ? currentShopInventory.filter((item) => item.currentStock <= item.reorderLevel)
+    : currentShopInventory;
 
   // Add Item Form
   const {
@@ -84,6 +88,7 @@ export const InventoryPage: React.FC = () => {
   const onAddItemSubmit = async (data: InventoryItemFormData) => {
     try {
       const newItem = await api.createInventoryItem({
+        shopId: currentShopId,
         itemName: data.itemName,
         unit: data.unit,
         currentStock: data.currentStock,

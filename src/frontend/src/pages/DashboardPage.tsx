@@ -7,20 +7,22 @@ import { api } from '../api/client';
 import { Order, InventoryItem, Shop } from '../types';
 import { DollarSign, ShoppingBag, AlertTriangle, Store, Plus, ArrowRight, RefreshCw } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useAppStore } from '../stores/appStore';
 
 export const DashboardPage: React.FC = () => {
   const navigate = useNavigate();
+  const { currentShopId } = useAppStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [inventory, setInventory] = useState<InventoryItem[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState(true);
 
-  const loadData = async () => {
+  const loadData = async (shopId?: string) => {
     setLoading(true);
     try {
       const [ordersData, invData, shopsData] = await Promise.all([
-        api.getOrders(),
-        api.getInventory(),
+        api.getOrders(shopId),
+        api.getInventory(shopId),
         api.getShops(),
       ]);
       setOrders(ordersData);
@@ -34,26 +36,38 @@ export const DashboardPage: React.FC = () => {
   };
 
   useEffect(() => {
-    loadData();
-  }, []);
+    loadData(currentShopId);
+  }, [currentShopId]);
 
-  const completedOrders = orders.filter((o) => o.status === 'Completed');
+  const currentShop = shops.find((s) => s.id === currentShopId);
+  const currentOrders = currentShopId
+    ? orders.filter((o) => o.shopId === currentShopId)
+    : orders;
+  const currentInventory = currentShopId
+    ? inventory.filter((i) => i.shopId === currentShopId)
+    : inventory;
+
+  const completedOrders = currentOrders.filter((o) => o.status === 'Completed');
   const totalCompletedRevenue = completedOrders.reduce((sum, o) => sum + o.total, 0);
 
-  const lowStockCount = inventory.filter((i) => i.currentStock <= i.reorderLevel).length;
+  const lowStockCount = currentInventory.filter((i) => i.currentStock <= i.reorderLevel).length;
   const activeShopsCount = shops.filter((s) => s.status === 'Active').length;
 
   return (
     <PageContainer
       title="Bảng Điều Khiển Tổng Quan"
-      subtitle="Theo dõi hiệu suất vận hành chuỗi cà phê, đơn hàng tại quầy và tồn kho thời gian thực"
+      subtitle={
+        currentShop
+          ? `Theo dõi hiệu suất vận hành tại chi nhánh: ${currentShop.name}`
+          : 'Theo dõi hiệu suất vận hành chuỗi cà phê, đơn hàng tại quầy và tồn kho thời gian thực'
+      }
       actions={
         <div className="flex items-center gap-2">
           <Button
             variant="outline"
             size="sm"
             icon={<RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />}
-            onClick={loadData}
+            onClick={() => loadData(currentShopId)}
           >
             Làm mới
           </Button>
@@ -89,7 +103,7 @@ export const DashboardPage: React.FC = () => {
               {loading ? '...' : `${totalCompletedRevenue.toLocaleString('vi-VN')} ₫`}
             </span>
             <span className="block text-[11px] text-neutral-500 mt-1">
-              Từ {completedOrders.length} / {orders.length} đơn hàng đã hoàn tất
+              Từ {completedOrders.length} / {currentOrders.length} đơn hàng đã hoàn tất
             </span>
           </div>
         </Card>
@@ -103,10 +117,10 @@ export const DashboardPage: React.FC = () => {
           </div>
           <div className="mt-3">
             <span className="text-2xl font-black text-neutral-900 tracking-tight font-mono">
-              {loading ? '...' : orders.length}
+              {loading ? '...' : currentOrders.length}
             </span>
             <span className="block text-[11px] text-neutral-500 mt-1">
-              {orders.filter((o) => o.status === 'Preparing').length} đang pha chế, {orders.filter((o) => o.status === 'Confirmed' || o.status === 'Pending').length} chờ thực hiện
+              {currentOrders.filter((o) => o.status === 'Preparing').length} đang pha chế, {currentOrders.filter((o) => o.status === 'Confirmed' || o.status === 'Pending').length} chờ thực hiện
             </span>
           </div>
         </Card>
@@ -137,8 +151,8 @@ export const DashboardPage: React.FC = () => {
             <span className="text-2xl font-black text-neutral-900 tracking-tight font-mono">
               {loading ? '...' : `${activeShopsCount} / ${shops.length}`}
             </span>
-            <span className="block text-[11px] text-neutral-500 mt-1">
-              {shops.length - activeShopsCount} chi nhánh đang bảo trì định kỳ
+            <span className="block text-[11px] text-neutral-500 mt-1 truncate" title={currentShop?.name}>
+              Đang chọn: {currentShop?.name || 'Toàn hệ thống'}
             </span>
           </div>
         </Card>
@@ -164,8 +178,10 @@ export const DashboardPage: React.FC = () => {
           >
             {loading ? (
               <div className="p-6 text-center text-xs text-neutral-500">Đang tải dữ liệu từ máy chủ...</div>
-            ) : orders.length === 0 ? (
-              <div className="p-8 text-center text-xs text-neutral-500">Chưa có đơn hàng nào hôm nay.</div>
+            ) : currentOrders.length === 0 ? (
+              <div className="p-8 text-center text-xs text-neutral-500">
+                Chưa có đơn hàng nào tại chi nhánh này hôm nay.
+              </div>
             ) : (
               <div className="overflow-x-auto">
                 <table className="w-full text-left text-xs text-neutral-700">
@@ -179,7 +195,7 @@ export const DashboardPage: React.FC = () => {
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-neutral-200">
-                    {orders.slice(0, 5).map((order) => {
+                    {currentOrders.slice(0, 5).map((order) => {
                       const typeBadge = {
                         DineIn: <Badge variant="neutral">Tại quán</Badge>,
                         Takeaway: <Badge variant="orange">Mang đi</Badge>,
@@ -242,7 +258,7 @@ export const DashboardPage: React.FC = () => {
             }
           >
             <div className="space-y-3">
-              {inventory
+              {currentInventory
                 .filter((item) => item.currentStock <= item.reorderLevel)
                 .slice(0, 4)
                 .map((item) => (
@@ -267,9 +283,9 @@ export const DashboardPage: React.FC = () => {
                   </div>
                 ))}
 
-              {inventory.filter((item) => item.currentStock <= item.reorderLevel).length === 0 && (
+              {currentInventory.filter((item) => item.currentStock <= item.reorderLevel).length === 0 && (
                 <div className="py-8 text-center text-xs text-neutral-500">
-                  Kho hàng đang ổn định, chưa có mặt hàng nào cần nhập thêm.
+                  Kho hàng tại chi nhánh này đang ổn định, chưa có mặt hàng nào cần nhập thêm.
                 </div>
               )}
             </div>

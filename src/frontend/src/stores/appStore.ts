@@ -15,9 +15,14 @@ interface AppState {
   dismissNotification: (id: string) => void;
 }
 
+const savedShopId = localStorage.getItem('cms_current_shop_id') || '';
+
 export const useAppStore = create<AppState>((set) => ({
-  currentShopId: 'shop_001',
-  setCurrentShopId: (currentShopId) => set({ currentShopId }),
+  currentShopId: savedShopId,
+  setCurrentShopId: (currentShopId) => {
+    localStorage.setItem('cms_current_shop_id', currentShopId);
+    set({ currentShopId });
+  },
   notifications: [],
   notify: (type, message) => {
     const id = Date.now().toString();
