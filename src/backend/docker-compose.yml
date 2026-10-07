@@ -64,6 +64,27 @@ services:
       timeout: 10s
       retries: 5
 
+  tailscale:
+    build:
+      context: ../tailscale
+      dockerfile: Dockerfile.tailscale
+    container_name: cafe_management_tailscale
+    hostname: cafe
+    restart: always
+    environment:
+      - TS_AUTHKEY=tskey-auth
+      - TS_STATE_DIR=/var/lib/tailscale
+      - TS_TARGET_HOST=host.docker.internal
+      - TS_TARGET_PORT=3000
+      - TS_FUNNEL_PORT=443
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - ts_frontend_state:/var/lib/tailscale
+    depends_on:
+      - api
+
 volumes:
   mongodb_data:
   seq_data:
+  ts_frontend_state:

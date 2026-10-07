@@ -69,7 +69,7 @@ export const LoginPage: React.FC = () => {
           {/* Quick Role Fill Presets for evaluation */}
           <div className="mb-6">
             <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-              Tài khoản mẫu thử nghiệm
+              Tài khoản mẫu
             </label>
             <div className="grid grid-cols-3 gap-1.5 text-xs">
               <button
@@ -133,7 +133,7 @@ export const LoginPage: React.FC = () => {
           {/* Form */}
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
             <Input
-              label="Email công vụ"
+              label="Email"
               type="email"
               required
               placeholder="ten@cafemanagement.com"
@@ -174,17 +174,9 @@ export const LoginPage: React.FC = () => {
               disabled={!isValid || isSubmitting}
               icon={<ArrowRight className="w-4 h-4" />}
             >
-              Đăng nhập hệ thống
+              Đăng nhập
             </Button>
           </form>
-
-          {/* Compliance & Security footnote */}
-          <div className="mt-6 pt-4 border-t border-neutral-200 text-center">
-            <div className="flex items-center justify-center gap-1.5 text-xs text-neutral-500">
-              <ShieldCheck className="w-3.5 h-3.5 text-cafe-orange" />
-              Bảo mật 2FA & JWT Token mã hóa RSA-256
-            </div>
-          </div>
         </div>
       </div>
     </div>

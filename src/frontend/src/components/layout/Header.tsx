@@ -78,7 +78,7 @@ export const Header: React.FC = () => {
         </div>
         <button
           onClick={handleLogout}
-          title="Đăng xuất hệ thống"
+          title="Đăng xuất"
           className="p-1.5 text-neutral-500 hover:text-red-600 hover:bg-neutral-100 rounded transition-colors ml-2"
         >
           <LogOut className="w-4 h-4" />

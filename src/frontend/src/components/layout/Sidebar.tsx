@@ -98,7 +98,7 @@ export const Sidebar: React.FC = () => {
           className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-neutral-400 hover:text-red-400 hover:bg-neutral-900 rounded transition-colors"
         >
           <LogOut className="w-4 h-4" />
-          <span>Đăng xuất hệ thống</span>
+          <span>Đăng xuất</span>
         </button>
       </div>
     </aside>
