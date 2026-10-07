@@ -80,13 +80,18 @@ export const api = {
     }));
   },
 
-  createShop: async (data: Partial<Shop>): Promise<Shop> => {
+  createShop: async (data: Partial<Shop> & { district?: string; ward?: string }): Promise<Shop> => {
+    const districtPart = data.district || data.address?.state || '';
+    const fullDistrict = data.ward && data.ward.trim()
+      ? `${data.ward.trim()}, ${districtPart.trim()}`
+      : (districtPart.trim() || 'Quận 1');
+
     const payload = {
       name: data.name,
       address: {
         street: data.address?.street || '',
         city: data.address?.city || '',
-        district: data.address?.state || 'Quận 1',
+        district: fullDistrict,
         zipCode: data.address?.postalCode || '70000',
       },
       contact: {

@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
  import { zodResolver } from '@hookform/resolvers/zod';
-import { Coffee, Lock, Mail, ArrowRight, ShieldCheck } from 'lucide-react';
+import { Coffee, Lock, Mail, ArrowRight } from 'lucide-react';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
 import { useAuthStore } from '../stores/authStore';

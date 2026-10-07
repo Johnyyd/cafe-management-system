@@ -10,8 +10,10 @@ export type LoginFormData = z.infer<typeof loginSchema>;
 export const shopSchema = z.object({
   name: z.string().min(2, 'Tên quán tối thiểu 2 ký tự').max(100, 'Tên quán tối đa 100 ký tự'),
   street: z.string().min(1, 'Địa chỉ đường là bắt buộc'),
-  city: z.string().min(1, 'Thành phố là bắt buộc'),
-  state: z.string().min(1, 'Tỉnh/Bang là bắt buộc'),
+  city: z.string().min(1, 'Tỉnh / Thành phố là bắt buộc'),
+  district: z.string().min(1, 'Quận / Huyện là bắt buộc'),
+  ward: z.string().optional(),
+  state: z.string().optional(),
   postalCode: z.string().min(1, 'Mã bưu điện là bắt buộc'),
   country: z.string().min(1, 'Quốc gia là bắt buộc'),
   phone: z.string().regex(/^[0-9+\-\s()]{8,20}$/, 'Số điện thoại không hợp lệ (8-20 ký tự số)'),
