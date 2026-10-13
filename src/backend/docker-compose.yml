@@ -72,7 +72,7 @@ services:
     hostname: cafe
     restart: always
     environment:
-      - TS_AUTHKEY=tskey-auth
+      - TS_AUTHKEY=${TS_AUTHKEY}
       - TS_STATE_DIR=/var/lib/tailscale
       - TS_TARGET_HOST=host.docker.internal
       - TS_TARGET_PORT=3000

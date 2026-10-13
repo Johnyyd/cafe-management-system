@@ -86,6 +86,19 @@ public class OrdersController : ControllerBase
         return NoContent();
     }
 
+    [HttpDelete("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> DeleteOrder(ObjectId id, CancellationToken cancellationToken)
+    {
+        var command = new DeleteOrderCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (result.IsFailed)
+            return NotFound(result.Errors);
+
+        return NoContent();
+    }
+
     [HttpPost("{id}/payment")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]

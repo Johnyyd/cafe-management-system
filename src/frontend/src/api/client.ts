@@ -48,7 +48,8 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
     return {} as T;
   }
 
-  return response.json();
+  const text = await response.text();
+  return text ? JSON.parse(text) : ({} as T);
 }
 
 export const api = {
@@ -122,6 +123,12 @@ export const api = {
     };
   },
 
+  deleteShop: async (id: string): Promise<void> => {
+    await fetchJson(`/shops/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Menu
   getMenuItems: async (): Promise<MenuItem[]> => {
     const res = await fetchJson<any>('/menu');
@@ -179,6 +186,12 @@ export const api = {
     };
   },
 
+  deleteMenuItem: async (id: string): Promise<void> => {
+    await fetchJson(`/menu/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Inventory
   getInventory: async (shopId?: string): Promise<InventoryItem[]> => {
     const url = shopId ? `/inventory?shopId=${encodeURIComponent(shopId)}` : '/inventory';
@@ -232,6 +245,12 @@ export const api = {
       reorderLevel: data.reorderLevel ?? 5,
       lastRestockedAt: new Date().toISOString(),
     };
+  },
+
+  deleteInventoryItem: async (id: string): Promise<void> => {
+    await fetchJson(`/inventory/${id}`, {
+      method: 'DELETE',
+    });
   },
 
   // Orders
@@ -324,6 +343,12 @@ export const api = {
     };
   },
 
+  deleteOrder: async (id: string): Promise<void> => {
+    await fetchJson(`/orders/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Staff
   getStaff: async (): Promise<Staff[]> => {
     const res = await fetchJson<any>('/staff');
@@ -393,6 +418,12 @@ export const api = {
     return { ...found, ...updates };
   },
 
+  deleteStaff: async (id: string): Promise<void> => {
+    await fetchJson(`/staff/${id}`, {
+      method: 'DELETE',
+    });
+  },
+
   // Metrics
   getMetrics: async (): Promise<Record<string, number>> => {
     try {
@@ -411,28 +442,33 @@ export const api = {
 export const shopsApi = {
   getAll: api.getShops,
   create: api.createShop,
+  delete: api.deleteShop,
 };
 
 export const menuApi = {
   getAll: api.getMenuItems,
   create: api.createMenuItem,
+  delete: api.deleteMenuItem,
 };
 
 export const inventoryApi = {
   getAll: api.getInventory,
   adjust: api.adjustStock,
   create: api.createInventoryItem,
+  delete: api.deleteInventoryItem,
 };
 
 export const ordersApi = {
   getAll: api.getOrders,
   create: api.createOrder,
+  delete: api.deleteOrder,
 };
 
 export const staffApi = {
   getAll: api.getStaff,
   create: api.createStaff,
   update: api.updateStaff,
+  delete: api.deleteStaff,
 };
 
 export const metricsApi = {

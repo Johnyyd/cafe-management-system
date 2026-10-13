@@ -223,6 +223,8 @@ public class DeactivateStaffHandler : IRequestHandler<DeactivateStaffCommand, Fl
         if (result.IsFailed)
             return FluentResults.Result.Fail(result.Errors);
 
+        staff.MarkAsDeleted();
+
         await _staffRepository.UpdateAsync(staff, cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
 

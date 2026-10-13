@@ -43,7 +43,7 @@ export const MetricsPage: React.FC = () => {
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 text-xs text-neutral-600">
             <span className="w-2 h-2 rounded-full bg-green-500"></span>
-            Tự động làm mới mỗi {refreshInterval / 1000}s
+            Làm mới mỗi {refreshInterval / 1000}s
           </div>
           <Button
             variant="outline"

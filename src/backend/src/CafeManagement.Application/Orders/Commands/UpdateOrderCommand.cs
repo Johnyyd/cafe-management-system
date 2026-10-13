@@ -14,6 +14,8 @@ public record UpdateOrderCommand(
 
 public record CancelOrderCommand(ObjectId Id) : IRequest<Result>;
 
+public record DeleteOrderCommand(ObjectId Id) : IRequest<Result>;
+
 public record ProcessPaymentCommand(
     ObjectId Id,
     PaymentMethod PaymentMethod,

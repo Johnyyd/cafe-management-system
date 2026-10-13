@@ -11,7 +11,7 @@ import { MenuItem } from '../types';
 import { menuItemSchema, MenuItemFormData } from '../schemas';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Coffee, AlertCircle, CheckCircle } from 'lucide-react';
+import { Plus, Coffee, AlertCircle, CheckCircle, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 
 export const MenuPage: React.FC = () => {
@@ -19,6 +19,8 @@ export const MenuPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [selectedCategory, setSelectedCategory] = useState<string>('Tất cả');
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingItem, setDeletingItem] = useState<MenuItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { notify } = useAppStore();
 
   const loadMenu = async () => {
@@ -80,6 +82,21 @@ export const MenuPage: React.FC = () => {
         return item;
       })
     );
+  };
+
+  const handleDeleteItem = async () => {
+    if (!deletingItem) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteMenuItem(deletingItem.id);
+      setMenuItems((prev) => prev.filter((item) => item.id !== deletingItem.id));
+      notify('success', `Đã xóa món "${deletingItem.name}" khỏi thực đơn`);
+      setDeletingItem(null);
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi xóa món khỏi thực đơn');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const onSubmit = async (data: MenuItemFormData) => {
@@ -198,28 +215,35 @@ export const MenuPage: React.FC = () => {
               )}
             </div>
 
-            {/* Availability toggle bar */}
+            {/* Availability toggle bar & Delete */}
             <div className="px-5 py-3 bg-neutral-50 border-t border-neutral-200 flex items-center justify-between">
-              <span className="text-xs text-neutral-500 font-medium">Trạng thái bán hàng:</span>
-              <button
-                onClick={() => toggleAvailability(item.id)}
-                className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded transition-colors ${
-                  item.availability.isAvailable
-                    ? 'bg-neutral-900 text-white hover:bg-neutral-800'
-                    : 'bg-emerald-600 text-white hover:bg-emerald-700'
-                }`}
-              >
-                {item.availability.isAvailable ? (
-                  <>
+              <span className="text-xs text-neutral-500 font-medium">Trạng thái:</span>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => toggleAvailability(item.id)}
+                  className={`flex items-center gap-1.5 text-xs font-bold px-2.5 py-1 rounded transition-colors ${
+                    item.availability.isAvailable
+                      ? 'bg-neutral-900 text-white hover:bg-neutral-800'
+                      : 'bg-emerald-600 text-white hover:bg-emerald-700'
+                  }`}
+                >
+                  {item.availability.isAvailable ? (
                     <span>Tạm dừng</span>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle className="w-3.5 h-3.5" />
-                    <span>Mở bán lại</span>
-                  </>
-                )}
-              </button>
+                  ) : (
+                    <>
+                      <CheckCircle className="w-3.5 h-3.5" />
+                      <span>Mở bán lại</span>
+                    </>
+                  )}
+                </button>
+                <button
+                  onClick={() => setDeletingItem(item)}
+                  className="flex items-center gap-1 text-xs text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 rounded transition-colors border border-transparent hover:border-red-200"
+                  title="Xóa món khỏi thực đơn"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </Card>
         ))}
@@ -321,6 +345,41 @@ export const MenuPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingItem}
+        onClose={() => setDeletingItem(null)}
+        title="Xác nhận xóa món"
+        description="Thao tác này sẽ xóa món khỏi danh mục thực đơn của quán."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-700">
+            Bạn có chắc chắn muốn xóa món{' '}
+            <strong className="text-neutral-900">{deletingItem?.name}</strong> (Mã:{' '}
+            <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded font-mono">{deletingItem?.id}</code>)?
+          </p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingItem(null)}
+              disabled={isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteItem}
+              isLoading={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
       </Modal>
     </PageContainer>
   );

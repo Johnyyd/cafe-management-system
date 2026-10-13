@@ -197,6 +197,30 @@ public class DeactivateInventoryItemHandler : IRequestHandler<DeactivateInventor
     }
 }
 
+public class DeleteInventoryItemHandler : IRequestHandler<DeleteInventoryItemCommand, Result>
+{
+    private readonly IInventoryItemRepository _inventoryItemRepository;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public DeleteInventoryItemHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    {
+        _inventoryItemRepository = inventoryItemRepository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result> Handle(DeleteInventoryItemCommand request, CancellationToken cancellationToken)
+    {
+        var item = await _inventoryItemRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (item == null)
+            return Result.Fail(DomainErrors.General.NotFound("Inventory Item", request.Id));
+
+        await _inventoryItemRepository.DeleteAsync(request.Id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        return Result.Ok();
+    }
+}
+
 public class GetInventoryItemsHandler : IRequestHandler<GetInventoryItemsQuery, Result<IReadOnlyList<InventoryItemResponse>>>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;

@@ -82,6 +82,33 @@ public class CancelOrderHandler : IRequestHandler<CancelOrderCommand, FluentResu
     }
 }
 
+public class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, FluentResults.Result>
+{
+    private readonly IOrderRepository _orderRepository;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<DeleteOrderHandler> _logger;
+
+    public DeleteOrderHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<DeleteOrderHandler> logger)
+    {
+        _orderRepository = orderRepository;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<FluentResults.Result> Handle(DeleteOrderCommand request, CancellationToken cancellationToken)
+    {
+        var order = await _orderRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (order == null)
+            return FluentResults.Result.Fail(DomainErrors.General.NotFound("Order", request.Id));
+
+        await _orderRepository.DeleteAsync(request.Id, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+
+        _logger.LogInformation("Order deleted: {OrderId}", order.Id);
+        return FluentResults.Result.Ok();
+    }
+}
+
 public class ProcessPaymentHandler : IRequestHandler<ProcessPaymentCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;

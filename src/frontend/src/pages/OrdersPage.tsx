@@ -5,6 +5,7 @@ import { Badge } from '../components/common/Badge';
 import { Button } from '../components/common/Button';
 import { Input } from '../components/common/Input';
 import { Select } from '../components/common/Select';
+import { Modal } from '../components/common/Modal';
 import { api } from '../api/client';
 import { Order, OrderItem, OrderStatus, OrderType, MenuItem, Shop } from '../types';
 import { orderSchema, OrderFormData } from '../schemas';
@@ -19,6 +20,8 @@ export const OrdersPage: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
+  const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const { currentShopId, notify } = useAppStore();
 
   const {
@@ -154,6 +157,21 @@ export const OrdersPage: React.FC = () => {
       prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
     );
     notify('info', `Đã cập nhật trạng thái đơn thành ${nextStatus}`);
+  };
+
+  const handleDeleteOrder = async () => {
+    if (!deletingOrder) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteOrder(deletingOrder.id);
+      setOrders((prev) => prev.filter((o) => o.id !== deletingOrder.id));
+      notify('success', `Đã xóa đơn hàng ${deletingOrder.orderNumber} thành công`);
+      setDeletingOrder(null);
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi xóa đơn hàng');
+    } finally {
+      setIsDeleting(false);
+    }
   };
 
   const displayedOrders = currentShopId ? orders.filter((o) => o.shopId === currentShopId) : orders;
@@ -435,29 +453,37 @@ export const OrdersPage: React.FC = () => {
                         {o.total.toLocaleString('vi-VN')} ₫
                       </td>
                       <td className="py-3 px-4 text-right">
-                        {o.status === 'Pending' && (
+                        <div className="flex items-center justify-end gap-1.5">
+                          {o.status === 'Pending' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              icon={<Clock className="w-3 h-3" />}
+                              onClick={() => updateOrderStatus(o.id, 'Preparing')}
+                            >
+                              Pha chế
+                            </Button>
+                          )}
+                          {o.status === 'Preparing' && (
+                            <Button
+                              variant="primary"
+                              size="sm"
+                              icon={<CheckCircle className="w-3 h-3" />}
+                              onClick={() => updateOrderStatus(o.id, 'Completed')}
+                            >
+                              Hoàn tất
+                            </Button>
+                          )}
                           <Button
-                            variant="secondary"
+                            variant="ghost"
                             size="sm"
-                            icon={<Clock className="w-3 h-3" />}
-                            onClick={() => updateOrderStatus(o.id, 'Preparing')}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
+                            icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                            onClick={() => setDeletingOrder(o)}
                           >
-                            Pha chế
+                            Xóa
                           </Button>
-                        )}
-                        {o.status === 'Preparing' && (
-                          <Button
-                            variant="primary"
-                            size="sm"
-                            icon={<CheckCircle className="w-3 h-3" />}
-                            onClick={() => updateOrderStatus(o.id, 'Completed')}
-                          >
-                            Hoàn tất
-                          </Button>
-                        )}
-                        {o.status === 'Completed' && (
-                          <span className="text-neutral-400 font-mono text-[11px]">-</span>
-                        )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -467,6 +493,41 @@ export const OrdersPage: React.FC = () => {
           </table>
         </div>
       </Card>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingOrder}
+        onClose={() => setDeletingOrder(null)}
+        title="Xác nhận xóa đơn hàng"
+        description="Thao tác này sẽ xóa đơn hàng khỏi lịch sử giao dịch."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-700">
+            Bạn có chắc chắn muốn xóa đơn hàng{' '}
+            <strong className="text-neutral-900">{deletingOrder?.orderNumber}</strong> (Tổng tiền:{' '}
+            <strong className="text-cafe-orange font-mono">{deletingOrder?.total.toLocaleString('vi-VN')} ₫</strong>)?
+          </p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingOrder(null)}
+              disabled={isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteOrder}
+              isLoading={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
+      </Modal>
     </PageContainer>
   );
 };

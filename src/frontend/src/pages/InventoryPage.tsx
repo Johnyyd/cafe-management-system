@@ -16,7 +16,7 @@ import {
 } from '../schemas';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Boxes, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Plus, Boxes, SlidersHorizontal, ArrowUpDown, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 
 export const InventoryPage: React.FC = () => {
@@ -24,6 +24,8 @@ export const InventoryPage: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(true);
   const [isAddItemModalOpen, setIsAddItemModalOpen] = useState(false);
   const [adjustingItem, setAdjustingItem] = useState<InventoryItem | null>(null);
+  const [deletingItem, setDeletingItem] = useState<InventoryItem | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [onlyLowStock, setOnlyLowStock] = useState(false);
   const { currentShopId, notify } = useAppStore();
 
@@ -119,6 +121,21 @@ export const InventoryPage: React.FC = () => {
     }
   };
 
+  const handleDeleteItem = async () => {
+    if (!deletingItem) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteInventoryItem(deletingItem.id);
+      setInventory((prev) => prev.filter((item) => item.id !== deletingItem.id));
+      notify('success', `Đã xóa nguyên liệu "${deletingItem.itemName}" khỏi kho`);
+      setDeletingItem(null);
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi xóa nguyên liệu khỏi kho');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <PageContainer
       title="Quản Lý Kho & Nguyên Liệu"
@@ -198,17 +215,28 @@ export const InventoryPage: React.FC = () => {
                         </Badge>
                       </td>
                       <td className="py-3.5 px-5 text-right">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          icon={<ArrowUpDown className="w-3 h-3" />}
-                          onClick={() => {
-                            setAdjustingItem(item);
-                            resetAdjust({ amount: 5, type: 'Add', reason: 'Nhập hàng thêm' });
-                          }}
-                        >
-                          Điều chỉnh tồn
-                        </Button>
+                        <div className="flex items-center justify-end gap-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            icon={<ArrowUpDown className="w-3 h-3" />}
+                            onClick={() => {
+                              setAdjustingItem(item);
+                              resetAdjust({ amount: 5, type: 'Add', reason: 'Nhập hàng thêm' });
+                            }}
+                          >
+                            Điều chỉnh tồn
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50 border border-transparent hover:border-red-200"
+                            icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                            onClick={() => setDeletingItem(item)}
+                          >
+                            Xóa
+                          </Button>
+                        </div>
                       </td>
                     </tr>
                   );
@@ -352,6 +380,41 @@ export const InventoryPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingItem}
+        onClose={() => setDeletingItem(null)}
+        title="Xác nhận xóa nguyên liệu"
+        description="Thao tác này sẽ xóa nguyên liệu khỏi kho dữ liệu hệ thống."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-700">
+            Bạn có chắc chắn muốn xóa nguyên liệu{' '}
+            <strong className="text-neutral-900">{deletingItem?.itemName}</strong> (Mã:{' '}
+            <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded font-mono">{deletingItem?.id}</code>)?
+          </p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingItem(null)}
+              disabled={isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteItem}
+              isLoading={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
       </Modal>
     </PageContainer>
   );

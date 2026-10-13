@@ -11,7 +11,7 @@ import { Shop } from '../types';
 import { shopSchema, ShopFormData } from '../schemas';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Store, Clock, Phone, Mail, MapPin, Loader2 } from 'lucide-react';
+import { Plus, Store, Clock, Phone, Mail, MapPin, Loader2, Trash2 } from 'lucide-react';
 import { useAppStore } from '../stores/appStore';
 import {
   VIETNAM_PROVINCES,
@@ -28,6 +28,8 @@ export const ShopsPage: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [deletingShop, setDeletingShop] = useState<Shop | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const { notify } = useAppStore();
 
   // Location hierarchy state for cascading selects
@@ -241,6 +243,21 @@ export const ShopsPage: React.FC = () => {
     }
   };
 
+  const handleDeleteShop = async () => {
+    if (!deletingShop) return;
+    setIsDeleting(true);
+    try {
+      await api.deleteShop(deletingShop.id);
+      setShops((prev) => prev.filter((s) => s.id !== deletingShop.id));
+      notify('success', `Đã xóa chi nhánh "${deletingShop.name}" thành công`);
+      setDeletingShop(null);
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi xóa chi nhánh');
+    } finally {
+      setIsDeleting(false);
+    }
+  };
+
   return (
     <PageContainer
       title="Quản Lý Chi Nhánh & Điểm Bán"
@@ -323,11 +340,19 @@ export const ShopsPage: React.FC = () => {
                 <div className="p-4 bg-neutral-50 flex items-center justify-between text-xs border-t border-neutral-200">
                   <div className="flex items-center gap-1.5 text-neutral-600">
                     <Clock className="w-3.5 h-3.5 text-cafe-orange" />
-                    <span className="font-medium">Giờ mở cửa:</span>
+                    <span className="font-mono font-bold text-neutral-900">
+                      {shop.operatingHours[0]?.openTime || '07:00'} - {shop.operatingHours[0]?.closeTime || '22:30'}
+                    </span>
                   </div>
-                  <span className="font-mono font-bold text-neutral-900">
-                    {shop.operatingHours[0]?.openTime || '07:00'} - {shop.operatingHours[0]?.closeTime || '22:30'}
-                  </span>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
+                    icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                    onClick={() => setDeletingShop(shop)}
+                  >
+                    Xóa
+                  </Button>
                 </div>
               </Card>
             );
@@ -499,6 +524,41 @@ export const ShopsPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingShop}
+        onClose={() => setDeletingShop(null)}
+        title="Xác nhận xóa chi nhánh"
+        description="Thao tác này sẽ đóng và xóa chi nhánh khỏi hệ thống vận hành."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-700">
+            Bạn có chắc chắn muốn xóa chi nhánh{' '}
+            <strong className="text-neutral-900">{deletingShop?.name}</strong> (Mã:{' '}
+            <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded font-mono">{deletingShop?.id}</code>)?
+          </p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingShop(null)}
+              disabled={isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteShop}
+              isLoading={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
       </Modal>
     </PageContainer>
   );

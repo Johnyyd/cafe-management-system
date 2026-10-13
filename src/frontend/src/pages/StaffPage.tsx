@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Search, Mail, Phone, Building2, UserX, UserCheck } from 'lucide-react';
+import { Plus, Search, Mail, Phone, Building2, UserX, UserCheck, Trash2 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/common/Card';
 import { Button } from '../components/common/Button';
@@ -20,6 +20,8 @@ export const StaffPage: React.FC = () => {
   const [shops, setShops] = useState<Shop[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [isModalOpen, setIsModalOpen] = useState<boolean>(false);
+  const [deletingMember, setDeletingMember] = useState<StaffMember | null>(null);
+  const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [shopFilter, setShopFilter] = useState<string>('all');
@@ -114,6 +116,29 @@ export const StaffPage: React.FC = () => {
         title: 'Lỗi cập nhật',
         message: 'Không thể đổi trạng thái tài khoản.',
       });
+    }
+  };
+
+  const handleDeleteMember = async () => {
+    if (!deletingMember) return;
+    setIsDeleting(true);
+    try {
+      await staffApi.delete(deletingMember.id);
+      setStaff((prev) => prev.filter((s) => s.id !== deletingMember.id));
+      addNotification({
+        type: 'success',
+        title: 'Đã xóa nhân viên',
+        message: `Đã xóa nhân viên ${deletingMember.firstName} ${deletingMember.lastName} khỏi hệ thống.`,
+      });
+      setDeletingMember(null);
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Lỗi xóa nhân viên',
+        message: 'Không thể xóa nhân viên khỏi hệ thống.',
+      });
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -265,14 +290,25 @@ export const StaffPage: React.FC = () => {
                       </Badge>
                     </td>
                     <td className="py-3 px-4 text-right">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => handleToggleStatus(member)}
-                        icon={member.status === 'Active' ? <UserX className="w-3.5 h-3.5 text-red-600" /> : <UserCheck className="w-3.5 h-3.5 text-green-600" />}
-                      >
-                        {member.status === 'Active' ? 'Khóa' : 'Kích hoạt'}
-                      </Button>
+                      <div className="flex items-center justify-end gap-1.5">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleToggleStatus(member)}
+                          icon={member.status === 'Active' ? <UserX className="w-3.5 h-3.5 text-red-600" /> : <UserCheck className="w-3.5 h-3.5 text-green-600" />}
+                        >
+                          {member.status === 'Active' ? 'Khóa' : 'Kích hoạt'}
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
+                          icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                          onClick={() => setDeletingMember(member)}
+                        >
+                          Xóa
+                        </Button>
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -369,6 +405,41 @@ export const StaffPage: React.FC = () => {
             </Button>
           </div>
         </form>
+      </Modal>
+
+      {/* Delete Confirmation Modal */}
+      <Modal
+        isOpen={!!deletingMember}
+        onClose={() => setDeletingMember(null)}
+        title="Xác nhận xóa nhân viên"
+        description="Thao tác này sẽ xóa hồ sơ nhân viên khỏi danh sách nhân sự của hệ thống."
+      >
+        <div className="space-y-4">
+          <p className="text-sm text-neutral-700">
+            Bạn có chắc chắn muốn xóa nhân viên{' '}
+            <strong className="text-neutral-900">{deletingMember?.firstName} {deletingMember?.lastName}</strong> (Mã:{' '}
+            <code className="text-xs bg-neutral-100 px-1 py-0.5 rounded font-mono">{deletingMember?.id}</code>)?
+          </p>
+          <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setDeletingMember(null)}
+              disabled={isDeleting}
+            >
+              Hủy
+            </Button>
+            <Button
+              variant="danger"
+              size="sm"
+              onClick={handleDeleteMember}
+              loading={isDeleting}
+              icon={<Trash2 className="w-3.5 h-3.5" />}
+            >
+              Xác nhận xóa
+            </Button>
+          </div>
+        </div>
       </Modal>
     </div>
   </PageContainer>
