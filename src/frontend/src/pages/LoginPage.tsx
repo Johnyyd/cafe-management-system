@@ -23,9 +23,9 @@ export const LoginPage: React.FC = () => {
     resolver: zodResolver(loginSchema),
     mode: 'onBlur',
     defaultValues: {
-      email: 'admin@cafemanagement.com',
-      password: 'Password123!',
-      rememberMe: true,
+      email: '',
+      password: '',
+      rememberMe: false,
     },
   });
 
