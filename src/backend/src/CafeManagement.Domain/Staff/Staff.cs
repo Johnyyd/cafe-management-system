@@ -19,8 +19,8 @@ public class Staff : AggregateRoot<ObjectId>
     public ContactInfo Contact { get; private set; } = default!;
     public EmploymentStatus EmploymentStatus { get; private set; } = EmploymentStatus.Active;
     public DateTime HireDate { get; private set; }
-    private readonly List<StaffShopAssignment> _shopAssignments = new();
-    public IReadOnlyList<StaffShopAssignment> ShopAssignments => _shopAssignments.AsReadOnly();
+    [BsonElement("ShopAssignments")]
+    public List<StaffShopAssignment> ShopAssignments { get; private set; } = new();
 
     private Staff() { }
 
@@ -96,7 +96,7 @@ public class Staff : AggregateRoot<ObjectId>
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
         // Check if already assigned to this shop and active
-        var existingAssignment = _shopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
+        var existingAssignment = ShopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
         if (existingAssignment != null)
         {
             // If already assigned, just update primary status if needed
@@ -105,7 +105,7 @@ public class Staff : AggregateRoot<ObjectId>
                 // If setting as primary, unset other primary assignments first
                 if (isPrimary)
                 {
-                    foreach (var otherAssignment in _shopAssignments.Where(a => a.ShopId != shopId && a.IsActive && a.IsPrimary))
+                    foreach (var otherAssignment in ShopAssignments.Where(a => a.ShopId != shopId && a.IsActive && a.IsPrimary))
                     {
                         otherAssignment.RemoveAsPrimary(assignedBy);
                     }
@@ -119,7 +119,7 @@ public class Staff : AggregateRoot<ObjectId>
         // If setting as primary, unset other primary assignments first
         if (isPrimary)
         {
-            foreach (var otherAssignment in _shopAssignments.Where(a => a.IsActive && a.IsPrimary))
+            foreach (var otherAssignment in ShopAssignments.Where(a => a.IsActive && a.IsPrimary))
             {
                 otherAssignment.RemoveAsPrimary(assignedBy);
             }
@@ -130,7 +130,7 @@ public class Staff : AggregateRoot<ObjectId>
             return Result.Fail(assignmentResult.Errors);
 
         var assignment = assignmentResult.Value;
-        _shopAssignments.Add(assignment);
+        ShopAssignments.Add(assignment);
         AddDomainEvent(new StaffShopAssignedEvent(assignment.Id, Id, shopId, assignment.AssignedDate, isPrimary, assignedBy));
 
         return Result.Ok();
@@ -143,7 +143,7 @@ public class Staff : AggregateRoot<ObjectId>
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
-        var assignment = _shopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
+        var assignment = ShopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
         if (assignment == null)
             return Result.Fail(DomainErrors.Validation.NotFound("StaffShopAssignment", $"Staff {Id} is not actively assigned to shop {shopId}"));
 
@@ -163,7 +163,7 @@ public class Staff : AggregateRoot<ObjectId>
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
-        var assignment = _shopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
+        var assignment = ShopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
         if (assignment == null)
             return Result.Fail(DomainErrors.Validation.NotFound("StaffShopAssignment", $"Staff {Id} is not actively assigned to shop {shopId}"));
 
@@ -172,7 +172,7 @@ public class Staff : AggregateRoot<ObjectId>
             return result;
 
         // Unset all other assignments as non-primary
-        foreach (var otherAssignment in _shopAssignments.Where(a => a.ShopId != shopId && a.IsActive))
+        foreach (var otherAssignment in ShopAssignments.Where(a => a.ShopId != shopId && a.IsActive))
         {
             otherAssignment.RemoveAsPrimary(updatedBy);
         }
@@ -183,18 +183,18 @@ public class Staff : AggregateRoot<ObjectId>
 
     public ObjectId? GetPrimaryShopId()
     {
-        var primaryAssignment = _shopAssignments.FirstOrDefault(a => a.IsActive && a.IsPrimary);
+        var primaryAssignment = ShopAssignments.FirstOrDefault(a => a.IsActive && a.IsPrimary);
         return primaryAssignment?.ShopId;
     }
 
     public IReadOnlyList<ObjectId> GetAssignedShopIds()
     {
-        return _shopAssignments.Where(a => a.IsActive).Select(a => a.ShopId).ToList();
+        return ShopAssignments.Where(a => a.IsActive).Select(a => a.ShopId).ToList();
     }
 
     public bool IsAssignedToShop(ObjectId shopId)
     {
-        return _shopAssignments.Any(a => a.ShopId == shopId && a.IsActive);
+        return ShopAssignments.Any(a => a.ShopId == shopId && a.IsActive);
     }
 
     public Result ChangeRole(StaffRole newRole, ObjectId? updatedBy = null)

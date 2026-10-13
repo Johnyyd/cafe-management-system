@@ -50,8 +50,7 @@ public class CreateStaffHandler : IRequestHandler<CreateStaffCommand, Result<Obj
                 request.LastName,
                 request.Role,
                 contact,
-                request.HireDate,
-                request.ShopId);
+                request.HireDate);
 
             if (staffResult.IsFailed)
             {
@@ -60,9 +59,15 @@ public class CreateStaffHandler : IRequestHandler<CreateStaffCommand, Result<Obj
 
             var staff = staffResult.Value;
 
+            if (request.ShopId != ObjectId.Empty)
+            {
+                staff.AssignToShop(request.ShopId, isPrimary: true);
+            }
+
             // Save to repository
             await _staffRepository.AddAsync(staff, cancellationToken);
             await _unitOfWork.SaveChangesAsync(cancellationToken);
+
 
             _logger.LogInformation("Staff created successfully with Id: {StaffId}", staff.Id);
 

@@ -495,9 +495,93 @@ def seed_staff(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
         except Exception as e:
             print(f" -> Bỏ qua nhân sự {full_name}: {e}")
 
-    # Return refreshed staff
+    # Return refreshed staff and ensure all are assigned to a shop
     res = http_request(f"{API_BASE}/staff", headers=headers)
-    return res if isinstance(res, list) else res.get("items", [])
+    all_staff = res if isinstance(res, list) else res.get("items", [])
+    
+    # Assign primary shop to all staff members
+    print(" -> Phân bổ chi nhánh công tác cho các nhân sự...")
+    for st in all_staff:
+        st_id = st.get("id")
+        assignments = st.get("shopAssignments", [])
+        if not assignments:
+            try:
+                http_request(
+                    f"{API_BASE}/staff/{st_id}/assign-shop",
+                    method="POST",
+                    data={"shopId": shop_id, "isPrimary": True},
+                    headers=headers
+                )
+                print(f"    * Đã gán {st.get('firstName')} {st.get('lastName')} vào chi nhánh [{shop_id}]")
+            except Exception as e:
+                pass
+
+    res_refreshed = http_request(f"{API_BASE}/staff", headers=headers)
+    return res_refreshed if isinstance(res_refreshed, list) else res_refreshed.get("items", all_staff)
+
+def seed_shifts(headers: Dict[str, str], shop_id: str, staff_list: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    print("\n[6.1/7] Lập lịch Ca làm việc mẫu (Work Shifts) cho nhân sự...")
+    res = http_request(f"{API_BASE}/shifts?shopId={shop_id}&pageSize=50", headers=headers)
+    existing_shifts = res if isinstance(res, list) else res.get("items", [])
+
+    if len(existing_shifts) >= 3:
+        print(f" -> Đã có {len(existing_shifts)} ca làm việc trong hệ thống.")
+        return existing_shifts
+
+    shifts_to_create = [
+        {
+            "offset_hours_start": -2,
+            "duration_hours": 8,
+            "notes": "Ca sáng: Mở quán, kiểm tra máy pha espresso, đón khách",
+            "role_idx": 0
+        },
+        {
+            "offset_hours_start": 6,
+            "duration_hours": 8,
+            "notes": "Ca chiều: Thu ngân & chế biến cao điểm chiều tối",
+            "role_idx": 1
+        },
+        {
+            "offset_hours_start": 24,
+            "duration_hours": 8,
+            "notes": "Ca sáng ngày mai: Pha chế & kiểm kê quầy bar",
+            "role_idx": 2
+        },
+        {
+            "offset_hours_start": 32,
+            "duration_hours": 5,
+            "notes": "Ca tối tăng cường: Vệ sinh thiết bị & chốt kho",
+            "role_idx": 3
+        }
+    ]
+
+    import datetime
+    now = datetime.datetime.now(datetime.timezone.utc)
+    created = []
+
+    for idx, sc in enumerate(shifts_to_create):
+        target_staff = staff_list[sc["role_idx"] % len(staff_list)] if staff_list else None
+        if not target_staff:
+            continue
+
+        start_dt = now + datetime.timedelta(hours=sc["offset_hours_start"])
+        end_dt = start_dt + datetime.timedelta(hours=sc["duration_hours"])
+
+        payload = {
+            "staffId": target_staff.get("id"),
+            "shopId": shop_id,
+            "startTime": start_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "endTime": end_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "notes": sc["notes"]
+        }
+        try:
+            created_shift = http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
+            print(f" -> Xếp ca thành công cho {target_staff.get('firstName')} {target_staff.get('lastName')} [{sc['notes'][:25]}...]")
+            created.append(created_shift)
+        except Exception as e:
+            print(f" -> Bỏ qua xếp ca: {e}")
+
+    return created
 
 def seed_sample_orders(headers: Dict[str, str], shop_id: str, staff_id: str, menu_items: List[Dict[str, Any]]):
     res = http_request(f"{API_BASE}/orders?shopId={shop_id}&pageSize=50", headers=headers)
@@ -608,6 +692,9 @@ def main():
     # 6. Seed Staff (Nhân sự chi nhánh)
     staff_list = seed_staff(auth_headers, primary_shop_id)
     primary_staff_id = staff_list[0].get("id") if staff_list else ""
+
+    # 6.1 Seed Shifts (Lập lịch ca làm việc cho nhân viên)
+    seed_shifts(auth_headers, primary_shop_id, staff_list)
 
     # 7. Seed Inventory & Orders for each shop
     print("\n[7/7] Đồng bộ Kho & Đơn hàng mẫu cho tất cả chi nhánh...")

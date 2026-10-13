@@ -1,4 +1,4 @@
-import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus } from '../types';
+import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -359,13 +359,19 @@ export const api = {
       const roleStr = typeof st.role === 'number' ? roleNames[st.role] || 'Cashier' : st.role || 'Cashier';
       const status: EmploymentStatus =
         st.employmentStatus === 1 || st.employmentStatus === 'Active' ? 'Active' : 'Terminated';
+      const primaryAssignment =
+        (Array.isArray(st.shopAssignments) && st.shopAssignments.find((sa: any) => !sa.unassignedDate)) ||
+        (Array.isArray(st.shopAssignments) && st.shopAssignments[0]);
+      const assignedShopId = primaryAssignment?.shopId
+        ? (typeof primaryAssignment.shopId === 'string' ? primaryAssignment.shopId : primaryAssignment.shopId?.toString())
+        : (typeof st.shopId === 'string' ? st.shopId : '');
       return {
         id: typeof st.id === 'string' ? st.id : st.id?.toString?.() || '',
         firstName: st.firstName,
         lastName: st.lastName,
         email: st.contact?.email || 'nhanvien@cafe.vn',
         role: roleStr as any,
-        shopId: typeof st.shopId === 'string' ? st.shopId : st.shopId?.toString?.() || '',
+        shopId: assignedShopId || '',
         status,
         contact: {
           phone: st.contact?.phone || '',
@@ -431,6 +437,13 @@ export const api = {
     });
   },
 
+  assignStaffToShop: async (staffId: string, shopId: string, isPrimary = true): Promise<void> => {
+    await fetchJson(`/staff/${staffId}/assign-shop`, {
+      method: 'POST',
+      body: JSON.stringify({ id: staffId, shopId, isPrimary }),
+    });
+  },
+
   // Metrics
   getMetrics: async (): Promise<Record<string, number>> => {
     try {
@@ -476,6 +489,59 @@ export const staffApi = {
   create: api.createStaff,
   update: api.updateStaff,
   delete: api.deleteStaff,
+  assignShop: api.assignStaffToShop,
+};
+
+export const shiftsApi = {
+  getAll: async (params?: { shopId?: string; staffId?: string }): Promise<Shift[]> => {
+    const queryParams = new URLSearchParams();
+    if (params?.shopId) queryParams.append('shopId', params.shopId);
+    if (params?.staffId) queryParams.append('staffId', params.staffId);
+    queryParams.append('pageSize', '100');
+    const res = await fetchJson<any>(`/shifts?${queryParams.toString()}`);
+    const items: any[] = Array.isArray(res) ? res : res.items || [];
+    const statusMap = ['Scheduled', 'InProgress', 'Completed', 'Cancelled'];
+    return items.map((it) => ({
+      id: typeof it.id === 'string' ? it.id : it.id?.toString?.() || '',
+      staffId: typeof it.staffId === 'string' ? it.staffId : it.staffId?.toString?.() || '',
+      shopId: typeof it.shopId === 'string' ? it.shopId : it.shopId?.toString?.() || '',
+      startTime: it.startTime,
+      endTime: it.endTime,
+      status: typeof it.status === 'number' ? (statusMap[it.status] || 'Scheduled') : (it.status || 'Scheduled'),
+      notes: it.notes,
+    }));
+  },
+  create: async (data: { staffId: string; shopId: string; startTime: string; endTime: string; notes?: string }): Promise<Shift> => {
+    const res = await fetchJson<any>('/shifts', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+    const id = typeof res === 'string' ? res : res.id?.toString?.() || `shift_${Date.now()}`;
+    return {
+      id,
+      staffId: data.staffId,
+      shopId: data.shopId,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      status: 'Scheduled',
+      notes: data.notes,
+    };
+  },
+  start: async (id: string): Promise<void> => {
+    await fetchJson(`/shifts/${id}/start`, { method: 'POST' });
+  },
+  complete: async (id: string): Promise<void> => {
+    await fetchJson(`/shifts/${id}/complete`, { method: 'POST' });
+  },
+  cancel: async (id: string, reason?: string): Promise<void> => {
+    await fetchJson(`/shifts/${id}/cancel`, {
+      method: 'POST',
+      body: JSON.stringify({ reason }),
+    });
+  },
+  delete: async (id: string): Promise<void> => {
+    await fetchJson(`/shifts/${id}`, { method: 'DELETE' });
+  },
 };
 
 export const metricsApi = {
@@ -508,4 +574,5 @@ export const backupApi = {
     });
   },
 };
+
 
