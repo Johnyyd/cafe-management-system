@@ -1,27 +1,25 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
- import { zodResolver } from '@hookform/resolvers/zod';
+import { zodResolver } from '@hookform/resolvers/zod';
 import { Coffee, Lock, Mail, ArrowRight } from 'lucide-react';
 import { Input } from '../components/common/Input';
 import { Button } from '../components/common/Button';
 import { useAuthStore } from '../stores/authStore';
 import { useAppStore } from '../stores/appStore';
 import { loginSchema, LoginFormData } from '../schemas';
-import { StaffRole } from '../types';
 
 export const LoginPage: React.FC = () => {
   const navigate = useNavigate();
   const login = useAuthStore((state) => state.login);
   const notify = useAppStore((state) => state.notify);
-  const [activeTabRole, setActiveTabRole] = useState<StaffRole>('Admin');
 
   const {
     register,
     handleSubmit,
-    setValue,
     formState: { errors, isSubmitting, isValid },
   } = useForm<LoginFormData>({
+
     resolver: zodResolver(loginSchema),
     mode: 'onBlur',
     defaultValues: {
@@ -35,16 +33,17 @@ export const LoginPage: React.FC = () => {
     try {
       await login(data.email, data.password);
       notify('success', 'Đăng nhập thành công! Chào mừng trở lại hệ thống.');
-      navigate('/dashboard');
+      const currentRole = useAuthStore.getState().activeRole;
+      if (currentRole === 'Cashier' || currentRole === 'Barista') {
+        navigate('/orders');
+      } else if (currentRole === 'InventoryStaff') {
+        navigate('/inventory');
+      } else {
+        navigate('/dashboard');
+      }
     } catch {
       notify('error', 'Đăng nhập thất bại. Email hoặc mật khẩu không chính xác.');
     }
-  };
-
-  const handleQuickRoleSelect = (role: StaffRole, email: string) => {
-    setActiveTabRole(role);
-    setValue('email', email, { shouldValidate: true });
-    setValue('password', 'Password123!', { shouldValidate: true });
   };
 
   return (
@@ -66,72 +65,9 @@ export const LoginPage: React.FC = () => {
 
       <div className="mt-8 sm:mx-auto sm:w-full sm:max-w-md">
         <div className="bg-white py-8 px-6 border border-neutral-200 shadow-none sm:px-10">
-          {/* Quick Role Fill Presets for evaluation */}
-          <div className="mb-6">
-            <label className="block text-xs font-semibold text-neutral-700 uppercase tracking-wider mb-2">
-              Tài khoản mẫu
-            </label>
-            <div className="grid grid-cols-3 gap-1.5 text-xs">
-              <button
-                type="button"
-                onClick={() => handleQuickRoleSelect('Admin', 'admin@cafemanagement.com')}
-                className={`py-1.5 px-2 border text-left transition-colors ${
-                  activeTabRole === 'Admin'
-                    ? 'border-cafe-orange bg-orange-50 text-neutral-950 font-semibold'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                }`}
-              >
-                Quản trị viên
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickRoleSelect('Manager', 'manager@district1.com')}
-                className={`py-1.5 px-2 border text-left transition-colors ${
-                  activeTabRole === 'Manager'
-                    ? 'border-cafe-orange bg-orange-50 text-neutral-950 font-semibold'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                }`}
-              >
-                Quản lý quán
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickRoleSelect('Cashier', 'cashier@district1.com')}
-                className={`py-1.5 px-2 border text-left transition-colors ${
-                  activeTabRole === 'Cashier'
-                    ? 'border-cafe-orange bg-orange-50 text-neutral-950 font-semibold'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                }`}
-              >
-                Thu ngân
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickRoleSelect('Barista', 'barista@district1.com')}
-                className={`py-1.5 px-2 border text-left transition-colors ${
-                  activeTabRole === 'Barista'
-                    ? 'border-cafe-orange bg-orange-50 text-neutral-950 font-semibold'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                }`}
-              >
-                Pha chế
-              </button>
-              <button
-                type="button"
-                onClick={() => handleQuickRoleSelect('InventoryStaff', 'stock@warehouse.com')}
-                className={`py-1.5 px-2 border text-left transition-colors ${
-                  activeTabRole === 'InventoryStaff'
-                    ? 'border-cafe-orange bg-orange-50 text-neutral-950 font-semibold'
-                    : 'border-neutral-200 text-neutral-700 hover:bg-neutral-50'
-                }`}
-              >
-                Thủ kho
-              </button>
-            </div>
-          </div>
-
           {/* Form */}
           <form className="space-y-4" onSubmit={handleSubmit(onSubmit)}>
+
             <Input
               label="Email"
               type="email"

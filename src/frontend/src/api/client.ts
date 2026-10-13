@@ -1,4 +1,4 @@
-import { Shop, MenuItem, InventoryItem, Order, Staff } from '../types';
+import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -350,12 +350,15 @@ export const api = {
   },
 
   // Staff
-  getStaff: async (): Promise<Staff[]> => {
-    const res = await fetchJson<any>('/staff');
+  getStaff: async (shopId?: string): Promise<Staff[]> => {
+    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}` : '';
+    const res = await fetchJson<any>(`/staff${query}`);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
     const roleNames = ['Admin', 'Manager', 'Cashier', 'Barista', 'InventoryStaff'];
-    return rawItems.map((st) => {
+    let mapped: Staff[] = rawItems.map((st) => {
       const roleStr = typeof st.role === 'number' ? roleNames[st.role] || 'Cashier' : st.role || 'Cashier';
+      const status: EmploymentStatus =
+        st.employmentStatus === 1 || st.employmentStatus === 'Active' ? 'Active' : 'Terminated';
       return {
         id: typeof st.id === 'string' ? st.id : st.id?.toString?.() || '',
         firstName: st.firstName,
@@ -363,13 +366,17 @@ export const api = {
         email: st.contact?.email || 'nhanvien@cafe.vn',
         role: roleStr as any,
         shopId: typeof st.shopId === 'string' ? st.shopId : st.shopId?.toString?.() || '',
-        status: st.employmentStatus === 1 || st.employmentStatus === 'Active' ? 'Active' : 'Terminated',
+        status,
         contact: {
           phone: st.contact?.phone || '',
           email: st.contact?.email || '',
         },
       };
     });
+    if (shopId) {
+      mapped = mapped.filter((s) => s.shopId === shopId);
+    }
+    return mapped;
   },
 
   createStaff: async (data: Partial<Staff>): Promise<Staff> => {
@@ -486,3 +493,19 @@ export const metricsApi = {
     };
   },
 };
+
+export const backupApi = {
+  getSummary: async (): Promise<{ databaseName: string; totalCollections: number; collections: Record<string, number>; timestamp: string }> => {
+    return await fetchJson<any>('/system/backup/summary');
+  },
+  exportData: async (): Promise<any> => {
+    return await fetchJson<any>('/system/backup/export');
+  },
+  restoreData: async (data: any): Promise<{ message: string; restoredCounts: Record<string, number> }> => {
+    return await fetchJson<any>('/system/backup/restore', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+};
+

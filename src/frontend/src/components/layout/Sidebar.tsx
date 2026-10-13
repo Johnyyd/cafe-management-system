@@ -32,6 +32,17 @@ export const Sidebar: React.FC = () => {
     { name: 'Giám sát hệ thống', href: '/metrics', icon: Activity },
   ];
 
+  const allowedHrefsByRole: Record<string, string[]> = {
+    Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/staff', '/metrics'],
+    Manager: ['/dashboard', '/orders', '/inventory', '/staff'],
+    Cashier: ['/orders'],
+    Barista: ['/orders'],
+    InventoryStaff: ['/inventory'],
+  };
+
+  const allowedRoutes = allowedHrefsByRole[activeRole] || ['/orders'];
+  const visibleNavigation = navigation.filter((item) => allowedRoutes.includes(item.href));
+
   const getRoleDisplayName = (role?: string): string => {
     switch (role?.toUpperCase()) {
       case 'ADMIN': return 'Quản trị viên';
@@ -70,7 +81,7 @@ export const Sidebar: React.FC = () => {
 
       {/* Navigation menu */}
       <nav className="flex-1 px-3 py-4 space-y-1">
-        {navigation.map((item) => {
+        {visibleNavigation.map((item) => {
           const Icon = item.icon;
           return (
             <NavLink

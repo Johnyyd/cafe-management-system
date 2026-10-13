@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { User, StaffRole } from '../types';
+import { useAppStore } from './appStore';
 
 interface AuthState {
   token: string | null;
@@ -24,6 +25,9 @@ if (savedUser) {
         parsed.roles = ['Admin'];
       }
       initialUser = parsed;
+      if (initialUser?.shopId) {
+        useAppStore.getState().setCurrentShopId(initialUser.shopId);
+      }
     }
   } catch {
     initialUser = null;
@@ -46,6 +50,9 @@ export const useAuthStore = create<AuthState>((set) => ({
   setAuth: (token, user) => {
     if (user.email && user.email.toLowerCase().includes('admin')) {
       user.roles = ['Admin'];
+    }
+    if (user.shopId) {
+      useAppStore.getState().setCurrentShopId(user.shopId);
     }
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
@@ -93,13 +100,19 @@ export const useAuthStore = create<AuthState>((set) => ({
       mappedRole = 'Admin';
     }
 
+    const userShopId = (data.user?.shopId && data.user.shopId.trim() !== '') ? data.user.shopId : undefined;
+
     const user: User = {
       id: typeof data.user?.id === 'string' ? data.user.id : 'usr_current',
       email: data.user?.email || email,
       fullName: data.user?.fullName || (mappedRole === 'Admin' ? 'Quản trị viên Hệ thống' : 'Người dùng hệ thống'),
       roles: [mappedRole],
-      shopId: data.user?.shopId || undefined,
+      shopId: userShopId,
     };
+
+    if (userShopId) {
+      useAppStore.getState().setCurrentShopId(userShopId);
+    }
 
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
@@ -122,3 +135,4 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 }));
+

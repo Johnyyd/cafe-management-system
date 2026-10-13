@@ -13,10 +13,30 @@ import { MetricsPage } from './pages/MetricsPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuthStore } from './stores/authStore';
 
+const getDefaultRouteForRole = (role?: string): string => {
+  switch (role) {
+    case 'Cashier':
+    case 'Barista':
+      return '/orders';
+    case 'InventoryStaff':
+      return '/inventory';
+    default:
+      return '/dashboard';
+  }
+};
+
 const ProtectedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
   if (!isAuthenticated) {
     return <Navigate to="/login" replace />;
+  }
+  return <>{children}</>;
+};
+
+const RoleRouteGuard: React.FC<{ allowedRoles: string[]; children: React.ReactNode }> = ({ allowedRoles, children }) => {
+  const activeRole = useAuthStore((state) => state.activeRole);
+  if (!allowedRoles.includes(activeRole)) {
+    return <Navigate to={getDefaultRouteForRole(activeRole)} replace />;
   }
   return <>{children}</>;
 };
@@ -34,7 +54,7 @@ const AppLayout: React.FC<{ children: React.ReactNode }> = ({ children }) => {
 };
 
 export const App: React.FC = () => {
-  const isAuthenticated = useAuthStore((state) => state.isAuthenticated);
+  const { isAuthenticated, activeRole } = useAuthStore();
 
   return (
     <BrowserRouter>
@@ -47,9 +67,11 @@ export const App: React.FC = () => {
           path="/dashboard"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <DashboardPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager']}>
+                <AppLayout>
+                  <DashboardPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -57,9 +79,11 @@ export const App: React.FC = () => {
           path="/shops"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <ShopsPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin']}>
+                <AppLayout>
+                  <ShopsPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -67,9 +91,11 @@ export const App: React.FC = () => {
           path="/menu"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <MenuPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin']}>
+                <AppLayout>
+                  <MenuPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -77,9 +103,11 @@ export const App: React.FC = () => {
           path="/inventory"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <InventoryPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'InventoryStaff']}>
+                <AppLayout>
+                  <InventoryPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -87,9 +115,11 @@ export const App: React.FC = () => {
           path="/orders"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <OrdersPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Cashier', 'Barista']}>
+                <AppLayout>
+                  <OrdersPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -97,9 +127,11 @@ export const App: React.FC = () => {
           path="/staff"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <StaffPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager']}>
+                <AppLayout>
+                  <StaffPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -107,9 +139,11 @@ export const App: React.FC = () => {
           path="/metrics"
           element={
             <ProtectedRoute>
-              <AppLayout>
-                <MetricsPage />
-              </AppLayout>
+              <RoleRouteGuard allowedRoles={['Admin']}>
+                <AppLayout>
+                  <MetricsPage />
+                </AppLayout>
+              </RoleRouteGuard>
             </ProtectedRoute>
           }
         />
@@ -117,11 +151,12 @@ export const App: React.FC = () => {
         {/* Catch-all route */}
         <Route
           path="*"
-          element={<Navigate to={isAuthenticated ? '/dashboard' : '/login'} replace />}
+          element={<Navigate to={isAuthenticated ? getDefaultRouteForRole(activeRole) : '/login'} replace />}
         />
       </Routes>
     </BrowserRouter>
   );
 };
+
 
 export default App;

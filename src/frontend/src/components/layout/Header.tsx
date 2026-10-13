@@ -12,14 +12,19 @@ export const Header: React.FC = () => {
   const { currentShopId, setCurrentShopId } = useAppStore();
   const [shops, setShops] = useState<Shop[]>([]);
 
+  const isAdmin = user?.roles?.[0] === 'Admin';
+  const assignedShop = shops.find((s) => s.id === (user?.shopId || currentShopId));
+
   useEffect(() => {
     api.getShops().then((res) => {
       setShops(res);
-      if (res.length > 0 && (!currentShopId || !res.find((s) => s.id === currentShopId))) {
+      if (user?.shopId) {
+        setCurrentShopId(user.shopId);
+      } else if (res.length > 0 && (!currentShopId || !res.find((s) => s.id === currentShopId))) {
         setCurrentShopId(res[0].id);
       }
     }).catch(() => {});
-  }, []);
+  }, [user?.shopId]);
 
   const handleLogout = () => {
     logout();
@@ -41,21 +46,31 @@ export const Header: React.FC = () => {
     <header className="h-16 bg-white border-b border-neutral-200 px-6 flex items-center justify-between select-none">
       {/* Left: Active shop branch selection */}
       <div className="flex items-center gap-3">
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 border border-neutral-300 rounded text-xs font-medium text-neutral-800">
-          <Store className="w-4 h-4 text-cafe-orange" />
-          <span className="font-semibold text-neutral-500 uppercase text-[10px]">Chi nhánh:</span>
-          <select
-            value={currentShopId}
-            onChange={(e) => setCurrentShopId(e.target.value)}
-            className="bg-transparent font-bold text-neutral-900 focus:outline-none cursor-pointer"
-          >
-            {shops.map((shop) => (
-              <option key={shop.id} value={shop.id}>
-                {shop.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        {isAdmin ? (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-neutral-100 border border-neutral-300 rounded text-xs font-medium text-neutral-800">
+            <Store className="w-4 h-4 text-cafe-orange" />
+            <span className="font-semibold text-neutral-500 uppercase text-[10px]">Chi nhánh:</span>
+            <select
+              value={currentShopId}
+              onChange={(e) => setCurrentShopId(e.target.value)}
+              className="bg-transparent font-bold text-neutral-900 focus:outline-none cursor-pointer"
+            >
+              {shops.map((shop) => (
+                <option key={shop.id} value={shop.id}>
+                  {shop.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 px-3 py-1.5 bg-orange-50 border border-orange-200 rounded text-xs font-medium text-neutral-800">
+            <Store className="w-4 h-4 text-cafe-orange" />
+            <span className="font-semibold text-neutral-500 uppercase text-[10px]">Chi nhánh làm việc:</span>
+            <span className="font-bold text-neutral-900">
+              {assignedShop?.name || 'Chi nhánh được phân công'}
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Right: User Profile & Quick Logout */}
