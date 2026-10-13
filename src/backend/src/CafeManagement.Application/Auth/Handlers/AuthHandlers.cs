@@ -23,7 +23,7 @@ public class RegisterHandler : IRequestHandler<RegisterCommand, Result<AuthResul
 
     public async Task<Result<AuthResultDto>> Handle(RegisterCommand request, CancellationToken cancellationToken)
     {
-        var result = await _authService.RegisterAsync(request.Email, request.Password, request.FullName, request.ShopId?.ToString());
+        var result = await _authService.RegisterAsync(request.Email, request.Password, request.FullName, request.ShopId?.ToString(), request.Role);
         if (result.IsSuccess)
         {
             _logger.LogInformation("User registered: {Email}", request.Email);

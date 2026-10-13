@@ -6,7 +6,7 @@ namespace CafeManagement.Application.Common.Interfaces;
 
 public interface IAuthService
 {
-    Task<Result<AuthResultDto>> RegisterAsync(string email, string password, string fullName, string? shopId = null);
+    Task<Result<AuthResultDto>> RegisterAsync(string email, string password, string fullName, string? shopId = null, string? role = null);
     Task<Result<AuthResultDto>> LoginAsync(string email, string password);
     Task<Result<AuthResultDto>> RefreshTokenAsync(string refreshToken);
     Task<Result> ChangePasswordAsync(string userId, string currentPassword, string newPassword);

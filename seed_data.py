@@ -77,7 +77,7 @@ def get_vietnam_provinces() -> List[Dict[str, Any]]:
 
 def authenticate() -> str:
     """Login or register admin account and retrieve Bearer JWT token."""
-    print("[2/6] Xác thực quản trị viên (Admin authentication)...")
+    print("[2/7] Xác thực quản trị viên (Admin authentication)...")
     login_url = f"{API_BASE}/auth/login"
     login_payload = {
         "email": "admin@cafemanagement.com",
@@ -107,7 +107,7 @@ def authenticate() -> str:
     return token
 
 def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    print("\n[3/6] Đồng bộ Chi nhánh quán (Shops) với các Tỉnh/Thành phố Việt Nam...")
+    print("\n[3/7] Đồng bộ Chi nhánh quán (Shops) với các Tỉnh/Thành phố Việt Nam...")
     res = http_request(f"{API_BASE}/shops", headers=headers)
     existing_shops = res if isinstance(res, list) else res.get("items", [])
 
@@ -116,6 +116,7 @@ def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List
         for s in existing_shops:
             print(f"    * [{s.get('id')}] {s.get('name')} ({s.get('address', {}).get('city', '')})")
         return existing_shops
+
 
     # Province mapping for real branch locations
     target_branches = [
@@ -209,9 +210,110 @@ def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List
     res = http_request(f"{API_BASE}/shops", headers=headers)
     return res if isinstance(res, list) else res.get("items", created)
 
+def seed_user_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    print("\n[4/7] Khởi tạo & Đồng bộ Danh sách Tài khoản Người dùng (User Accounts & RBAC)...")
+    
+    primary_shop = shops[0] if shops else {}
+    primary_shop_id = primary_shop.get("id")
+    primary_shop_name = primary_shop.get("name", "Chi nhánh 1")
+
+    secondary_shop = shops[1] if len(shops) > 1 else primary_shop
+    secondary_shop_id = secondary_shop.get("id")
+    secondary_shop_name = secondary_shop.get("name", "Chi nhánh 2")
+
+    demo_accounts = [
+        {
+            "email": "admin@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Quản trị viên Hệ thống",
+            "role": "Admin",
+            "shopId": None,
+            "shopName": "Toàn chuỗi (Tất cả chi nhánh)"
+        },
+        {
+            "email": "manager.q1@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Trần Quản Lý (Q1)",
+            "role": "Manager",
+            "shopId": primary_shop_id,
+            "shopName": primary_shop_name
+        },
+        {
+            "email": "cashier.q1@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Lê Thu Ngân (Q1)",
+            "role": "Cashier",
+            "shopId": primary_shop_id,
+            "shopName": primary_shop_name
+        },
+        {
+            "email": "barista.q1@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Phạm Pha Chế (Q1)",
+            "role": "Barista",
+            "shopId": primary_shop_id,
+            "shopName": primary_shop_name
+        },
+        {
+            "email": "stock.q1@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Hoàng Thủ Kho (Q1)",
+            "role": "InventoryStaff",
+            "shopId": primary_shop_id,
+            "shopName": primary_shop_name
+        },
+        {
+            "email": "manager.thaodien@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Nguyễn Quản Lý (Thảo Điền)",
+            "role": "Manager",
+            "shopId": secondary_shop_id,
+            "shopName": secondary_shop_name
+        },
+        {
+            "email": "cashier.thaodien@cafemanagement.com",
+            "password": "Password123!",
+            "fullName": "Đỗ Thu Ngân (Thảo Điền)",
+            "role": "Cashier",
+            "shopId": secondary_shop_id,
+            "shopName": secondary_shop_name
+        },
+    ]
+
+    for acc in demo_accounts:
+        # Check login first
+        login_payload = {
+            "email": acc["email"],
+            "password": acc["password"]
+        }
+        try:
+            res_login = http_request(f"{API_BASE}/auth/login", method="POST", data=login_payload)
+            if res_login.get("accessToken"):
+                print(f" -> [Sẵn sàng] {acc['email']} ({acc['role']}) - Chi nhánh: {acc['shopName']}")
+                continue
+        except Exception:
+            pass
+
+        # Register if account does not exist
+        reg_payload = {
+            "email": acc["email"],
+            "password": acc["password"],
+            "fullName": acc["fullName"],
+            "role": acc["role"],
+            "shopId": acc["shopId"]
+        }
+        try:
+            http_request(f"{API_BASE}/auth/register", method="POST", data=reg_payload)
+            print(f" -> [Đã tạo mới] {acc['email']} ({acc['role']}) - Chi nhánh: {acc['shopName']}")
+        except Exception as e:
+            print(f" -> [Thông báo] {acc['email']}: {e}")
+
+    return demo_accounts
+
 def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
-    print("\n[4/6] Đồng bộ Thực đơn (Menu Items)...")
+    print("\n[5/7] Đồng bộ Thực đơn Đồ uống & Món ăn (Menu Items)...")
     res = http_request(f"{API_BASE}/menu", headers=headers)
+
     existing_menu = res if isinstance(res, list) else res.get("items", [])
 
     if len(existing_menu) >= 8:
@@ -359,21 +461,20 @@ def seed_inventory(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]
     return res if isinstance(res, list) else res.get("items", [])
 
 def seed_staff(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
-    print("\n[6/6] Đồng bộ Nhân sự & Đơn hàng bán (Staff & Orders)...")
+    print("\n[6/7] Đồng bộ Nhân sự & Ca làm việc (Staff Members)...")
     res = http_request(f"{API_BASE}/staff", headers=headers)
     existing_staff = res if isinstance(res, list) else res.get("items", [])
 
     staff_members = [
-        {"firstName": "Nguyễn Hoàng", "lastName": "Nam", "role": 1, "phone": "0908123456", "email": "nam.nguyen@cafemanagement.com"},
-        {"firstName": "Trần Thị Thu", "lastName": "Thảo", "role": 2, "phone": "0912345678", "email": "thao.tran@cafemanagement.com"},
-        {"firstName": "Lê Anh", "lastName": "Khoa", "role": 3, "phone": "0934567890", "email": "khoa.le@cafemanagement.com"},
-        {"firstName": "Phạm Quỳnh", "lastName": "Nga", "role": 3, "phone": "0945678901", "email": "nga.pham@cafemanagement.com"},
-        {"firstName": "Đỗ Minh", "lastName": "Quân", "role": 4, "phone": "0978901234", "email": "quan.do@cafemanagement.com"},
+        {"firstName": "Trần Quản", "lastName": "Lý", "role": 1, "phone": "0908123456", "email": "manager.q1@cafemanagement.com"},
+        {"firstName": "Lê Thu", "lastName": "Ngân", "role": 2, "phone": "0912345678", "email": "cashier.q1@cafemanagement.com"},
+        {"firstName": "Phạm Pha", "lastName": "Chế", "role": 3, "phone": "0934567890", "email": "barista.q1@cafemanagement.com"},
+        {"firstName": "Hoàng Thủ", "lastName": "Kho", "role": 4, "phone": "0978901234", "email": "stock.q1@cafemanagement.com"},
     ]
 
     for s in staff_members:
         full_name = f"{s['firstName']} {s['lastName']}"
-        if any(f"{x.get('firstName')} {x.get('lastName')}" == full_name for x in existing_staff):
+        if any(f"{x.get('firstName')} {x.get('lastName')}" == full_name or x.get("contact", {}).get("email") == s["email"] for x in existing_staff):
             continue
 
         payload = {
@@ -486,7 +587,7 @@ def main():
     # 1. Fetch Vietnam provinces
     provinces = get_vietnam_provinces()
 
-    # 2. Authenticate
+    # 2. Authenticate Admin
     token = authenticate()
     auth_headers = {"Authorization": f"Bearer {token}"}
 
@@ -498,21 +599,23 @@ def main():
         print("Lỗi: Không tìm thấy ID chi nhánh chính.")
         sys.exit(1)
 
-    # 4. Seed Menu Items
+    # 4. Seed User Accounts (RBAC) cho các chi nhánh (Admin, Manager, Cashier, Barista, InventoryStaff)
+    seed_user_accounts(auth_headers, shops)
+
+    # 5. Seed Menu Items
     menu_items = seed_menu(auth_headers, primary_shop_id)
 
-    # 5. Seed Staff
+    # 6. Seed Staff (Nhân sự chi nhánh)
     staff_list = seed_staff(auth_headers, primary_shop_id)
     primary_staff_id = staff_list[0].get("id") if staff_list else ""
 
-    # 6. Seed Inventory & Orders for each shop
-    print("\n[5/6] Đồng bộ Kho & Nguyên Vật Liệu cho tất cả chi nhánh...")
+    # 7. Seed Inventory & Orders for each shop
+    print("\n[7/7] Đồng bộ Kho & Đơn hàng mẫu cho tất cả chi nhánh...")
     for s in shops:
         s_id = s.get("id")
         if s_id:
             seed_inventory(auth_headers, s_id)
 
-    print("\n[6/6] Đồng bộ Đơn hàng mẫu cho các chi nhánh...")
     if primary_staff_id and menu_items:
         for s in shops:
             s_id = s.get("id")
@@ -525,3 +628,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

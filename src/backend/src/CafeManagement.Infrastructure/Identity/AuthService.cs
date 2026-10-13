@@ -44,7 +44,7 @@ public class AuthService : IAuthService
         _usersCollection = identityDbContext.Users;
     }
 
-    public async Task<Result<AuthResultDto>> RegisterAsync(string email, string password, string fullName, string? shopId = null)
+    public async Task<Result<AuthResultDto>> RegisterAsync(string email, string password, string fullName, string? shopId = null, string? role = null)
     {
         var existingUser = await _userManager.FindByEmailAsync(email);
         if (existingUser != null)
@@ -67,16 +67,20 @@ public class AuthService : IAuthService
             return Result.Fail("Registration failed: Invalid email or password");
         }
 
-        // Assign role: Admin if email starts with admin, otherwise Barista
-        var role = email.StartsWith("admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Barista";
-        if (!await _roleManager.RoleExistsAsync(role))
+        // Assign role: Role from request, or Admin if email starts with admin, otherwise Barista
+        var assignedRole = !string.IsNullOrEmpty(role)
+            ? role
+            : (email.StartsWith("admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Barista");
+
+        if (!await _roleManager.RoleExistsAsync(assignedRole))
         {
-            await _roleManager.CreateAsync(new ApplicationRole { Name = role, NormalizedName = role.ToUpperInvariant() });
+            await _roleManager.CreateAsync(new ApplicationRole { Name = assignedRole, NormalizedName = assignedRole.ToUpperInvariant() });
         }
-        await _userManager.AddToRoleAsync(user, role);
+        await _userManager.AddToRoleAsync(user, assignedRole);
 
         return await GenerateAuthResultAsync(user);
     }
+
 
     public async Task<Result<AuthResultDto>> LoginAsync(string email, string password)
     {

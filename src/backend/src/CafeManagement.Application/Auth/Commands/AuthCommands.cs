@@ -10,7 +10,8 @@ public record RegisterCommand(
     string Email,
     string Password,
     string FullName,
-    ObjectId? ShopId = null
+    ObjectId? ShopId = null,
+    string? Role = null
 ) : IRequest<Result<AuthResultDto>>;
 
 public record LoginCommand(
