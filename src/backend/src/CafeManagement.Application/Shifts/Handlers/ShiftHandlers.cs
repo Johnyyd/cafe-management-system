@@ -240,3 +240,36 @@ public class DeleteShiftHandler : IRequestHandler<DeleteShiftCommand, Result>
         return Result.Ok();
     }
 }
+
+public class UpdateShiftHandler : IRequestHandler<UpdateShiftCommand, Result>
+{
+    private readonly IShiftRepository _shiftRepository;
+    private readonly IStaffRepository _staffRepository;
+    private readonly IUnitOfWork _unitOfWork;
+
+    public UpdateShiftHandler(IShiftRepository shiftRepository, IStaffRepository staffRepository, IUnitOfWork unitOfWork)
+    {
+        _shiftRepository = shiftRepository;
+        _staffRepository = staffRepository;
+        _unitOfWork = unitOfWork;
+    }
+
+    public async Task<Result> Handle(UpdateShiftCommand request, CancellationToken cancellationToken)
+    {
+        var shift = await _shiftRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (shift == null)
+            return Result.Fail(DomainErrors.General.NotFound("Shift", request.Id));
+
+        var staff = await _staffRepository.GetByIdAsync(request.StaffId, cancellationToken);
+        if (staff == null)
+            return Result.Fail(DomainErrors.General.NotFound("Staff", request.StaffId));
+
+        var result = shift.UpdateDetails(request.StaffId, request.StartTime, request.EndTime, request.Notes);
+        if (result.IsFailed)
+            return Result.Fail(result.Errors);
+
+        await _shiftRepository.UpdateAsync(shift, cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        return Result.Ok();
+    }
+}

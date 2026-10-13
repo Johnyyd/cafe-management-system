@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import {
@@ -10,7 +10,7 @@ import {
   UserX,
   UserCheck,
   Trash2,
-  Calendar,
+  Calendar as CalendarIcon,
   Clock,
   Play,
   CheckCircle2,
@@ -19,6 +19,12 @@ import {
   CalendarDays,
   Store,
   RefreshCw,
+  ChevronLeft,
+  ChevronRight,
+  Edit,
+  LayoutGrid,
+  List,
+  CalendarCheck,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/common/Card';
@@ -29,12 +35,26 @@ import { Badge } from '../components/common/Badge';
 import { Modal } from '../components/common/Modal';
 import { EmptyState } from '../components/common/EmptyState';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 import { staffApi, shopsApi, shiftsApi } from '../api/client';
 import { staffSchema, StaffFormData } from '../schemas';
 import { StaffMember, Shop, StaffRole, Shift, ShiftStatus } from '../types';
 
 export const StaffPage: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'staff' | 'shifts'>('staff');
+  const { activeRole, user } = useAuthStore();
+  const isManagerOrAdmin = activeRole === 'Admin' || activeRole === 'Manager';
+
+  // State tabs: Nếu là nhân viên thường thì mặc định và chỉ được xem tab ca làm việc
+  const [activeTab, setActiveTab] = useState<'staff' | 'shifts'>(
+    isManagerOrAdmin ? 'shifts' : 'shifts'
+  );
+
+  // View mode for shifts: 'calendar' (Thứ 2 - CN) or 'list' (Bảng danh sách)
+  const [shiftViewMode, setShiftViewMode] = useState<'calendar' | 'list'>('calendar');
+
+  // Week offset: 0 = tuần này, 1 = tuần tới (+1), 2 = tuần tới (+2), -1 = tuần trước
+  const [weekOffset, setWeekOffset] = useState<number>(0);
+
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
   const [shifts, setShifts] = useState<Shift[]>([]);
@@ -58,22 +78,29 @@ export const StaffPage: React.FC = () => {
   // Modals & Forms for Shifts
   const [isCreateShiftModalOpen, setIsCreateShiftModalOpen] = useState<boolean>(false);
   const [isCreatingShift, setIsCreatingShift] = useState<boolean>(false);
-  const [deletingShiftId, setDeletingShiftId] = useState<string | null>(null);
+  const [editingShift, setEditingShift] = useState<Shift | null>(null);
+  const [isUpdatingShift, setIsUpdatingShift] = useState<boolean>(false);
 
-  // Shift form state
+  // Create shift form state
   const [shiftStaffId, setShiftStaffId] = useState<string>('');
   const [shiftShopId, setShiftShopId] = useState<string>('');
   const [shiftDate, setShiftDate] = useState<string>(() => new Date().toISOString().split('T')[0]);
   const [shiftPreset, setShiftPreset] = useState<'morning' | 'afternoon' | 'evening' | 'custom'>('morning');
   const [shiftStartTime, setShiftStartTime] = useState<string>('06:30');
   const [shiftEndTime, setShiftEndTime] = useState<string>('14:30');
-  const [shiftNotes, setShiftNotes] = useState<string>('Pha chế & Phục vụ chính');
+  const [shiftNotes, setShiftNotes] = useState<string>('Ca sáng: Mở quán, kiểm tra máy pha, phục vụ');
+
+  // Edit shift form state
+  const [editStaffId, setEditStaffId] = useState<string>('');
+  const [editDate, setEditDate] = useState<string>('');
+  const [editStartTime, setEditStartTime] = useState<string>('06:30');
+  const [editEndTime, setEditEndTime] = useState<string>('14:30');
+  const [editNotes, setEditNotes] = useState<string>('');
 
   // Filters for Shifts
   const [shiftSearchStaffId, setShiftSearchStaffId] = useState<string>('all');
   const [shiftFilterShopId, setShiftFilterShopId] = useState<string>('all');
   const [shiftFilterStatus, setShiftFilterStatus] = useState<string>('all');
-  const [shiftFilterDate, setShiftFilterDate] = useState<string>('');
 
   const addNotification = useAppStore((state) => state.addNotification);
 
@@ -110,7 +137,7 @@ export const StaffPage: React.FC = () => {
       addNotification({
         type: 'error',
         title: 'Lỗi tải dữ liệu',
-        message: 'Không thể tải danh sách nhân viên hoặc chi nhánh.',
+        message: 'Không thể tải danh sách nhân viên hoặc ca làm việc.',
       });
     } finally {
       setLoading(false);
@@ -122,6 +149,11 @@ export const StaffPage: React.FC = () => {
     try {
       const shiftsData = await shiftsApi.getAll();
       setShifts(shiftsData);
+      addNotification({
+        type: 'success',
+        title: 'Đã cập nhật',
+        message: 'Danh sách ca làm việc đã được đồng bộ mới nhất.',
+      });
     } catch {
       addNotification({
         type: 'error',
@@ -137,7 +169,89 @@ export const StaffPage: React.FC = () => {
     loadData();
   }, []);
 
-  // When shift preset changes
+  // Xác định chi nhánh của người dùng hiện tại (nếu là Quản lý / Nhân viên thì giới hạn theo chi nhánh)
+  const currentBranchShop = useMemo(() => {
+    if (activeRole === 'Admin') return null;
+    if (user?.shopId) {
+      return shops.find((s) => s.id === user.shopId) || null;
+    }
+    // Lấy shop của user từ danh sách staff nếu có email trùng
+    const myStaffRecord = staff.find((s) => s.email.toLowerCase() === user?.email.toLowerCase());
+    if (myStaffRecord?.shopId) {
+      return shops.find((s) => s.id === myStaffRecord.shopId) || null;
+    }
+    return shops[0] || null;
+  }, [activeRole, user, shops, staff]);
+
+  // Đồng bộ shop filter nếu không phải Admin
+  useEffect(() => {
+    if (currentBranchShop) {
+      setShiftFilterShopId(currentBranchShop.id);
+      setShopFilter(currentBranchShop.id);
+    }
+  }, [currentBranchShop]);
+
+  // Tính 7 ngày trong tuần từ Thứ Hai đến Chủ Nhật theo weekOffset
+  const weekDays = useMemo(() => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    // Monday = 1, Sunday = 0
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const monday = new Date(now);
+    monday.setDate(now.getDate() + distanceToMonday + weekOffset * 7);
+    monday.setHours(0, 0, 0, 0);
+
+    const days = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(monday);
+      d.setDate(monday.getDate() + i);
+      days.push(d);
+    }
+    return days;
+  }, [weekOffset]);
+
+  const toLocalDateKey = (date: Date) => {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, '0');
+    const d = String(date.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
+  };
+
+  const getShiftDateKey = (isoString: string) => {
+    try {
+      const d = new Date(isoString);
+      return toLocalDateKey(d);
+    } catch {
+      return '';
+    }
+  };
+
+  // Ràng buộc phạm vi xếp lịch: Chỉ trong tuần hiện tại và 2 tuần kế tiếp (tổng cộng 3 tuần)
+  const { minShiftDate, maxShiftDate } = useMemo(() => {
+    const now = new Date();
+    const currentDay = now.getDay();
+    const distanceToMonday = currentDay === 0 ? -6 : 1 - currentDay;
+    const mondayCurrent = new Date(now);
+    mondayCurrent.setDate(now.getDate() + distanceToMonday);
+    mondayCurrent.setHours(0, 0, 0, 0);
+
+    const sundayPlus2 = new Date(mondayCurrent);
+    sundayPlus2.setDate(mondayCurrent.getDate() + 20); // 21 ngày: Thứ 2 tuần hiện tại -> Chủ Nhật tuần +2
+
+    return {
+      minShiftDate: toLocalDateKey(mondayCurrent),
+      maxShiftDate: toLocalDateKey(sundayPlus2),
+    };
+  }, []);
+
+  // Kiểm tra ca đang xem có phải ca thuộc các tuần trước hay không (chế độ chỉ xem)
+  const isEditingShiftPast = useMemo(() => {
+    if (!editingShift) return false;
+    const shiftDate = getShiftDateKey(editingShift.startTime);
+    return shiftDate < minShiftDate;
+  }, [editingShift, minShiftDate]);
+
+  // Preset ca làm việc
   const handleShiftPresetChange = (preset: 'morning' | 'afternoon' | 'evening' | 'custom') => {
     setShiftPreset(preset);
     switch (preset) {
@@ -154,7 +268,7 @@ export const StaffPage: React.FC = () => {
       case 'evening':
         setShiftStartTime('18:00');
         setShiftEndTime('23:00');
-        setShiftNotes('Ca tối tăng cường: Dọn dẹp quầy bar, vệ sinh thiết bị');
+        setShiftNotes('Ca tối: Dọn dẹp quầy bar, vệ sinh thiết bị');
         break;
       case 'custom':
         break;
@@ -235,7 +349,7 @@ export const StaffPage: React.FC = () => {
     }
   };
 
-  // Assign Shop Handler
+  // Assign Shop
   const openAssignShopModal = (member: StaffMember) => {
     setAssigningMember(member);
     setSelectedAssignShopId(member.shopId || shops[0]?.id || '');
@@ -270,18 +384,19 @@ export const StaffPage: React.FC = () => {
     }
   };
 
-  // Shift Handlers
-  const handleOpenCreateShift = (prefilledStaffId?: string) => {
+  // Shift: Create modal open
+  const handleOpenCreateShift = (prefilledDate?: string, prefilledStaffId?: string) => {
     const defaultStaff = prefilledStaffId
       ? staff.find((s) => s.id === prefilledStaffId)
       : staff[0];
     setShiftStaffId(defaultStaff?.id || '');
-    setShiftShopId(defaultStaff?.shopId || shops[0]?.id || '');
-    setShiftDate(new Date().toISOString().split('T')[0]);
+    setShiftShopId(currentBranchShop?.id || defaultStaff?.shopId || shops[0]?.id || '');
+    setShiftDate(prefilledDate || new Date().toISOString().split('T')[0]);
     handleShiftPresetChange('morning');
     setIsCreateShiftModalOpen(true);
   };
 
+  // Shift: Create submit
   const handleCreateShiftSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!shiftStaffId || !shiftShopId || !shiftDate || !shiftStartTime || !shiftEndTime) {
@@ -289,6 +404,15 @@ export const StaffPage: React.FC = () => {
         type: 'info',
         title: 'Thiếu thông tin ca làm',
         message: 'Vui lòng chọn nhân viên, chi nhánh và khung giờ làm việc.',
+      });
+      return;
+    }
+
+    if (shiftDate < minShiftDate || shiftDate > maxShiftDate) {
+      addNotification({
+        type: 'error',
+        title: 'Ngoài phạm vi xếp lịch',
+        message: 'Chỉ được phép xếp lịch trong tuần hiện tại và 2 tuần kế tiếp.',
       });
       return;
     }
@@ -325,12 +449,90 @@ export const StaffPage: React.FC = () => {
     }
   };
 
+  // Shift: Edit open
+  const handleOpenEditShift = (shift: Shift) => {
+    setEditingShift(shift);
+    setEditStaffId(shift.staffId);
+    const startDate = new Date(shift.startTime);
+    const endDate = new Date(shift.endTime);
+
+    setEditDate(toLocalDateKey(startDate));
+    setEditStartTime(
+      `${String(startDate.getHours()).padStart(2, '0')}:${String(startDate.getMinutes()).padStart(2, '0')}`
+    );
+    setEditEndTime(
+      `${String(endDate.getHours()).padStart(2, '0')}:${String(endDate.getMinutes()).padStart(2, '0')}`
+    );
+    setEditNotes(shift.notes || '');
+  };
+
+  // Shift: Edit submit
+  const handleUpdateShiftSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingShift || !editStaffId || !editDate || !editStartTime || !editEndTime) return;
+
+    if (editDate < minShiftDate || editDate > maxShiftDate) {
+      addNotification({
+        type: 'error',
+        title: 'Ngoài phạm vi xếp lịch',
+        message: 'Chỉ được phép xếp lịch trong tuần hiện tại và 2 tuần kế tiếp.',
+      });
+      return;
+    }
+
+    setIsUpdatingShift(true);
+    try {
+      const startDateTime = new Date(`${editDate}T${editStartTime}:00`).toISOString();
+      const endDateTime = new Date(`${editDate}T${editEndTime}:00`).toISOString();
+
+      await shiftsApi.update(editingShift.id, {
+        staffId: editStaffId,
+        startTime: startDateTime,
+        endTime: endDateTime,
+        notes: editNotes,
+      });
+
+      setShifts((prev) =>
+        prev.map((s) =>
+          s.id === editingShift.id
+            ? {
+                ...s,
+                staffId: editStaffId,
+                startTime: startDateTime,
+                endTime: endDateTime,
+                notes: editNotes,
+              }
+            : s
+        )
+      );
+
+      addNotification({
+        type: 'success',
+        title: 'Cập nhật lịch ca thành công',
+        message: 'Lịch trực ca làm việc đã được điều chỉnh và lưu lại.',
+      });
+      setEditingShift(null);
+    } catch {
+      addNotification({
+        type: 'error',
+        title: 'Lỗi cập nhật ca làm',
+        message: 'Không thể lưu thay đổi ca làm việc. Vui lòng thử lại.',
+      });
+    } finally {
+      setIsUpdatingShift(false);
+    }
+  };
+
+  // Status transitions
   const handleStartShift = async (shiftId: string) => {
     try {
       await shiftsApi.start(shiftId);
       setShifts((prev) =>
         prev.map((s) => (s.id === shiftId ? { ...s, status: 'InProgress' } : s))
       );
+      if (editingShift?.id === shiftId) {
+        setEditingShift((prev) => (prev ? { ...prev, status: 'InProgress' } : null));
+      }
       addNotification({
         type: 'info',
         title: 'Bắt đầu ca làm',
@@ -351,6 +553,9 @@ export const StaffPage: React.FC = () => {
       setShifts((prev) =>
         prev.map((s) => (s.id === shiftId ? { ...s, status: 'Completed' } : s))
       );
+      if (editingShift?.id === shiftId) {
+        setEditingShift((prev) => (prev ? { ...prev, status: 'Completed' } : null));
+      }
       addNotification({
         type: 'success',
         title: 'Hoàn thành ca làm việc',
@@ -367,10 +572,13 @@ export const StaffPage: React.FC = () => {
 
   const handleCancelShift = async (shiftId: string) => {
     try {
-      await shiftsApi.cancel(shiftId, 'Quản lý hủy phân công');
+      await shiftsApi.cancel(shiftId, 'Quản lý hủy ca');
       setShifts((prev) =>
         prev.map((s) => (s.id === shiftId ? { ...s, status: 'Cancelled' } : s))
       );
+      if (editingShift?.id === shiftId) {
+        setEditingShift((prev) => (prev ? { ...prev, status: 'Cancelled' } : null));
+      }
       addNotification({
         type: 'info',
         title: 'Đã hủy ca làm việc',
@@ -389,12 +597,14 @@ export const StaffPage: React.FC = () => {
     try {
       await shiftsApi.delete(shiftId);
       setShifts((prev) => prev.filter((s) => s.id !== shiftId));
+      if (editingShift?.id === shiftId) {
+        setEditingShift(null);
+      }
       addNotification({
         type: 'success',
         title: 'Đã xóa ca',
         message: 'Ca làm việc đã được xóa khỏi lịch trực.',
       });
-      setDeletingShiftId(null);
     } catch {
       addNotification({
         type: 'error',
@@ -404,58 +614,63 @@ export const StaffPage: React.FC = () => {
     }
   };
 
-  // Filtered Staff
-  const filteredStaff = staff.filter((s) => {
-    const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
-    const matchesSearch =
-      fullName.includes(searchTerm.toLowerCase()) ||
-      s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      (s.contact?.phone && s.contact.phone.includes(searchTerm));
-    const matchesRole = roleFilter === 'all' || s.role === roleFilter;
-    const matchesShop = shopFilter === 'all' || s.shopId === shopFilter;
-    return matchesSearch && matchesRole && matchesShop;
-  });
+  // Filter staff
+  const filteredStaff = useMemo(() => {
+    return staff.filter((s) => {
+      const fullName = `${s.firstName} ${s.lastName}`.toLowerCase();
+      const matchesSearch =
+        fullName.includes(searchTerm.toLowerCase()) ||
+        s.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        (s.contact?.phone && s.contact.phone.includes(searchTerm));
+      const matchesRole = roleFilter === 'all' || s.role === roleFilter;
+      const matchesShop = shopFilter === 'all' || s.shopId === shopFilter;
+      return matchesSearch && matchesRole && matchesShop;
+    });
+  }, [staff, searchTerm, roleFilter, shopFilter]);
 
-  // Filtered Shifts
-  const filteredShifts = shifts.filter((sh) => {
-    const matchesStaff = shiftSearchStaffId === 'all' || sh.staffId === shiftSearchStaffId;
-    const matchesShop = shiftFilterShopId === 'all' || sh.shopId === shiftFilterShopId;
-    const matchesStatus = shiftFilterStatus === 'all' || sh.status === shiftFilterStatus;
-    const matchesDate =
-      !shiftFilterDate ||
-      (sh.startTime && sh.startTime.startsWith(shiftFilterDate));
-    return matchesStaff && matchesShop && matchesStatus && matchesDate;
-  });
+  // Filter shifts
+  const filteredShifts = useMemo(() => {
+    return shifts.filter((sh) => {
+      const matchesStaff = shiftSearchStaffId === 'all' || sh.staffId === shiftSearchStaffId;
+      const matchesShop = shiftFilterShopId === 'all' || sh.shopId === shiftFilterShopId;
+      const matchesStatus = shiftFilterStatus === 'all' || sh.status === shiftFilterStatus;
+      return matchesStaff && matchesShop && matchesStatus;
+    });
+  }, [shifts, shiftSearchStaffId, shiftFilterShopId, shiftFilterStatus]);
+
+  // Nhóm ca làm theo ngày trong tuần (cho Weekly Calendar View)
+  const shiftsByDateKey = useMemo(() => {
+    const map: Record<string, Shift[]> = {};
+    for (const sh of filteredShifts) {
+      const dateKey = getShiftDateKey(sh.startTime);
+      if (!map[dateKey]) map[dateKey] = [];
+      map[dateKey].push(sh);
+    }
+    // Sắp xếp ca trong ngày theo giờ bắt đầu
+    for (const k in map) {
+      map[k].sort((a, b) => new Date(a.startTime).getTime() - new Date(b.startTime).getTime());
+    }
+    return map;
+  }, [filteredShifts]);
 
   const getRoleBadgeVariant = (role: StaffRole) => {
     switch (role) {
-      case 'Admin':
-        return 'primary';
-      case 'Manager':
-        return 'neutral';
-      case 'Cashier':
-        return 'success';
-      case 'Barista':
-        return 'warning';
-      case 'InventoryStaff':
-        return 'neutral';
-      default:
-        return 'neutral';
+      case 'Admin': return 'primary';
+      case 'Manager': return 'neutral';
+      case 'Cashier': return 'success';
+      case 'Barista': return 'warning';
+      case 'InventoryStaff': return 'neutral';
+      default: return 'neutral';
     }
   };
 
   const getShiftBadgeVariant = (status: ShiftStatus) => {
     switch (status) {
-      case 'Scheduled':
-        return 'warning';
-      case 'InProgress':
-        return 'primary';
-      case 'Completed':
-        return 'success';
-      case 'Cancelled':
-        return 'error';
-      default:
-        return 'neutral';
+      case 'Scheduled': return 'warning';
+      case 'InProgress': return 'primary';
+      case 'Completed': return 'success';
+      case 'Cancelled': return 'error';
+      default: return 'neutral';
     }
   };
 
@@ -482,13 +697,40 @@ export const StaffPage: React.FC = () => {
     }
   };
 
+  const todayKey = toLocalDateKey(new Date());
+
+  const getShiftTypeTag = (startTime: string) => {
+    try {
+      const h = new Date(startTime).getHours();
+      if (h < 12) return { label: 'Ca sáng', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
+      if (h < 17) return { label: 'Ca chiều', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
+      return { label: 'Ca tối', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
+    } catch {
+      return { label: 'Ca làm', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
+    }
+  };
+
+  // Tiêu đề dải ngày tuần
+  const weekRangeTitle = useMemo(() => {
+    if (weekDays.length < 7) return '';
+    const start = weekDays[0];
+    const end = weekDays[6];
+    const startStr = `${start.getDate()}/${start.getMonth() + 1}`;
+    const endStr = `${end.getDate()}/${end.getMonth() + 1}/${end.getFullYear()}`;
+    return `${startStr} - ${endStr}`;
+  }, [weekDays]);
+
   return (
     <PageContainer
       title="Quản Lý Nhân Sự & Ca Làm Việc"
-      subtitle="Quản lý hồ sơ nhân viên, phân bổ chi nhánh công tác và xếp lịch trực ca làm việc"
+      subtitle={
+        isManagerOrAdmin
+          ? 'Quản lý hồ sơ nhân viên, phân bổ chi nhánh công tác và xếp lịch trực ca tuần từ Thứ 2 đến Chủ Nhật'
+          : `Lịch trực ca làm việc tuần của chi nhánh: ${currentBranchShop?.name || 'Chi nhánh của bạn'}`
+      }
       actions={
         <div className="flex items-center gap-2">
-          {activeTab === 'staff' ? (
+          {activeTab === 'staff' && isManagerOrAdmin && (
             <Button
               variant="primary"
               icon={<Plus className="w-4 h-4" />}
@@ -499,7 +741,9 @@ export const StaffPage: React.FC = () => {
             >
               Thêm nhân viên
             </Button>
-          ) : (
+          )}
+
+          {activeTab === 'shifts' && (
             <div className="flex items-center gap-2">
               <Button
                 variant="outline"
@@ -508,58 +752,489 @@ export const StaffPage: React.FC = () => {
                 onClick={loadShiftsOnly}
                 disabled={loadingShifts}
               >
-                Làm mới
+                Đồng bộ
               </Button>
-              <Button
-                variant="primary"
-                icon={<CalendarDays className="w-4 h-4" />}
-                onClick={() => handleOpenCreateShift()}
-              >
-                Xếp ca làm mới
-              </Button>
+              {isManagerOrAdmin && (
+                <Button
+                  variant="primary"
+                  icon={<CalendarDays className="w-4 h-4" />}
+                  onClick={() => handleOpenCreateShift()}
+                >
+                  Xếp ca làm mới
+                </Button>
+              )}
             </div>
           )}
         </div>
       }
     >
       <div className="space-y-6">
-        {/* Navigation Tabs */}
-        <div className="flex border-b border-neutral-200 gap-2">
-          <button
-            onClick={() => setActiveTab('staff')}
-            className={`flex items-center gap-2 px-5 py-3 font-medium text-sm border-b-2 transition-all ${
-              activeTab === 'staff'
-                ? 'border-primary-600 text-primary-700 bg-primary-50/50'
-                : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300'
-            }`}
-          >
-            <Users className="w-4 h-4" />
-            <span>Nhân sự & Phân quyền</span>
-            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-neutral-100 text-neutral-700 font-semibold">
-              {staff.length}
+        {/* Banner chi nhánh cho nhân viên hoặc quản lý */}
+        {currentBranchShop && (
+          <div className="bg-neutral-50 border border-neutral-200 rounded-lg px-4 py-2.5 flex items-center justify-between text-xs text-neutral-600">
+            <div className="flex items-center gap-2">
+              <Building2 className="w-4 h-4 text-neutral-400 flex-shrink-0" />
+              <span>
+                Chi nhánh:{' '}
+                <strong className="font-semibold text-neutral-900">{currentBranchShop.name}</strong>
+              </span>
+            </div>
+            <span className="font-mono text-neutral-500">
+              {currentBranchShop.address?.city || 'Hồ Chí Minh'}
             </span>
-          </button>
+          </div>
+        )}
 
-          <button
-            onClick={() => setActiveTab('shifts')}
-            className={`flex items-center gap-2 px-5 py-3 font-medium text-sm border-b-2 transition-all ${
-              activeTab === 'shifts'
-                ? 'border-primary-600 text-primary-700 bg-primary-50/50'
-                : 'border-transparent text-neutral-500 hover:text-neutral-800 hover:border-neutral-300'
-            }`}
-          >
-            <Clock className="w-4 h-4" />
-            <span>Xếp ca & Lịch làm việc</span>
-            <span className="ml-1 px-2 py-0.5 text-xs rounded-full bg-neutral-100 text-neutral-700 font-semibold">
-              {shifts.length}
-            </span>
-          </button>
-        </div>
+        {/* Navigation Tabs (Chỉ hiển thị Tab Nhân sự nếu là Quản lý / Admin) */}
+        {isManagerOrAdmin ? (
+          <div className="flex border-b border-neutral-200 gap-4">
+            <button
+              onClick={() => setActiveTab('shifts')}
+              className={`flex items-center gap-2 py-3 px-1 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'shifts'
+                  ? 'border-primary-600 text-neutral-900 font-semibold'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              <CalendarCheck className="w-4 h-4 text-neutral-500" />
+              <span>Lịch làm việc</span>
+              <span className="px-1.5 py-0.2 text-xs rounded bg-neutral-100 text-neutral-600">
+                {filteredShifts.length}
+              </span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('staff')}
+              className={`flex items-center gap-2 py-3 px-1 font-medium text-sm border-b-2 transition-colors ${
+                activeTab === 'staff'
+                  ? 'border-primary-600 text-neutral-900 font-semibold'
+                  : 'border-transparent text-neutral-500 hover:text-neutral-700 hover:border-neutral-300'
+              }`}
+            >
+              <Users className="w-4 h-4 text-neutral-500" />
+              <span>Nhân sự</span>
+              <span className="px-1.5 py-0.2 text-xs rounded bg-neutral-100 text-neutral-600">
+                {staff.length}
+              </span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex items-center gap-2 text-sm font-semibold text-neutral-800 pb-2 border-b border-neutral-200">
+            <CalendarCheck className="w-4 h-4 text-neutral-500" />
+            <span>Lịch trực ca làm việc</span>
+          </div>
+        )}
 
         {/* ========================================================= */}
-        {/* TAB 1: NHÂN SỰ & PHÂN QUYỀN                                */}
+        {/* TAB 1: BẢNG XẾP LỊCH TUẦN & CA LÀM VIỆC                   */}
         {/* ========================================================= */}
-        {activeTab === 'staff' && (
+        {activeTab === 'shifts' && (
+          <div className="space-y-4">
+            {/* Thanh điều hướng tuần (Week Navigator) */}
+            <Card>
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-3">
+                {/* Bộ chọn và tiến/lùi tuần */}
+                <div className="flex items-center gap-3">
+                  <div className="inline-flex rounded-md border border-neutral-200 bg-white shadow-sm overflow-hidden text-xs">
+                    <button
+                      type="button"
+                      onClick={() => setWeekOffset((prev) => prev - 1)}
+                      className="px-2.5 py-1.5 font-medium border-r border-neutral-200 flex items-center gap-1 transition-colors text-neutral-600 hover:bg-neutral-50"
+                      title="Xem tuần trước đó (Chế độ chỉ xem)"
+                    >
+                      <ChevronLeft className="w-4 h-4" />
+                      <span>Trước</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWeekOffset(0)}
+                      className={`px-3 py-1.5 font-medium transition-colors ${
+                        weekOffset === 0
+                          ? 'bg-neutral-900 text-white font-semibold'
+                          : 'text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      Tuần này
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWeekOffset(1)}
+                      className={`px-3 py-1.5 font-medium border-l border-neutral-200 transition-colors ${
+                        weekOffset === 1
+                          ? 'bg-neutral-900 text-white font-semibold'
+                          : 'text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      Tuần sau (+1)
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setWeekOffset(2)}
+                      className={`px-3 py-1.5 font-medium border-l border-neutral-200 transition-colors ${
+                        weekOffset === 2
+                          ? 'bg-neutral-900 text-white font-semibold'
+                          : 'text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                    >
+                      Tuần sau nữa (+2)
+                    </button>
+                    <button
+                      type="button"
+                      disabled={weekOffset >= 2}
+                      onClick={() => setWeekOffset((prev) => Math.min(2, prev + 1))}
+                      className={`px-2.5 py-1.5 font-medium border-l border-neutral-200 flex items-center gap-1 transition-colors ${
+                        weekOffset >= 2
+                          ? 'text-neutral-300 cursor-not-allowed bg-neutral-50'
+                          : 'text-neutral-600 hover:bg-neutral-50'
+                      }`}
+                      title="Tuần sau (Giới hạn tối đa 2 tuần kế tiếp)"
+                    >
+                      <span>Sau</span>
+                      <ChevronRight className="w-4 h-4" />
+                    </button>
+                  </div>
+
+                  <div className="flex items-baseline gap-2">
+                    <span className="text-sm font-semibold text-neutral-900">
+                      {weekRangeTitle}
+                    </span>
+                    {weekOffset < 0 ? (
+                      <span className="text-xs text-neutral-500 font-medium">
+                        ({Math.abs(weekOffset)} tuần trước - Chỉ xem)
+                      </span>
+                    ) : weekOffset === 1 ? (
+                      <span className="text-xs text-neutral-500 font-medium">(Kế tiếp)</span>
+                    ) : weekOffset === 2 ? (
+                      <span className="text-xs text-neutral-500 font-medium">(Sau 2 tuần)</span>
+                    ) : null}
+                  </div>
+                </div>
+
+                {/* Chế độ xem: Lịch tuần (Grid) vs Danh sách (List) & Bộ lọc */}
+                <div className="flex items-center gap-2">
+                  <div className="inline-flex rounded-md border border-neutral-200 p-0.5 bg-neutral-100">
+                    <button
+                      type="button"
+                      onClick={() => setShiftViewMode('calendar')}
+                      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded ${
+                        shiftViewMode === 'calendar'
+                          ? 'bg-white text-neutral-900 shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-800'
+                      }`}
+                    >
+                      <LayoutGrid className="w-3.5 h-3.5" />
+                      <span>Lịch tuần</span>
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShiftViewMode('list')}
+                      className={`flex items-center gap-1.5 px-3 py-1 text-xs font-medium rounded ${
+                        shiftViewMode === 'list'
+                          ? 'bg-white text-neutral-900 shadow-sm'
+                          : 'text-neutral-500 hover:text-neutral-800'
+                      }`}
+                    >
+                      <List className="w-3.5 h-3.5" />
+                      <span>Danh sách</span>
+                    </button>
+                  </div>
+
+                  {activeRole === 'Admin' && (
+                    <Select
+                      value={shiftFilterShopId}
+                      onChange={(e) => setShiftFilterShopId(e.target.value)}
+                      options={[
+                        { value: 'all', label: 'Tất cả chi nhánh' },
+                        ...shops.map((s) => ({ value: s.id, label: s.name })),
+                      ]}
+                    />
+                  )}
+
+                  <Select
+                    value={shiftSearchStaffId}
+                    onChange={(e) => setShiftSearchStaffId(e.target.value)}
+                    options={[
+                      { value: 'all', label: 'Tất cả nhân sự' },
+                      ...staff.map((s) => ({
+                        value: s.id,
+                        label: `${s.firstName} ${s.lastName} (${s.role})`,
+                      })),
+                    ]}
+                  />
+
+                  <Select
+                    value={shiftFilterStatus}
+                    onChange={(e) => setShiftFilterStatus(e.target.value)}
+                    options={[
+                      { value: 'all', label: 'Tất cả trạng thái' },
+                      { value: 'Scheduled', label: 'Đã lên lịch' },
+                      { value: 'InProgress', label: 'Đang diễn ra' },
+                      { value: 'Completed', label: 'Đã hoàn thành' },
+                      { value: 'Cancelled', label: 'Đã hủy' },
+                    ]}
+                  />
+                </div>
+              </div>
+            </Card>
+
+            {/* CHẾ ĐỘ 1: BẢNG LỊCH TUẦN TỪ THỨ 2 ĐẾN CHỦ NHẬT (WEEKLY GRID) */}
+            {shiftViewMode === 'calendar' && (
+              <div className="grid grid-cols-1 md:grid-cols-7 gap-2.5">
+                {weekDays.map((dayDate) => {
+                  const dateKey = toLocalDateKey(dayDate);
+                  const isToday = dateKey === todayKey;
+                  const isPastDay = dateKey < todayKey || weekOffset < 0;
+                  const dayShifts = shiftsByDateKey[dateKey] || [];
+                  const dayNames = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy'];
+                  const dayName = dayNames[dayDate.getDay()];
+
+                  return (
+                    <div
+                      key={dateKey}
+                      className={`flex flex-col rounded-lg border bg-white ${
+                        isToday ? 'border-neutral-400' : 'border-neutral-200'
+                      }`}
+                    >
+                      {/* Cột Header ngày */}
+                      <div
+                        className={`p-2 border-b flex items-center justify-between ${
+                          isToday ? 'bg-neutral-100 border-neutral-200' : 'bg-neutral-50/70 border-neutral-200'
+                        }`}
+                      >
+                        <div>
+                          <div className="flex items-center gap-1.5">
+                            <span className="text-xs font-semibold text-neutral-900">{dayName}</span>
+                            {isToday && (
+                              <span className="text-[10px] font-medium text-neutral-600">
+                                (Hôm nay)
+                              </span>
+                            )}
+                          </div>
+                          <span className="text-[11px] text-neutral-500 block">
+                            {dayDate.getDate()} thg {dayDate.getMonth() + 1}
+                          </span>
+                        </div>
+
+                        {/* Nút xếp ca nhanh cho ngày này (chỉ dành cho ngày hiện tại hoặc tương lai) */}
+                        {isManagerOrAdmin && !isPastDay && (
+                          <button
+                            type="button"
+                            onClick={() => handleOpenCreateShift(dateKey)}
+                            className="p-1 rounded text-neutral-400 hover:text-neutral-700 hover:bg-neutral-200/60 transition-colors"
+                            title={`Xếp ca làm việc cho ngày ${dayName} (${dateKey})`}
+                          >
+                            <Plus className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Danh sách thẻ ca trong ngày */}
+                      <div className="p-2 flex-1 space-y-2 min-h-[140px] bg-neutral-50/30">
+                        {dayShifts.length === 0 ? (
+                          <div className="h-full flex flex-col items-center justify-center text-center p-3 text-neutral-400">
+                            <span className="text-xs">Trống</span>
+                            {isManagerOrAdmin && !isPastDay && (
+                              <button
+                                type="button"
+                                onClick={() => handleOpenCreateShift(dateKey)}
+                                className="text-xs text-neutral-600 hover:text-neutral-900 hover:underline mt-1 flex items-center gap-0.5"
+                              >
+                                <Plus className="w-3 h-3" /> Thêm ca
+                              </button>
+                            )}
+                          </div>
+                        ) : (
+                          dayShifts.map((sh) => {
+                            const shiftStaff = staff.find((s) => s.id === sh.staffId);
+                            const tag = getShiftTypeTag(sh.startTime);
+                            const isMyShift =
+                              user?.email &&
+                              shiftStaff?.email.toLowerCase() === user.email.toLowerCase();
+
+                            return (
+                              <div
+                                key={sh.id}
+                                onClick={() => handleOpenEditShift(sh)}
+                                className="p-2.5 rounded border border-neutral-200 bg-white cursor-pointer hover:border-neutral-300 transition-colors"
+                              >
+                                {/* Tag ca và giờ */}
+                                <div className="flex items-center justify-between text-[11px] mb-1.5">
+                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-600">
+                                    {tag.label}
+                                  </span>
+                                  <span className="font-mono text-xs font-medium text-neutral-700">
+                                    {formatShiftTime(sh.startTime)} - {formatShiftTime(sh.endTime)}
+                                  </span>
+                                </div>
+
+                                {/* Tên nhân viên */}
+                                <div className="font-medium text-xs text-neutral-900 truncate">
+                                  {shiftStaff
+                                    ? `${shiftStaff.firstName} ${shiftStaff.lastName}`
+                                    : 'Nhân sự'}
+                                  {isMyShift && (
+                                    <span className="ml-1 text-[10px] text-neutral-500 font-normal">
+                                      (Bạn)
+                                    </span>
+                                  )}
+                                </div>
+
+                                {/* Vai trò & Trạng thái */}
+                                <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500">
+                                  <span>{shiftStaff?.role || ''}</span>
+                                  <span>
+                                    {sh.status === 'InProgress'
+                                      ? 'Đang trực'
+                                      : sh.status === 'Completed'
+                                      ? 'Đã xong'
+                                      : sh.status === 'Cancelled'
+                                      ? 'Đã hủy'
+                                      : 'Đã lên lịch'}
+                                  </span>
+                                </div>
+
+                                {sh.notes && (
+                                  <div className="text-[10px] text-neutral-400 truncate mt-1 border-t border-neutral-100 pt-1">
+                                    {sh.notes}
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
+            {/* CHẾ ĐỘ 2: BẢNG DANH SÁCH (TABLE LIST VIEW) */}
+            {shiftViewMode === 'list' && (
+              <Card noPadding>
+                {filteredShifts.length === 0 ? (
+                  <EmptyState
+                    title="Chưa có ca làm việc nào"
+                    description="Hãy bấm vào nút Xếp ca làm mới để thêm ca làm việc cho nhân viên."
+                    action={
+                      isManagerOrAdmin && (
+                        <Button
+                          variant="primary"
+                          size="sm"
+                          icon={<Plus className="w-4 h-4" />}
+                          onClick={() => handleOpenCreateShift()}
+                        >
+                          Xếp ca làm việc ngay
+                        </Button>
+                      )
+                    }
+                  />
+                ) : (
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-neutral-700">
+                      <thead className="bg-neutral-50 text-xs font-semibold text-neutral-600 border-b border-neutral-200">
+                        <tr>
+                          <th className="py-3 px-4">Nhân viên trực ca</th>
+                          <th className="py-3 px-4">Chi nhánh</th>
+                          <th className="py-3 px-4">Thời gian ca làm</th>
+                          <th className="py-3 px-4">Ghi chú phân công</th>
+                          <th className="py-3 px-4">Trạng thái</th>
+                          <th className="py-3 px-4 text-right">Thao tác</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-neutral-200">
+                        {filteredShifts.map((sh) => {
+                          const shiftStaff = staff.find((s) => s.id === sh.staffId);
+                          const shiftShop = shops.find((s) => s.id === sh.shopId);
+                          const isMyShift =
+                            user?.email &&
+                            shiftStaff?.email.toLowerCase() === user.email.toLowerCase();
+
+                          return (
+                            <tr key={sh.id} className="hover:bg-neutral-50 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="font-semibold text-neutral-900">
+                                  {shiftStaff
+                                    ? `${shiftStaff.firstName} ${shiftStaff.lastName}`
+                                    : 'Nhân sự không xác định'}
+                                  {isMyShift && (
+                                    <span className="ml-1.5 text-[10px] px-1.5 py-0.5 bg-primary-100 text-primary-800 rounded font-normal">
+                                      Ca của bạn
+                                    </span>
+                                  )}
+                                </div>
+                                <div className="flex items-center gap-2 mt-0.5">
+                                  {shiftStaff && (
+                                    <Badge variant={getRoleBadgeVariant(shiftStaff.role)}>
+                                      {shiftStaff.role}
+                                    </Badge>
+                                  )}
+                                  <span className="text-xs text-neutral-400 font-mono">
+                                    ID: {sh.staffId.slice(-6)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-800 font-medium">
+                                  <Building2 className="w-3.5 h-3.5 text-neutral-400" />
+                                  {shiftShop?.name || 'Chi nhánh mặc định'}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="text-xs font-semibold text-neutral-900">
+                                  {formatShiftDate(sh.startTime)}
+                                </div>
+                                <div className="flex items-center gap-1.5 text-xs text-neutral-600 mt-0.5">
+                                  <Clock className="w-3.5 h-3.5 text-primary-600" />
+                                  <span className="font-mono font-medium">
+                                    {formatShiftTime(sh.startTime)} - {formatShiftTime(sh.endTime)}
+                                  </span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="text-xs text-neutral-600 italic">
+                                  {sh.notes || 'Không có ghi chú'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <Badge variant={getShiftBadgeVariant(sh.status)}>
+                                  {sh.status === 'Scheduled'
+                                    ? 'Đã lên lịch'
+                                    : sh.status === 'InProgress'
+                                    ? 'Đang làm việc'
+                                    : sh.status === 'Completed'
+                                    ? 'Đã hoàn thành'
+                                    : 'Đã hủy'}
+                                </Badge>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    variant="outline"
+                                    size="sm"
+                                    onClick={() => handleOpenEditShift(sh)}
+                                    icon={<Edit className="w-3.5 h-3.5" />}
+                                  >
+                                    Chi tiết
+                                  </Button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                )}
+              </Card>
+            )}
+          </div>
+        )}
+
+        {/* ========================================================= */}
+        {/* TAB 2: NHÂN SỰ & PHÂN QUYỀN (CHỈ DÀNH CHO MANAGER / ADMIN) */}
+        {/* ========================================================= */}
+        {activeTab === 'staff' && isManagerOrAdmin && (
           <div className="space-y-6">
             {/* Quick Stat Summary */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
@@ -623,14 +1298,21 @@ export const StaffPage: React.FC = () => {
                     { value: 'InventoryStaff', label: 'InventoryStaff (Kho)' },
                   ]}
                 />
-                <Select
-                  value={shopFilter}
-                  onChange={(e) => setShopFilter(e.target.value)}
-                  options={[
-                    { value: 'all', label: 'Tất cả chi nhánh' },
-                    ...shops.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                />
+                {activeRole === 'Admin' ? (
+                  <Select
+                    value={shopFilter}
+                    onChange={(e) => setShopFilter(e.target.value)}
+                    options={[
+                      { value: 'all', label: 'Tất cả chi nhánh' },
+                      ...shops.map((s) => ({ value: s.id, label: s.name })),
+                    ]}
+                  />
+                ) : (
+                  <div className="p-2.5 rounded border border-neutral-200 bg-neutral-50 text-xs font-medium text-neutral-700 flex items-center gap-2">
+                    <Building2 className="w-4 h-4 text-primary-600" />
+                    <span>Chi nhánh: {currentBranchShop?.name || 'Chi nhánh của bạn'}</span>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -723,9 +1405,9 @@ export const StaffPage: React.FC = () => {
                                 <Button
                                   variant="ghost"
                                   size="sm"
-                                  onClick={() => handleOpenCreateShift(member.id)}
+                                  onClick={() => handleOpenCreateShift(undefined, member.id)}
                                   title="Xếp ca làm việc cho nhân viên này"
-                                  icon={<Calendar className="w-3.5 h-3.5 text-primary-600" />}
+                                  icon={<CalendarIcon className="w-3.5 h-3.5 text-primary-600" />}
                                 >
                                   Xếp ca
                                 </Button>
@@ -766,330 +1448,13 @@ export const StaffPage: React.FC = () => {
         )}
 
         {/* ========================================================= */}
-        {/* TAB 2: XẾP CA & LỊCH LÀM VIỆC                             */}
-        {/* ========================================================= */}
-        {activeTab === 'shifts' && (
-          <div className="space-y-6">
-            {/* Shifts Stats Summary */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Tổng số ca</p>
-                    <p className="text-2xl font-bold text-neutral-900 mt-1">{shifts.length}</p>
-                  </div>
-                  <div className="p-3 bg-neutral-100 rounded-lg text-neutral-700">
-                    <Calendar className="w-5 h-5" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Đã lên lịch</p>
-                    <p className="text-2xl font-bold text-amber-600 mt-1">
-                      {shifts.filter((s) => s.status === 'Scheduled').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-amber-50 rounded-lg text-amber-600">
-                    <Clock className="w-5 h-5" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Đang diễn ra</p>
-                    <p className="text-2xl font-bold text-primary-600 mt-1">
-                      {shifts.filter((s) => s.status === 'InProgress').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-primary-50 rounded-lg text-primary-600 animate-pulse">
-                    <Play className="w-5 h-5" />
-                  </div>
-                </div>
-              </Card>
-
-              <Card>
-                <div className="flex items-center justify-between">
-                  <div>
-                    <p className="text-xs font-medium text-neutral-500 uppercase tracking-wider">Đã hoàn thành</p>
-                    <p className="text-2xl font-bold text-emerald-600 mt-1">
-                      {shifts.filter((s) => s.status === 'Completed').length}
-                    </p>
-                  </div>
-                  <div className="p-3 bg-emerald-50 rounded-lg text-emerald-600">
-                    <CheckCircle2 className="w-5 h-5" />
-                  </div>
-                </div>
-              </Card>
-            </div>
-
-            {/* Filter Bar for Shifts */}
-            <Card>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-                <Select
-                  value={shiftSearchStaffId}
-                  onChange={(e) => setShiftSearchStaffId(e.target.value)}
-                  options={[
-                    { value: 'all', label: 'Tất cả nhân viên' },
-                    ...staff.map((s) => ({
-                      value: s.id,
-                      label: `${s.firstName} ${s.lastName} (${s.role})`,
-                    })),
-                  ]}
-                />
-                <Select
-                  value={shiftFilterShopId}
-                  onChange={(e) => setShiftFilterShopId(e.target.value)}
-                  options={[
-                    { value: 'all', label: 'Tất cả chi nhánh' },
-                    ...shops.map((s) => ({ value: s.id, label: s.name })),
-                  ]}
-                />
-                <Select
-                  value={shiftFilterStatus}
-                  onChange={(e) => setShiftFilterStatus(e.target.value)}
-                  options={[
-                    { value: 'all', label: 'Tất cả trạng thái ca' },
-                    { value: 'Scheduled', label: 'Đã lên lịch' },
-                    { value: 'InProgress', label: 'Đang làm việc' },
-                    { value: 'Completed', label: 'Đã hoàn thành' },
-                    { value: 'Cancelled', label: 'Đã hủy' },
-                  ]}
-                />
-                <Input
-                  type="date"
-                  value={shiftFilterDate}
-                  onChange={(e) => setShiftFilterDate(e.target.value)}
-                />
-              </div>
-            </Card>
-
-            {/* Shifts Table */}
-            <Card noPadding>
-              {loading || loadingShifts ? (
-                <div className="p-8 text-center text-sm text-neutral-500">Đang tải danh sách ca làm việc...</div>
-              ) : filteredShifts.length === 0 ? (
-                <EmptyState
-                  title="Chưa có ca làm việc nào phù hợp"
-                  description="Hãy thêm mới ca làm việc cho nhân viên hoặc thay đổi bộ lọc ngày/chi nhánh."
-                  action={
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      icon={<Plus className="w-4 h-4" />}
-                      onClick={() => handleOpenCreateShift()}
-                    >
-                      Xếp ca làm việc ngay
-                    </Button>
-                  }
-                />
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-left text-sm text-neutral-700">
-                    <thead className="bg-neutral-50 text-xs font-semibold text-neutral-600 border-b border-neutral-200">
-                      <tr>
-                        <th className="py-3 px-4">Nhân viên trực ca</th>
-                        <th className="py-3 px-4">Chi nhánh</th>
-                        <th className="py-3 px-4">Thời gian ca làm</th>
-                        <th className="py-3 px-4">Ghi chú phân công</th>
-                        <th className="py-3 px-4">Trạng thái</th>
-                        <th className="py-3 px-4 text-right">Thao tác ca</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-neutral-200">
-                      {filteredShifts.map((sh) => {
-                        const shiftStaff = staff.find((s) => s.id === sh.staffId);
-                        const shiftShop = shops.find((s) => s.id === sh.shopId);
-                        return (
-                          <tr key={sh.id} className="hover:bg-neutral-50 transition-colors">
-                            <td className="py-3 px-4">
-                              <div className="font-semibold text-neutral-900">
-                                {shiftStaff ? `${shiftStaff.firstName} ${shiftStaff.lastName}` : 'Nhân sự không xác định'}
-                              </div>
-                              <div className="flex items-center gap-2 mt-0.5">
-                                {shiftStaff && (
-                                  <Badge variant={getRoleBadgeVariant(shiftStaff.role)}>
-                                    {shiftStaff.role}
-                                  </Badge>
-                                )}
-                                <span className="text-xs text-neutral-400 font-mono">ID: {sh.staffId.slice(-6)}</span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="flex items-center gap-1.5 text-xs text-neutral-800 font-medium">
-                                <Building2 className="w-3.5 h-3.5 text-neutral-400" />
-                                {shiftShop?.name || 'Chi nhánh mặc định'}
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <div className="text-xs font-semibold text-neutral-900">
-                                {formatShiftDate(sh.startTime)}
-                              </div>
-                              <div className="flex items-center gap-1.5 text-xs text-neutral-600 mt-0.5">
-                                <Clock className="w-3.5 h-3.5 text-primary-600" />
-                                <span className="font-mono font-medium">
-                                  {formatShiftTime(sh.startTime)} - {formatShiftTime(sh.endTime)}
-                                </span>
-                              </div>
-                            </td>
-                            <td className="py-3 px-4">
-                              <span className="text-xs text-neutral-600 italic">
-                                {sh.notes || 'Không có ghi chú'}
-                              </span>
-                            </td>
-                            <td className="py-3 px-4">
-                              <Badge variant={getShiftBadgeVariant(sh.status)}>
-                                {sh.status === 'Scheduled'
-                                  ? 'Đã lên lịch'
-                                  : sh.status === 'InProgress'
-                                  ? 'Đang làm việc'
-                                  : sh.status === 'Completed'
-                                  ? 'Đã hoàn thành'
-                                  : 'Đã hủy'}
-                              </Badge>
-                            </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                {sh.status === 'Scheduled' && (
-                                  <>
-                                    <Button
-                                      variant="outline"
-                                      size="sm"
-                                      onClick={() => handleStartShift(sh.id)}
-                                      icon={<Play className="w-3.5 h-3.5 text-emerald-600" />}
-                                    >
-                                      Bắt đầu
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleCancelShift(sh.id)}
-                                      icon={<XCircle className="w-3.5 h-3.5 text-amber-600" />}
-                                    >
-                                      Hủy
-                                    </Button>
-                                  </>
-                                )}
-
-                                {sh.status === 'InProgress' && (
-                                  <>
-                                    <Button
-                                      variant="primary"
-                                      size="sm"
-                                      onClick={() => handleCompleteShift(sh.id)}
-                                      icon={<CheckCircle2 className="w-3.5 h-3.5" />}
-                                    >
-                                      Xong ca
-                                    </Button>
-                                    <Button
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleCancelShift(sh.id)}
-                                      icon={<XCircle className="w-3.5 h-3.5 text-amber-600" />}
-                                    >
-                                      Hủy
-                                    </Button>
-                                  </>
-                                )}
-
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
-                                  icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                                  onClick={() => setDeletingShiftId(sh.id)}
-                                  title="Xóa ca làm việc này"
-                                >
-                                  Xóa
-                                </Button>
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </Card>
-          </div>
-        )}
-
-        {/* ========================================================= */}
-        {/* MODAL: GÁN CHI NHÁNH CHO NHÂN VIÊN                        */}
-        {/* ========================================================= */}
-        <Modal
-          isOpen={!!assigningMember}
-          onClose={() => setAssigningMember(null)}
-          title="Phân Bổ Chi Nhánh Công Tác"
-          description={`Chỉ định chi nhánh quán nơi nhân viên ${assigningMember?.firstName} ${assigningMember?.lastName} sẽ làm việc.`}
-        >
-          <div className="space-y-4">
-            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-              <div className="text-sm font-semibold text-neutral-900">
-                {assigningMember?.firstName} {assigningMember?.lastName}
-              </div>
-              <div className="text-xs text-neutral-500 mt-0.5">
-                Vai trò: <span className="font-medium text-neutral-800">{assigningMember?.role}</span> | Email: {assigningMember?.email}
-              </div>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                Chọn chi nhánh công tác:
-              </label>
-              <Select
-                value={selectedAssignShopId}
-                onChange={(e) => setSelectedAssignShopId(e.target.value)}
-                options={shops.map((s) => ({ value: s.id, label: s.name }))}
-              />
-            </div>
-
-            <div className="flex items-center gap-2 pt-1">
-              <input
-                type="checkbox"
-                id="isPrimaryCheckbox"
-                checked={isPrimaryAssignment}
-                onChange={(e) => setIsPrimaryAssignment(e.target.checked)}
-                className="w-4 h-4 text-primary-600 rounded border-neutral-300 focus:ring-primary-500"
-              />
-              <label htmlFor="isPrimaryCheckbox" className="text-sm text-neutral-700 cursor-pointer">
-                Đặt làm chi nhánh làm việc chính (Primary Shop)
-              </label>
-            </div>
-
-            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
-              <Button
-                variant="outline"
-                onClick={() => setAssigningMember(null)}
-                disabled={isAssigning}
-              >
-                Hủy
-              </Button>
-              <Button
-                variant="primary"
-                onClick={handleSaveShopAssignment}
-                loading={isAssigning}
-                icon={<Building2 className="w-4 h-4" />}
-              >
-                Lưu phân công chi nhánh
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        {/* ========================================================= */}
         {/* MODAL: XẾP CA LÀM VIỆC MỚI                                */}
         {/* ========================================================= */}
         <Modal
           isOpen={isCreateShiftModalOpen}
           onClose={() => setIsCreateShiftModalOpen(false)}
           title="Xếp Ca Làm Việc Mới"
-          description="Lên lịch trực ca làm việc cụ thể cho từng nhân viên theo chi nhánh."
+          description="Lên lịch trực ca làm việc cụ thể cho từng nhân viên theo chi nhánh (hỗ trợ xếp lịch trước 2 tuần)."
         >
           <form onSubmit={handleCreateShiftSubmit} className="space-y-4">
             <div>
@@ -1136,62 +1501,67 @@ export const StaffPage: React.FC = () => {
               <Input
                 type="date"
                 required
+                min={minShiftDate}
+                max={maxShiftDate}
                 value={shiftDate}
                 onChange={(e) => setShiftDate(e.target.value)}
               />
+              <p className="text-[11px] text-neutral-500 mt-1">
+                Chỉ được xếp lịch trong tuần hiện tại và tối đa 2 tuần kế tiếp.
+              </p>
             </div>
 
             <div>
               <label className="block text-sm font-medium text-neutral-700 mb-2">
-                Khung ca làm việc chuẩn:
+                Khung ca làm việc:
               </label>
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <button
                   type="button"
                   onClick={() => handleShiftPresetChange('morning')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-colors ${
                     shiftPreset === 'morning'
-                      ? 'border-primary-600 bg-primary-50 text-primary-800 font-semibold'
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 font-semibold'
                       : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  <div className="font-medium">☀️ Ca Sáng</div>
+                  <div className="font-medium">Ca Sáng</div>
                   <div className="text-neutral-500 font-mono mt-0.5">06:30 - 14:30 (8h)</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShiftPresetChange('afternoon')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-colors ${
                     shiftPreset === 'afternoon'
-                      ? 'border-primary-600 bg-primary-50 text-primary-800 font-semibold'
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 font-semibold'
                       : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  <div className="font-medium">🌤️ Ca Chiều</div>
+                  <div className="font-medium">Ca Chiều</div>
                   <div className="text-neutral-500 font-mono mt-0.5">14:30 - 22:30 (8h)</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShiftPresetChange('evening')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-colors ${
                     shiftPreset === 'evening'
-                      ? 'border-primary-600 bg-primary-50 text-primary-800 font-semibold'
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 font-semibold'
                       : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  <div className="font-medium">🌙 Ca Tối Tăng Cường</div>
+                  <div className="font-medium">Ca Tối</div>
                   <div className="text-neutral-500 font-mono mt-0.5">18:00 - 23:00 (5h)</div>
                 </button>
                 <button
                   type="button"
                   onClick={() => handleShiftPresetChange('custom')}
-                  className={`p-2.5 rounded-lg border text-left transition-all ${
+                  className={`p-2.5 rounded-lg border text-left transition-colors ${
                     shiftPreset === 'custom'
-                      ? 'border-primary-600 bg-primary-50 text-primary-800 font-semibold'
+                      ? 'border-neutral-900 bg-neutral-50 text-neutral-900 font-semibold'
                       : 'border-neutral-200 hover:border-neutral-300 text-neutral-700'
                   }`}
                 >
-                  <div className="font-medium">⚙️ Tùy Chỉnh Giờ</div>
+                  <div className="font-medium">Tùy Chỉnh</div>
                   <div className="text-neutral-500 mt-0.5">Tự nhập giờ vào/ra</div>
                 </button>
               </div>
@@ -1248,6 +1618,288 @@ export const StaffPage: React.FC = () => {
               </Button>
             </div>
           </form>
+        </Modal>
+
+        {/* ========================================================= */}
+        {/* MODAL: CẬP NHẬT & CHI TIẾT CA LÀM VIỆC                    */}
+        {/* ========================================================= */}
+        <Modal
+          isOpen={!!editingShift}
+          onClose={() => setEditingShift(null)}
+          title="Chi Tiết & Cập Nhật Lịch Ca Làm"
+          description="Điều chỉnh nhân viên, ngày trực hoặc khung giờ ca làm việc hiện tại."
+        >
+          {editingShift && (
+            <div className="space-y-4">
+              {/* Thông tin tóm tắt */}
+              <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200 flex items-center justify-between">
+                <div>
+                  <div className="text-xs text-neutral-500 font-mono">Mã ca: {editingShift.id}</div>
+                  <div className="text-sm font-bold text-neutral-900 mt-0.5">
+                    {shops.find((s) => s.id === editingShift.shopId)?.name || 'Chi nhánh'}
+                  </div>
+                </div>
+                <Badge variant={getShiftBadgeVariant(editingShift.status)}>
+                  {editingShift.status === 'Scheduled'
+                    ? 'Đã lên lịch'
+                    : editingShift.status === 'InProgress'
+                    ? 'Đang làm việc'
+                    : editingShift.status === 'Completed'
+                    ? 'Đã hoàn thành'
+                    : 'Đã hủy'}
+                </Badge>
+              </div>
+
+              {/* Form chỉnh sửa (chỉ dành cho quản lý/admin VÀ đối với ca thuộc tuần hiện tại hoặc tương lai) */}
+              {isManagerOrAdmin && !isEditingShiftPast ? (
+                <form onSubmit={handleUpdateShiftSubmit} className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Nhân viên trực ca:
+                    </label>
+                    <Select
+                      value={editStaffId}
+                      onChange={(e) => setEditStaffId(e.target.value)}
+                      options={staff.map((s) => ({
+                        value: s.id,
+                        label: `${s.firstName} ${s.lastName} - ${s.role}`,
+                      }))}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-neutral-700 mb-1">
+                      Ngày làm việc:
+                    </label>
+                    <Input
+                      type="date"
+                      required
+                      min={minShiftDate}
+                      max={maxShiftDate}
+                      value={editDate}
+                      onChange={(e) => setEditDate(e.target.value)}
+                    />
+                    <p className="text-[11px] text-neutral-500 mt-1">
+                      Chỉ được xếp lịch trong tuần hiện tại và tối đa 2 tuần kế tiếp.
+                    </p>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <Input
+                      label="Giờ bắt đầu"
+                      type="time"
+                      required
+                      value={editStartTime}
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                    />
+                    <Input
+                      label="Giờ kết thúc"
+                      type="time"
+                      required
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                    />
+                  </div>
+
+                  <div>
+                    <Input
+                      label="Ghi chú nhiệm vụ ca"
+                      value={editNotes}
+                      onChange={(e) => setEditNotes(e.target.value)}
+                    />
+                  </div>
+
+                  <div className="flex items-center justify-between pt-3 border-t border-neutral-200">
+                    <div className="flex items-center gap-1.5">
+                      {editingShift.status === 'Scheduled' && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => handleStartShift(editingShift.id)}
+                          icon={<Play className="w-3.5 h-3.5" />}
+                        >
+                          Bắt đầu ca
+                        </Button>
+                      )}
+                      {editingShift.status === 'InProgress' && (
+                        <Button
+                          type="button"
+                          variant="primary"
+                          size="sm"
+                          onClick={() => handleCompleteShift(editingShift.id)}
+                          icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                        >
+                          Hoàn thành
+                        </Button>
+                      )}
+                      {editingShift.status !== 'Cancelled' && editingShift.status !== 'Completed' && (
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => handleCancelShift(editingShift.id)}
+                          icon={<XCircle className="w-3.5 h-3.5" />}
+                        >
+                          Hủy ca
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                        onClick={() => handleDeleteShift(editingShift.id)}
+                        icon={<Trash2 className="w-3.5 h-3.5" />}
+                      >
+                        Xóa
+                      </Button>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Button
+                        type="button"
+                        variant="outline"
+                        onClick={() => setEditingShift(null)}
+                      >
+                        Đóng
+                      </Button>
+                      <Button
+                        type="submit"
+                        variant="primary"
+                        loading={isUpdatingShift}
+                        icon={<Edit className="w-3.5 h-3.5" />}
+                      >
+                        Lưu cập nhật
+                      </Button>
+                    </div>
+                  </div>
+                </form>
+              ) : (
+                /* Chế độ xem: dành cho nhân viên thường HOẶC ca làm việc thuộc các tuần trước */
+                <div className="space-y-3">
+                  {isEditingShiftPast && (
+                    <div className="p-2.5 bg-neutral-50 rounded-lg border border-neutral-200 text-xs text-neutral-600">
+                      Đây là ca làm việc thuộc lịch sử tuần trước. Bạn chỉ có thể xem, không thể chỉnh sửa hoặc xóa.
+                    </div>
+                  )}
+                  <div className="text-sm text-neutral-700">
+                    <p>
+                      <strong>Nhân viên:</strong>{' '}
+                      {staff.find((s) => s.id === editingShift.staffId)?.firstName}{' '}
+                      {staff.find((s) => s.id === editingShift.staffId)?.lastName}
+                    </p>
+                    <p className="mt-1">
+                      <strong>Thời gian:</strong> {formatShiftDate(editingShift.startTime)} (
+                      {formatShiftTime(editingShift.startTime)} - {formatShiftTime(editingShift.endTime)})
+                    </p>
+                    <p className="mt-1">
+                      <strong>Nhiệm vụ:</strong> {editingShift.notes || 'Không có ghi chú'}
+                    </p>
+                  </div>
+
+                  {/* Nhân viên có thể tự bấm bắt đầu / xong ca của mình (chỉ đối với ca hiện tại/tương lai) */}
+                  {!isEditingShiftPast &&
+                    user?.email &&
+                    staff.find((s) => s.id === editingShift.staffId)?.email.toLowerCase() ===
+                      user.email.toLowerCase() && (
+                      <div className="flex gap-2 pt-3 border-t border-neutral-200">
+                        {editingShift.status === 'Scheduled' && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleStartShift(editingShift.id)}
+                            icon={<Play className="w-3.5 h-3.5" />}
+                          >
+                            Bắt đầu ca của tôi
+                          </Button>
+                        )}
+                        {editingShift.status === 'InProgress' && (
+                          <Button
+                            variant="primary"
+                            size="sm"
+                            onClick={() => handleCompleteShift(editingShift.id)}
+                            icon={<CheckCircle2 className="w-3.5 h-3.5" />}
+                          >
+                            Xác nhận hoàn thành ca
+                          </Button>
+                        )}
+                      </div>
+                    )}
+
+                  <div className="flex justify-end pt-3 border-t border-neutral-200">
+                    <Button variant="outline" onClick={() => setEditingShift(null)}>
+                      Đóng
+                    </Button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+        </Modal>
+
+        {/* ========================================================= */}
+        {/* MODAL: GÁN CHI NHÁNH CHO NHÂN VIÊN                        */}
+        {/* ========================================================= */}
+        <Modal
+          isOpen={!!assigningMember}
+          onClose={() => setAssigningMember(null)}
+          title="Phân Bổ Chi Nhánh Công Tác"
+          description={`Chỉ định chi nhánh quán nơi nhân viên ${assigningMember?.firstName} ${assigningMember?.lastName} sẽ làm việc.`}
+        >
+          <div className="space-y-4">
+            <div className="p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+              <div className="text-sm font-semibold text-neutral-900">
+                {assigningMember?.firstName} {assigningMember?.lastName}
+              </div>
+              <div className="text-xs text-neutral-500 mt-0.5">
+                Vai trò: <span className="font-medium text-neutral-800">{assigningMember?.role}</span> | Email:{' '}
+                {assigningMember?.email}
+              </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-neutral-700 mb-1">
+                Chọn chi nhánh công tác:
+              </label>
+              <Select
+                value={selectedAssignShopId}
+                onChange={(e) => setSelectedAssignShopId(e.target.value)}
+                options={shops.map((s) => ({ value: s.id, label: s.name }))}
+              />
+            </div>
+
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="checkbox"
+                id="isPrimaryCheckbox"
+                checked={isPrimaryAssignment}
+                onChange={(e) => setIsPrimaryAssignment(e.target.checked)}
+                className="w-4 h-4 text-primary-600 rounded border-neutral-300 focus:ring-primary-500"
+              />
+              <label htmlFor="isPrimaryCheckbox" className="text-sm text-neutral-700 cursor-pointer">
+                Đặt làm chi nhánh làm việc chính (Primary Shop)
+              </label>
+            </div>
+
+            <div className="flex justify-end gap-3 pt-4 border-t border-neutral-200">
+              <Button
+                variant="outline"
+                onClick={() => setAssigningMember(null)}
+                disabled={isAssigning}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="primary"
+                onClick={handleSaveShopAssignment}
+                loading={isAssigning}
+                icon={<Building2 className="w-4 h-4" />}
+              >
+                Lưu phân công chi nhánh
+              </Button>
+            </div>
+          </div>
         </Modal>
 
         {/* ========================================================= */}
@@ -1376,39 +2028,6 @@ export const StaffPage: React.FC = () => {
                 size="sm"
                 onClick={handleDeleteMember}
                 loading={isDeleting}
-                icon={<Trash2 className="w-3.5 h-3.5" />}
-              >
-                Xác nhận xóa
-              </Button>
-            </div>
-          </div>
-        </Modal>
-
-        {/* ========================================================= */}
-        {/* MODAL: XÓA CA LÀM VIỆC                                    */}
-        {/* ========================================================= */}
-        <Modal
-          isOpen={!!deletingShiftId}
-          onClose={() => setDeletingShiftId(null)}
-          title="Xóa ca làm việc"
-          description="Thao tác này sẽ xóa ca làm việc đã chọn khỏi hệ thống."
-        >
-          <div className="space-y-4">
-            <p className="text-sm text-neutral-700">
-              Bạn có chắc chắn muốn xóa ca làm việc này không? Lịch trực sẽ không còn hiển thị trên bảng.
-            </p>
-            <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeletingShiftId(null)}
-              >
-                Hủy
-              </Button>
-              <Button
-                variant="danger"
-                size="sm"
-                onClick={() => deletingShiftId && handleDeleteShift(deletingShiftId)}
                 icon={<Trash2 className="w-3.5 h-3.5" />}
               >
                 Xác nhận xóa

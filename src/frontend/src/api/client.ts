@@ -539,6 +539,12 @@ export const shiftsApi = {
       body: JSON.stringify({ reason }),
     });
   },
+  update: async (id: string, data: { staffId: string; startTime: string; endTime: string; notes?: string }): Promise<void> => {
+    await fetchJson(`/shifts/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    });
+  },
   delete: async (id: string): Promise<void> => {
     await fetchJson(`/shifts/${id}`, { method: 'DELETE' });
   },

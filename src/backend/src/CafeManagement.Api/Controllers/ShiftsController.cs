@@ -86,6 +86,20 @@ public class ShiftsController : ControllerBase
         return NoContent();
     }
 
+    [HttpPut("{id}")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> UpdateShift(ObjectId id, [FromBody] UpdateShiftRequest request, CancellationToken cancellationToken)
+    {
+        var command = new UpdateShiftCommand(id, request.StaffId, request.StartTime, request.EndTime, request.Notes);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (result.IsFailed)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -101,3 +115,4 @@ public class ShiftsController : ControllerBase
 }
 
 public record CancelShiftRequest(string? Reason);
+public record UpdateShiftRequest(ObjectId StaffId, DateTime StartTime, DateTime EndTime, string? Notes);

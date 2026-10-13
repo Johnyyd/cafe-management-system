@@ -127,7 +127,7 @@ export const App: React.FC = () => {
           path="/staff"
           element={
             <ProtectedRoute>
-              <RoleRouteGuard allowedRoles={['Admin', 'Manager']}>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Cashier', 'Barista', 'InventoryStaff']}>
                 <AppLayout>
                   <StaffPage />
                 </AppLayout>

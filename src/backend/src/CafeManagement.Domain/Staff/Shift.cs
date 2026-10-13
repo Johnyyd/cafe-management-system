@@ -200,6 +200,23 @@ public class Shift : AggregateRoot<ObjectId>
         return Result.Ok();
     }
 
+    public Result UpdateDetails(ObjectId staffId, DateTime startTime, DateTime endTime, string? notes, ObjectId? updatedBy = null)
+    {
+        if (IsDeleted)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot update a deleted shift"));
+        if (staffId == ObjectId.Empty)
+            return Result.Fail(DomainErrors.Validation.Required("StaffId"));
+        if (startTime >= endTime)
+            return Result.Fail(DomainErrors.Validation.OutOfRange("StartTime", "before EndTime", endTime));
+
+        StaffId = staffId;
+        StartTime = startTime;
+        EndTime = endTime;
+        Notes = notes;
+        SetAuditInfo(updatedBy: updatedBy);
+        return Result.Ok();
+    }
+
     public TimeSpan Duration => EndTime - StartTime;
     public bool IsActive => Status == ShiftStatus.Scheduled || Status == ShiftStatus.InProgress;
     public bool IsCovered => CoveredByStaffId.HasValue;

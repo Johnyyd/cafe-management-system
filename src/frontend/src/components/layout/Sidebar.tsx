@@ -35,9 +35,9 @@ export const Sidebar: React.FC = () => {
   const allowedHrefsByRole: Record<string, string[]> = {
     Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/staff', '/metrics'],
     Manager: ['/dashboard', '/orders', '/inventory', '/staff'],
-    Cashier: ['/orders'],
-    Barista: ['/orders'],
-    InventoryStaff: ['/inventory'],
+    Cashier: ['/orders', '/staff'],
+    Barista: ['/orders', '/staff'],
+    InventoryStaff: ['/inventory', '/staff'],
   };
 
   const allowedRoutes = allowedHrefsByRole[activeRole] || ['/orders'];

@@ -52,4 +52,12 @@ public record UpdateShiftNotesCommand(
     string? Notes
 ) : IRequest<Result>;
 
+public record UpdateShiftCommand(
+    ObjectId Id,
+    ObjectId StaffId,
+    DateTime StartTime,
+    DateTime EndTime,
+    string? Notes
+) : IRequest<Result>;
+
 public record DeleteShiftCommand(ObjectId Id) : IRequest<Result>;

@@ -550,7 +550,7 @@ def seed_shifts(headers: Dict[str, str], shop_id: str, staff_list: List[Dict[str
         {
             "offset_hours_start": 32,
             "duration_hours": 5,
-            "notes": "Ca tối tăng cường: Vệ sinh thiết bị & chốt kho",
+            "notes": "Ca tối: Vệ sinh thiết bị & chốt kho",
             "role_idx": 3
         }
     ]
