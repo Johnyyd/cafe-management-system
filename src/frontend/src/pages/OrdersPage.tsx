@@ -22,6 +22,7 @@ export const OrdersPage: React.FC = () => {
   const [cartItems, setCartItems] = useState<OrderItem[]>([]);
   const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
+  const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
   const { currentShopId, notify } = useAppStore();
 
   const {
@@ -152,11 +153,27 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
-  const updateOrderStatus = (orderId: string, nextStatus: OrderStatus) => {
-    setOrders((prev) =>
-      prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
-    );
-    notify('info', `Đã cập nhật trạng thái đơn thành ${nextStatus}`);
+  const updateOrderStatus = async (orderId: string, nextStatus: OrderStatus) => {
+    setUpdatingOrderId(orderId);
+    try {
+      await api.updateOrderStatus(orderId, nextStatus);
+      setOrders((prev) =>
+        prev.map((o) => (o.id === orderId ? { ...o, status: nextStatus } : o))
+      );
+      const statusLabels: Record<OrderStatus, string> = {
+        Pending: 'Chờ xử lý',
+        Confirmed: 'Đã nhận đơn',
+        Preparing: 'Đang pha chế',
+        Ready: 'Sẵn sàng giao',
+        Completed: 'Hoàn tất',
+        Cancelled: 'Đã hủy',
+      };
+      notify('success', `Đã cập nhật đơn hàng sang trạng thái "${statusLabels[nextStatus] || nextStatus}"`);
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi cập nhật trạng thái đơn hàng');
+    } finally {
+      setUpdatingOrderId(null);
+    }
   };
 
   const handleDeleteOrder = async () => {
@@ -454,24 +471,26 @@ export const OrdersPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
-                          {o.status === 'Pending' && (
+                          {(o.status === 'Pending' || o.status === 'Confirmed') && (
                             <Button
                               variant="secondary"
                               size="sm"
+                              disabled={updatingOrderId === o.id}
                               icon={<Clock className="w-3 h-3" />}
                               onClick={() => updateOrderStatus(o.id, 'Preparing')}
                             >
-                              Pha chế
+                              {updatingOrderId === o.id ? 'Đang lưu...' : 'Pha chế'}
                             </Button>
                           )}
-                          {o.status === 'Preparing' && (
+                          {(o.status === 'Preparing' || o.status === 'Ready') && (
                             <Button
                               variant="primary"
                               size="sm"
+                              disabled={updatingOrderId === o.id}
                               icon={<CheckCircle className="w-3 h-3" />}
                               onClick={() => updateOrderStatus(o.id, 'Completed')}
                             >
-                              Hoàn tất
+                              {updatingOrderId === o.id ? 'Đang lưu...' : 'Hoàn tất'}
                             </Button>
                           )}
                           <Button

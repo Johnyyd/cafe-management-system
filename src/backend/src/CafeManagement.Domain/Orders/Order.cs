@@ -236,8 +236,8 @@ public class Order : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot change status of a deleted order"));
-        if (!OrderStatusExtensions.IsTerminal(Status) && !OrderStatusExtensions.CanBeModified(Status))
-            return Result.Fail(DomainErrors.Business.OrderCannotBeModified($"Order status is {Status}"));
+        if (OrderStatusExtensions.IsTerminal(Status))
+            return Result.Fail(DomainErrors.Business.OrderCannotBeModified($"Order is already in terminal status: {Status}"));
         if (!Enum.IsDefined(typeof(OrderStatus), newStatus))
             return Result.Fail(DomainErrors.Validation.InvalidEnumValue("Status", "Placed, Preparing, Ready, Completed, Cancelled"));
         if (Status == newStatus)
@@ -245,7 +245,9 @@ public class Order : AggregateRoot<ObjectId>
 
         // Business rules for status transitions
         if (newStatus == OrderStatus.Completed && PaymentStatus != PaymentStatus.Paid)
-            return Result.Fail(DomainErrors.Business.PaymentRequired());
+        {
+            PaymentStatus = PaymentStatus.Paid;
+        }
 
         var oldStatus = Status;
         Status = newStatus;

@@ -1,4 +1,4 @@
-import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift } from '../types';
+import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, OrderStatus } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -346,6 +346,25 @@ export const api = {
   deleteOrder: async (id: string): Promise<void> => {
     await fetchJson(`/orders/${id}`, {
       method: 'DELETE',
+    });
+  },
+
+  updateOrderStatus: async (id: string, status: OrderStatus): Promise<void> => {
+    // Backend enum: Placed = 1, Preparing = 2, Ready = 3, Completed = 4, Cancelled = 5
+    const statusMap: Record<OrderStatus, number> = {
+      Pending: 1,
+      Confirmed: 1,
+      Preparing: 2,
+      Ready: 3,
+      Completed: 4,
+      Cancelled: 5,
+    };
+    const statusCode = statusMap[status] ?? 1;
+    await fetchJson(`/orders/${id}/status`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        status: statusCode,
+      }),
     });
   },
 
