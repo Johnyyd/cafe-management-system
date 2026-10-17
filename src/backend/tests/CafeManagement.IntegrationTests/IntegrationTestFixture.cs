@@ -2,6 +2,7 @@ using CafeManagement.Api;
 using Microsoft.AspNetCore.Mvc.Testing;
 using MongoDB.Driver;
 using System.Runtime.CompilerServices;
+using System.Threading;
 using Testcontainers.MongoDb;
 
 namespace CafeManagement.IntegrationTests;
@@ -28,16 +29,19 @@ public class IntegrationTestFixture
     {
         get
         {
-            lock (_lock)
+            if (_factory == null)
             {
-                if (_factory == null)
+                lock (_lock)
                 {
-                    Console.WriteLine("[IntegrationTestFixture] Creating new CustomWebApplicationFactory");
-                    _factory = new CustomWebApplicationFactory(_mongoDbContainer!);
-                    Console.WriteLine("[IntegrationTestFixture] CustomWebApplicationFactory created");
+                    if (_factory == null)
+                    {
+                        var factoryTask = InitializeFactoryAsync();
+                        factoryTask.Wait(); // Safe in static context
+                        _factory = factoryTask.Result;
+                    }
                 }
-                return _factory;
             }
+            return _factory!;
         }
     }
 
@@ -45,23 +49,74 @@ public class IntegrationTestFixture
     {
         get
         {
-            lock (_lock)
+            if (_client == null)
             {
-                if (_client == null)
+                lock (_lock)
                 {
-                    Console.WriteLine("[IntegrationTestFixture] Creating HttpClient from Factory.Server");
-                    var server = Factory.Server;
-                    Console.WriteLine("[IntegrationTestFixture] Factory.Server accessed");
-                    _client = server.CreateClient();
-                    _client.BaseAddress = new Uri("http://localhost");
-                    Console.WriteLine("[IntegrationTestFixture] HttpClient created");
+                    if (_client == null)
+                    {
+                        var clientTask = InitializeClientAsync();
+                        clientTask.Wait(); // Safe in static context
+                        _client = clientTask.Result;
+                    }
                 }
-                return _client;
             }
+            return _client!;
         }
     }
 
-    public static MongoDbContainer MongoDbContainer => _mongoDbContainer!;
+    public static MongoDbContainer MongoDbContainer
+    {
+        get
+        {
+            if (_mongoDbContainer == null)
+            {
+                lock (_lock)
+                {
+                    if (_mongoDbContainer == null)
+                    {
+                        var containerTask = InitializeMongoDbAsync();
+                        containerTask.Wait(); // Safe in static context
+                        _mongoDbContainer = containerTask.Result;
+                    }
+                }
+            }
+            return _mongoDbContainer!;
+        }
+    }
+
+    private static async Task<CustomWebApplicationFactory> InitializeFactoryAsync()
+    {
+        Console.WriteLine("[IntegrationTestFixture] Creating new CustomWebApplicationFactory");
+        var mongoDbContainer = await InitializeMongoDbAsync();
+        var factory = new CustomWebApplicationFactory(mongoDbContainer);
+        Console.WriteLine("[IntegrationTestFixture] CustomWebApplicationFactory created");
+        return factory;
+    }
+
+    private static async Task<HttpClient> InitializeClientAsync()
+    {
+        Console.WriteLine("[IntegrationTestFixture] Creating HttpClient from Factory.Server");
+        var factory = Factory;
+        var server = factory.Server;
+        Console.WriteLine("[IntegrationTestFixture] Factory.Server accessed");
+        var client = server.CreateClient();
+        client.BaseAddress = new Uri("http://localhost");
+        Console.WriteLine("[IntegrationTestFixture] HttpClient created");
+        return client;
+    }
+
+    private static async Task<MongoDbContainer> InitializeMongoDbAsync()
+    {
+        Console.WriteLine("[IntegrationTestFixture] Creating MongoDB container");
+        var container = new MongoDbBuilder()
+            .WithImage("mongo:7.0")
+            .Build();
+        await container.StartAsync();
+        await System.Threading.Tasks.Task.Delay(1000); // Wait for MongoDB to be ready
+        Console.WriteLine("[IntegrationTestFixture] MongoDB container ready");
+        return container;
+    }
 
     /// <summary>
     /// Module initializer - runs once when the assembly loads
@@ -75,20 +130,12 @@ public class IntegrationTestFixture
         string timeoutVar = Environment.GetEnvironmentVariable("DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS") ?? "not set";
         Console.WriteLine($"[IntegrationTestFixture] DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS = {timeoutVar}");
 
-        // Create and start MongoDB container ONCE here, before factory creation
-        Console.WriteLine("[IntegrationTestFixture] Creating MongoDB container");
-        _mongoDbContainer = new MongoDbBuilder()
-            .WithImage("mongo:7.0")
-            .Build();
-        _mongoDbContainer.StartAsync().GetAwaiter().GetResult();
-        System.Threading.Tasks.Task.Delay(1000).GetAwaiter().GetResult(); // Wait for MongoDB to be ready
-        Console.WriteLine("[IntegrationTestFixture] MongoDB container ready");
-
-        // Force initialization of factory - this will trigger server build via EnsureServer
+        // Force initialization - accessing the properties will trigger lazy initialization
         _ = Factory;
-        Console.WriteLine("[IntegrationTestFixture] Factory accessed in ModuleInitializer");
-        // Force server build and client creation
         _ = Client;
+        _ = MongoDbContainer;
+
+        Console.WriteLine("[IntegrationTestFixture] Factory accessed in ModuleInitializer");
         Console.WriteLine("[IntegrationTestFixture] Client accessed in ModuleInitializer");
         Console.WriteLine("[IntegrationTestFixture] ModuleInitializer complete");
     }

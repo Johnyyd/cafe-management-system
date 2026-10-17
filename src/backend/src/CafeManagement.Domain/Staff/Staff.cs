@@ -2,8 +2,8 @@ using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Common.Events;
 using CafeManagement.Domain.Shops;
 using CafeManagement.Domain.Staff;
-using CafeManagement.Domain.Staff.Events;
 using CafeManagement.Domain.Shared;
+using CafeManagement.Domain.Staff.Events;
 using FluentResults;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization.Attributes;
@@ -28,8 +28,8 @@ public class Staff : AggregateRoot<ObjectId>
         EmploymentStatus employmentStatus, DateTime hireDate, ObjectId? createdBy = null)
         : base(id)
     {
-        FirstName = firstName;
-        LastName = lastName;
+        FirstName = firstName.Trim();
+        LastName = lastName.Trim();
         Role = role;
         Contact = contact;
         EmploymentStatus = employmentStatus;
@@ -95,35 +95,13 @@ public class Staff : AggregateRoot<ObjectId>
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
-        // Check if already assigned to this shop and active
-        var existingAssignment = ShopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
-        if (existingAssignment != null)
-        {
-            // If already assigned, just update primary status if needed
-            if (existingAssignment.IsPrimary != isPrimary)
-            {
-                // If setting as primary, unset other primary assignments first
-                if (isPrimary)
-                {
-                    foreach (var otherAssignment in ShopAssignments.Where(a => a.ShopId != shopId && a.IsActive && a.IsPrimary))
-                    {
-                        otherAssignment.RemoveAsPrimary(assignedBy);
-                    }
-                }
-
-                return existingAssignment.SetAsPrimary(assignedBy);
-            }
-            return Result.Ok(); // Already assigned with correct primary status
-        }
+        // Check if already assigned to this shop and active using helper method
+        if (IsAssignedToShop(shopId))
+            return HandleExistingAssignment(shopId, isPrimary, assignedBy);
 
         // If setting as primary, unset other primary assignments first
         if (isPrimary)
-        {
-            foreach (var otherAssignment in ShopAssignments.Where(a => a.IsActive && a.IsPrimary))
-            {
-                otherAssignment.RemoveAsPrimary(assignedBy);
-            }
-        }
+            UnsetOtherPrimaryAssignments(shopId, assignedBy);
 
         var assignmentResult = StaffShopAssignment.Assign(Id, shopId, isPrimary, assignedBy);
         if (assignmentResult.IsFailed)
@@ -134,6 +112,31 @@ public class Staff : AggregateRoot<ObjectId>
         AddDomainEvent(new StaffShopAssignedEvent(assignment.Id, Id, shopId, assignment.AssignedDate, isPrimary, assignedBy));
 
         return Result.Ok();
+    }
+
+    private Result HandleExistingAssignment(ObjectId shopId, bool isPrimary, ObjectId? assignedBy)
+    {
+        // If already assigned, just update primary status if needed
+        var existingAssignment = ShopAssignments.FirstOrDefault(a => a.ShopId == shopId && a.IsActive);
+        if (existingAssignment == null)
+            return Result.Fail(DomainErrors.Validation.NotFound("StaffShopAssignment", $"Staff {Id} is not actively assigned to shop {shopId}"));
+
+        if (existingAssignment.IsPrimary == isPrimary)
+            return Result.Ok(); // Already assigned with correct primary status
+
+        // If setting as primary, unset other primary assignments first
+        if (isPrimary)
+            UnsetOtherPrimaryAssignments(shopId, assignedBy);
+
+        return existingAssignment.SetAsPrimary(assignedBy);
+    }
+
+    private void UnsetOtherPrimaryAssignments(ObjectId shopId, ObjectId? updatedBy = null)
+    {
+        foreach (var otherAssignment in ShopAssignments.Where(a => a.IsActive && a.IsPrimary && a.ShopId != shopId))
+        {
+            otherAssignment.RemoveAsPrimary(updatedBy);
+        }
     }
 
     public Result UnassignFromShop(ObjectId shopId, ObjectId? unassignedBy = null)
@@ -159,7 +162,6 @@ public class Staff : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot set primary shop for a deleted staff member"));
-
         if (shopId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("ShopId"));
 
