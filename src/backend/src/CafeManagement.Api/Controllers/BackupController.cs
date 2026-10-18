@@ -29,7 +29,10 @@ public class BackupController : ControllerBase
         "orders",
         "staff",
         "users",
-        "reviews"
+        "reviews",
+        "shifts",
+        "timeOffRequests",
+        "shiftSwaps"
     };
 
     public BackupController(IMongoDbContext mongoDbContext, ILogger<BackupController> logger)
@@ -142,6 +145,45 @@ public class BackupController : ControllerBase
         {
             _logger.LogError(ex, "Lỗi khi khôi phục dữ liệu từ backup.");
             return BadRequest(new { message = "Lỗi khi khôi phục dữ liệu: " + ex.Message });
+        }
+    }
+
+    [HttpPost("wipe")]
+    public async Task<IActionResult> WipeDatabase([FromQuery] bool keepAdmin = true, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var deletedCounts = new Dictionary<string, long>();
+            foreach (var col in Collections)
+            {
+                var collection = _mongoDbContext.GetCollection<BsonDocument>(col);
+                if (col == "users" && keepAdmin)
+                {
+                    var filter = Builders<BsonDocument>.Filter.Ne("Email", "admin@cafemanagement.com")
+                               & Builders<BsonDocument>.Filter.Ne("email", "admin@cafemanagement.com");
+                    var res = await collection.DeleteManyAsync(filter, cancellationToken);
+                    deletedCounts[col] = res.DeletedCount;
+                }
+                else
+                {
+                    var res = await collection.DeleteManyAsync(new BsonDocument(), cancellationToken);
+                    deletedCounts[col] = res.DeletedCount;
+                }
+            }
+
+            _logger.LogInformation("Database wiped clean successfully. KeepAdmin: {KeepAdmin}", keepAdmin);
+            return Ok(new
+            {
+                Success = true,
+                Message = "Đã xóa sạch toàn bộ dữ liệu hệ thống thành công!",
+                WipedAt = DateTime.UtcNow,
+                DeletedCounts = deletedCounts
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Lỗi khi xóa sạch dữ liệu hệ thống.");
+            return BadRequest(new { message = "Lỗi khi xóa dữ liệu: " + ex.Message });
         }
     }
 }

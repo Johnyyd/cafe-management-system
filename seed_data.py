@@ -2,34 +2,70 @@
 """
 Comprehensive Seed script for Cafe Management System.
 Features:
+- Auto-wipe previous data clean before seeding.
 - 9 Shops across major Vietnam cities/provinces.
-- Staff per shop: 2 Managers, 2 Cashiers, 5 Baristas, 2 Inventory Staff (11 per shop, ~99 total).
+- Staff per shop: 2 Managers, 2 Cashiers, 5 Baristas, 2 Inventory Staff (11 per shop, 99 total).
+- 99 unique, natural, authentic Vietnamese names without any numbered suffixes (no AI slop).
 - RBAC User accounts registered with Password123! and shopId scoping.
-- Work Shifts scheduling: From 1 week ago (2026-10-11) to 2 weeks future (2026-11-01).
-  * Weekdays: 2 shifts/day (Morning: 1 manager, 1 cashier, 2-3 baristas, 1 stock; Evening: remaining staff).
-  * Weekends: 3 shifts/day (Morning: 1 manager, 1 cashier, 3 baristas, 1 stock; Afternoon & Evening staffed).
-- Menu items available 24/7.
-- Sample realistic orders across all 9 shops.
-- 100 Customer Reviews for shops and ordered products.
+- Work Shifts scheduling: From 1 week ago (2026-10-11) to 2 weeks future (2026-11-01) - 22 days.
+  * Weekdays: Ca sáng (06:30 - 14:30), Ca chiều (14:30 - 22:30).
+  * Weekends: Ca sáng (06:30 - 12:00), Ca chiều (12:00 - 17:30), Ca tối (17:30 - 22:30).
+- 8 Signature Menu Items available 24/7.
+- Complete inventory for all 9 branches.
+- 100+ Realistic completed orders with full revenue matching 100 Customer Reviews.
+- Additional orders for today to populate active daily KPIs.
 """
 
+import os
 import sys
 import json
+import ssl
 import datetime
 import random
 import urllib.request
 import urllib.error
 from typing import Dict, List, Any, Optional
+from concurrent.futures import ThreadPoolExecutor
 
 if sys.platform == "win32":
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-API_BASE = "http://localhost:7890/api/v1"
+# SSL context allowing unverified HTTPS for internal tailscale endpoints
+SSL_CTX = ssl.create_default_context()
+SSL_CTX.check_hostname = False
+SSL_CTX.verify_mode = ssl.CERT_NONE
 
-def http_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None) -> Any:
-    req_headers = {"User-Agent": "CafeManagementSeed/1.0"}
+def detect_api_base() -> str:
+    """Detects whether to use local or remote Tailscale API based on args/availability."""
+    if len(sys.argv) > 1 and sys.argv[1].startswith("http"):
+        return sys.argv[1].rstrip("/")
+    if os.environ.get("API_BASE"):
+        return os.environ.get("API_BASE").rstrip("/")
+
+    # Check localhost:7890
+    try:
+        req = urllib.request.Request("http://localhost:7890/health", headers={"User-Agent": "Probe"})
+        with urllib.request.urlopen(req, timeout=1):
+            return "http://localhost:7890/api/v1"
+    except Exception:
+        pass
+
+    # Check remote tailscale host
+    try:
+        req = urllib.request.Request("https://cafe.taild6d848.ts.net/health", headers={"User-Agent": "Probe"})
+        with urllib.request.urlopen(req, context=SSL_CTX, timeout=2):
+            return "https://cafe.taild6d848.ts.net/api/v1"
+    except Exception:
+        pass
+
+    return "http://localhost:7890/api/v1"
+
+API_BASE = detect_api_base()
+
+def http_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] = None, headers: Optional[Dict[str, str]] = None, timeout: int = 25) -> Any:
+    req_headers = {"User-Agent": "CafeManagementSeed/2.0"}
     if headers:
         req_headers.update(headers)
     
@@ -40,7 +76,7 @@ def http_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] =
 
     req = urllib.request.Request(url, data=encoded_data, headers=req_headers, method=method)
     try:
-        with urllib.request.urlopen(req, timeout=25) as resp:
+        with urllib.request.urlopen(req, context=SSL_CTX, timeout=timeout) as resp:
             content = resp.read().decode("utf-8")
             if not content:
                 return {}
@@ -56,9 +92,97 @@ def http_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] =
     except Exception as e:
         raise RuntimeError(f"Request failed on {method} {url}: {e}")
 
+def authenticate() -> str:
+    """Login or register admin account and retrieve Bearer JWT token."""
+    login_url = f"{API_BASE}/auth/login"
+    login_payload = {
+        "email": "admin@cafemanagement.com",
+        "password": "Password123!"
+    }
+    try:
+        res = http_request(login_url, method="POST", data=login_payload)
+        token = res.get("accessToken")
+        if token:
+            return token
+    except Exception:
+        pass
+
+    # Register admin if not present
+    reg_url = f"{API_BASE}/auth/register"
+    reg_payload = {
+        "email": "admin@cafemanagement.com",
+        "password": "Password123!",
+        "fullName": "Quản trị viên Hệ thống",
+        "role": "Admin"
+    }
+    reg_res = http_request(reg_url, method="POST", data=reg_payload)
+    token = reg_res.get("accessToken")
+    if not token:
+        raise RuntimeError("Không thể lấy token sau khi đăng ký!")
+    return token
+
+def wipe_database(headers: Dict[str, str]) -> Dict[str, str]:
+    """
+    Clears all existing database records before seeding fresh data.
+    Preserves or re-authenticates the admin account.
+    """
+    print("\n[0/8] Xóa sạch dữ liệu cũ trước khi nạp mới (Wiping old database)...")
+
+    # 1. Try dedicated wipe endpoint if available
+    wiped_via_wipe_ep = False
+    try:
+        res = http_request(f"{API_BASE}/system/backup/wipe?keepAdmin=true", method="POST", headers=headers)
+        if res.get("success") or res.get("Success"):
+            print(" -> Đã xóa sạch dữ liệu qua endpoint /system/backup/wipe!")
+            wiped_via_wipe_ep = True
+    except Exception:
+        pass
+
+    # 2. If wipe endpoint not available, use restore endpoint with empty collections
+    if not wiped_via_wipe_ep:
+        try:
+            restore_payload = {
+                "data": {
+                    "shops": [],
+                    "menuItems": [],
+                    "inventoryItems": [],
+                    "orders": [],
+                    "staff": [],
+                    "reviews": [],
+                    "shifts": [],
+                    "timeOffRequests": [],
+                    "shiftSwaps": []
+                }
+            }
+            http_request(f"{API_BASE}/system/backup/restore", method="POST", data=restore_payload, headers=headers)
+            print(" -> Đã xóa sạch các collection qua endpoint /system/backup/restore!")
+        except Exception as e:
+            print(f" -> Cảnh báo khi gọi restore wipe: {e}")
+
+    # 3. Clean any remaining shifts (in case shifts collection wasn't registered in older backup builds)
+    try:
+        shifts_res = http_request(f"{API_BASE}/shifts?pageSize=5000", headers=headers)
+        raw_shifts = shifts_res if isinstance(shifts_res, list) else shifts_res.get("items", [])
+        if raw_shifts:
+            print(f" -> Đang dọn dẹp {len(raw_shifts)} ca làm việc cũ còn sót lại...")
+            def del_shift(sh_id: str):
+                try:
+                    http_request(f"{API_BASE}/shifts/{sh_id}", method="DELETE", headers=headers)
+                except Exception:
+                    pass
+            with ThreadPoolExecutor(max_workers=25) as executor:
+                list(executor.map(del_shift, [s.get("id") for s in raw_shifts if s.get("id")]))
+            print(" -> Đã dọn sạch toàn bộ ca làm việc cũ.")
+    except Exception as e:
+        print(f" -> Cảnh báo dọn dẹp ca làm việc: {e}")
+
+    # Re-verify admin authentication
+    new_token = authenticate()
+    return {"Authorization": f"Bearer {new_token}"}
+
 def get_vietnam_provinces() -> List[Dict[str, Any]]:
     """Fetch Vietnam province list from the online API with local fallback."""
-    print("[1/8] Đang tải danh mục Tỉnh/Thành phố Việt Nam...")
+    print("\n[1/8] Đang tải danh mục Tỉnh/Thành phố Việt Nam...")
     endpoints = [
         "https://provinces.open-api.vn/api/p/?depth=2",
         "https://provinces.open-api.vn/api/v2/p/",
@@ -66,7 +190,7 @@ def get_vietnam_provinces() -> List[Dict[str, Any]]:
     ]
     for ep in endpoints:
         try:
-            data = http_request(ep)
+            data = http_request(ep, timeout=10)
             if isinstance(data, list) and len(data) > 0:
                 print(f" -> Tải thành công {len(data)} Tỉnh/Thành phố từ {ep}")
                 return data
@@ -86,40 +210,8 @@ def get_vietnam_provinces() -> List[Dict[str, Any]]:
         {"name": "Tỉnh Khánh Hòa", "code": 56},
     ]
 
-def authenticate() -> str:
-    """Login or register admin account and retrieve Bearer JWT token."""
-    print("[2/8] Xác thực quản trị viên (Admin authentication)...")
-    login_url = f"{API_BASE}/auth/login"
-    login_payload = {
-        "email": "admin@cafemanagement.com",
-        "password": "Password123!"
-    }
-    try:
-        res = http_request(login_url, method="POST", data=login_payload)
-        token = res.get("accessToken")
-        if token:
-            print(" -> Đăng nhập tài khoản admin thành công.")
-            return token
-    except Exception:
-        pass
-
-    # Register admin if not present
-    reg_url = f"{API_BASE}/auth/register"
-    reg_payload = {
-        "email": "admin@cafemanagement.com",
-        "password": "Password123!",
-        "fullName": "Quản trị viên Hệ thống",
-        "role": "Admin"
-    }
-    reg_res = http_request(reg_url, method="POST", data=reg_payload)
-    token = reg_res.get("accessToken")
-    if not token:
-        raise RuntimeError("Không thể lấy token sau khi đăng ký!")
-    print(" -> Đăng ký và đăng nhập tài khoản admin thành công.")
-    return token
-
 def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    print("\n[3/8] Đồng bộ 9 Chi nhánh quán (Shops) với các Tỉnh/Thành phố Việt Nam...")
+    print("\n[2/8] Đồng bộ 9 Chi nhánh quán (Shops) với các Tỉnh/Thành phố Việt Nam...")
     res = http_request(f"{API_BASE}/shops", headers=headers)
     existing_shops = res if isinstance(res, list) else res.get("items", [])
 
@@ -254,7 +346,7 @@ def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List
     return all_shops[:9]
 
 def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
-    print("\n[4/8] Đồng bộ Thực đơn Đồ uống & Món ăn (Menu Items)...")
+    print("\n[3/8] Đồng bộ Thực đơn Đồ uống & Món ăn (Menu Items)...")
     res = http_request(f"{API_BASE}/menu", headers=headers)
     existing_menu = res if isinstance(res, list) else res.get("items", [])
 
@@ -354,7 +446,7 @@ def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
     return res if isinstance(res, list) else res.get("items", [])
 
 def seed_inventory_for_shops(headers: Dict[str, str], shops: List[Dict[str, Any]]):
-    print("\n[5/8] Đồng bộ Kho nguyên vật liệu cho 9 chi nhánh...")
+    print("\n[4/8] Đồng bộ Kho nguyên vật liệu cho 9 chi nhánh...")
     inventory_items = [
         {"itemName": "Hạt Cà phê Robusta Buôn Ma Thuột", "unit": "kg", "quantity": 150, "reorderLevel": 25},
         {"itemName": "Hạt Cà phê Arabica Cầu Đất Đà Lạt", "unit": "kg", "quantity": 90, "reorderLevel": 20},
@@ -388,79 +480,138 @@ def seed_inventory_for_shops(headers: Dict[str, str], shops: List[Dict[str, Any]
             pass
     print(" -> Đã đồng bộ đầy đủ kho nguyên liệu cho toàn bộ 9 chi nhánh.")
 
+# Curated 99 unique, natural, diverse Vietnamese staff profiles (11 staff per shop * 9 shops)
+SHOP_STAFF_PROFILES = [
+    # Shop 1: Landmark 81 - Bình Thạnh (slug: landmark81)
+    {
+        "slug": "landmark81",
+        "managers": [("Nguyễn Hoàng", "Bách"), ("Trần Minh", "Tâm")],
+        "cashiers": [("Lê Phương", "Thảo"), ("Phạm Thanh", "Hà")],
+        "baristas": [("Đặng Gia", "Huy"), ("Hoàng Nhật", "Minh"), ("Vũ Thảo", "Nguyên"), ("Bùi Tuấn", "Kiệt"), ("Đỗ Quỳnh", "Như")],
+        "stocks": [("Ngô Quốc", "Hưng"), ("Dương Thành", "Đạt")]
+    },
+    # Shop 2: Nhà Hát Lớn - Hoàn Kiếm (slug: nhahatlon)
+    {
+        "slug": "nhahatlon",
+        "managers": [("Trịnh Đức", "Anh"), ("Phan Thu", "Trang")],
+        "cashiers": [("Đinh Hải", "Yến"), ("Mai Việt", "Cường")],
+        "baristas": [("Hồ Trọng", "Nghĩa"), ("Lý Ngọc", "Lan"), ("Lương Bảo", "Châu"), ("Chu Đình", "Trọng"), ("Đoàn Diệu", "Linh")],
+        "stocks": [("Võ Tiến", "Dũng"), ("Tạ Hoàng", "Nam")]
+    },
+    # Shop 3: Cầu Rồng - Hải Châu (slug: danang)
+    {
+        "slug": "danang",
+        "managers": [("Nguyễn Văn", "An"), ("Huỳnh Thị", "Bích")],
+        "cashiers": [("Phan Hữu", "Cảnh"), ("Trần Kim", "Dung")],
+        "baristas": [("Lê Thế", "Hiển"), ("Đỗ Thùy", "Linh"), ("Vũ Đình", "Phong"), ("Phạm Xuân", "Trường"), ("Bùi Cẩm", "Vân")],
+        "stocks": [("Hoàng Văn", "Quyết"), ("Đặng Quốc", "Thái")]
+    },
+    # Shop 4: Cafe Cầu Đất Farm - Đà Lạt (slug: caudat)
+    {
+        "slug": "caudat",
+        "managers": [("Nguyễn Hữu", "Thắng"), ("Trần Thị", "Tuyết")],
+        "cashiers": [("Lê Ngọc", "Sơn"), ("Hoàng Mai", "Phương")],
+        "baristas": [("Phan Thanh", "Bình"), ("Đỗ Gia", "Bảo"), ("Phạm Hồng", "Nhung"), ("Vũ Trọng", "Khang"), ("Bùi Ánh", "Dương")],
+        "stocks": [("Ngô Thế", "Vinh"), ("Đinh Văn", "Hậu")]
+    },
+    # Shop 5: Trung Nguyên Legend - Buôn Ma Thuột (slug: bmt)
+    {
+        "slug": "bmt",
+        "managers": [("Nguyễn Cao", "Sơn"), ("Trần Thu", "Hằng")],
+        "cashiers": [("Lê Văn", "Hòa"), ("Phạm Thị", "Loan")],
+        "baristas": [("Hoàng Minh", "Đức"), ("Đặng Thùy", "Trang"), ("Vũ Đình", "Khoa"), ("Bùi Quốc", "Toàn"), ("Đỗ Mỹ", "Duyên")],
+        "stocks": [("Phan Văn", "Kiên"), ("Hồ Hữu", "Phước")]
+    },
+    # Shop 6: Cafe Thảo Điền - TP. Thủ Đức (slug: thaodien)
+    {
+        "slug": "thaodien",
+        "managers": [("Nguyễn Hoàng", "Long"), ("Lê Kiều", "My")],
+        "cashiers": [("Trần Thanh", "Trúc"), ("Phạm Văn", "Hùng")],
+        "baristas": [("Đặng Anh", "Tuấn"), ("Hoàng Trúc", "Anh"), ("Bùi Hữu", "Lộc"), ("Đỗ Ngọc", "Điệp"), ("Vũ Minh", "Khôi")],
+        "stocks": [("Ngô Đình", "Khải"), ("Dương Thị", "Ngọc")]
+    },
+    # Shop 7: Highlands Coffee Bến Ninh Kiều (slug: ninhkieu)
+    {
+        "slug": "ninhkieu",
+        "managers": [("Huỳnh Văn", "Thuận"), ("Nguyễn Thị", "Cẩm")],
+        "cashiers": [("Trần Thanh", "Phong"), ("Lê Thị", "Diễm")],
+        "baristas": [("Phạm Minh", "Sang"), ("Hoàng Hữu", "Tài"), ("Đỗ Thị Kim", "Ngân"), ("Phan Hùng", "Dũng"), ("Bùi Thị Bích", "Ngọc")],
+        "stocks": [("Vũ Thanh", "Bình"), ("Đặng Văn", "Lợi")]
+    },
+    # Shop 8: Phúc Long Nhà Hát Thành Phố - Hải Phòng (slug: haiphong)
+    {
+        "slug": "haiphong",
+        "managers": [("Nguyễn Thế", "Hải"), ("Trần Thị", "Lan")],
+        "cashiers": [("Lê Văn", "Cường"), ("Hoàng Thu", "Giang")],
+        "baristas": [("Phạm Hoàng", "Phúc"), ("Đỗ Quốc", "Tuấn"), ("Vũ Thị Mai", "Anh"), ("Bùi Đình", "Luật"), ("Đặng Ngọc", "Khánh")],
+        "stocks": [("Ngô Văn", "Minh"), ("Phan Hữu", "Tình")]
+    },
+    # Shop 9: Cafe Cố Đô Sông Hương - Huế (slug: hue)
+    {
+        "slug": "hue",
+        "managers": [("Nguyễn Phúc", "Khang"), ("Tôn Nữ Bích", "Thủy")],
+        "cashiers": [("Trần Văn", "Thành"), ("Lê Thị Đoan", "Trang")],
+        "baristas": [("Phan Nhật", "Tân"), ("Hoàng Văn", "Nghĩa"), ("Đỗ Thị Minh", "Châu"), ("Vũ Anh", "Dũng"), ("Bùi Thị Lệ", "Hằng")],
+        "stocks": [("Đặng Bá", "Phước"), ("Hồ Xuân", "Trường")]
+    },
+]
+
 def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]) -> Dict[str, List[Dict[str, Any]]]:
     """
-    Seeds staff members for each shop according to requirements:
-    - 2 Managers (Role 1)
-    - 2 Cashiers (Role 2)
-    - 5 Baristas (Role 3)
-    - 2 Inventory Staff (Role 4)
-    Total: 11 staff members per shop * 9 shops = 99 staff.
-    Also creates user accounts for all of them with Password123! and shopId scoping.
+    Seeds 99 staff members across 9 shops with unique, natural Vietnamese names (no numbers, no AI slop).
+    Also creates user accounts with Password123! and shopId scoping.
     """
-    print("\n[6/8] Khởi tạo Nhân sự & Tài khoản Đăng nhập (9 chi nhánh x 11 nhân sự = 99 nhân viên)...")
-
-    slugs = ["q1", "hn", "dn", "dalat", "bmt", "thaodien", "cantho", "hp", "hue"]
-
-    # Template names
-    manager_names = [("Nguyễn Văn", "Quản Lý"), ("Trần Thị", "Quản Lý")]
-    cashier_names = [("Lê Thu", "Ngân"), ("Phạm Thị", "Thu Ngân")]
-    barista_names = [("Hoàng Pha", "Chế"), ("Đỗ Minh", "Barista"), ("Vũ Anh", "Pha Chế"), ("Đặng Quốc", "Barista"), ("Bùi Đức", "Pha Chế")]
-    stock_names = [("Ngô Thủ", "Kho"), ("Dương Văn", "Thủ Kho")]
+    print("\n[5/8] Khởi tạo Nhân sự & Tài khoản Đăng nhập (9 chi nhánh x 11 nhân sự = 99 người, tên thật 100%)...")
 
     res = http_request(f"{API_BASE}/staff?pageSize=500", headers=headers)
     existing_staff = res if isinstance(res, list) else res.get("items", [])
-    existing_emails = {s.get("contact", {}).get("email") for s in existing_staff if s.get("contact", {}).get("email")}
 
     shop_staff_map: Dict[str, List[Dict[str, Any]]] = {}
 
     for idx, s in enumerate(shops):
         s_id = s.get("id")
-        s_slug = slugs[idx] if idx < len(slugs) else f"shop{idx+1}"
         s_name = s.get("name")
         shop_staff_map[s_id] = []
 
-        # Define 11 staff specifications
+        profile = SHOP_STAFF_PROFILES[idx] if idx < len(SHOP_STAFF_PROFILES) else SHOP_STAFF_PROFILES[-1]
+        s_slug = profile["slug"]
+
         specs = []
         # 2 Managers
-        for i in range(2):
-            fn, ln = manager_names[i]
+        for i, (fn, ln) in enumerate(profile["managers"]):
             specs.append({
                 "firstName": fn,
-                "lastName": f"{ln} {i+1}",
+                "lastName": ln,
                 "roleNum": 1,
                 "roleStr": "Manager",
                 "email": f"manager{i+1}.{s_slug}@cafemanagement.com",
                 "phone": f"090{idx+1}010{i+1}1"
             })
         # 2 Cashiers
-        for i in range(2):
-            fn, ln = cashier_names[i]
+        for i, (fn, ln) in enumerate(profile["cashiers"]):
             specs.append({
                 "firstName": fn,
-                "lastName": f"{ln} {i+1}",
+                "lastName": ln,
                 "roleNum": 2,
                 "roleStr": "Cashier",
                 "email": f"cashier{i+1}.{s_slug}@cafemanagement.com",
                 "phone": f"091{idx+1}020{i+1}2"
             })
         # 5 Baristas
-        for i in range(5):
-            fn, ln = barista_names[i]
+        for i, (fn, ln) in enumerate(profile["baristas"]):
             specs.append({
                 "firstName": fn,
-                "lastName": f"{ln} {i+1}",
+                "lastName": ln,
                 "roleNum": 3,
                 "roleStr": "Barista",
                 "email": f"barista{i+1}.{s_slug}@cafemanagement.com",
                 "phone": f"093{idx+1}030{i+1}3"
             })
         # 2 Stock keepers
-        for i in range(2):
-            fn, ln = stock_names[i]
+        for i, (fn, ln) in enumerate(profile["stocks"]):
             specs.append({
                 "firstName": fn,
-                "lastName": f"{ln} {i+1}",
+                "lastName": ln,
                 "roleNum": 4,
                 "roleStr": "InventoryStaff",
                 "email": f"stock{i+1}.{s_slug}@cafemanagement.com",
@@ -469,7 +620,6 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
 
         for spec in specs:
             email = spec["email"]
-            # Check if staff exists
             existing_s = next((x for x in existing_staff if x.get("contact", {}).get("email") == email), None)
             staff_id = None
             if existing_s:
@@ -489,10 +639,9 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 try:
                     res_create = http_request(f"{API_BASE}/staff", method="POST", data=payload, headers=headers)
                     staff_id = res_create if isinstance(res_create, str) else res_create.get("id", "")
-                except Exception as e:
+                except Exception:
                     pass
 
-            # Assign shop as primary
             if staff_id:
                 try:
                     http_request(
@@ -518,7 +667,7 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
             reg_payload = {
                 "email": email,
                 "password": "Password123!",
-                "fullName": f"{spec['firstName']} {spec['lastName']} ({s_slug.upper()})",
+                "fullName": f"{spec['firstName']} {spec['lastName']}",
                 "role": spec["roleStr"],
                 "shopId": s_id
             }
@@ -527,30 +676,28 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
             except Exception:
                 pass
 
-        print(f" -> Đã thiết lập 11 nhân sự & tài khoản cho: {s_name} [{s_slug}]")
+        print(f" -> Đã thiết lập 11 nhân sự & tài khoản tên thật cho: {s_name}")
 
     return shop_staff_map
 
 def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], shop_staff_map: Dict[str, List[Dict[str, Any]]]):
     """
     Schedules work shifts from 1 week ago (2026-10-11) to 2 weeks future (2026-11-01) - 22 days.
-    Weekdays (Mon-Fri): 2 shifts/day:
-      - Ca sáng (06:30 - 14:30): 1 Manager, 1 Cashier, 2 Baristas, 1 Stock keeper.
-      - Ca chiều (14:30 - 22:30): 1 Manager, 1 Cashier, 3 Baristas, 1 Stock keeper.
-    Weekends (Sat-Sun): 3 shifts/day:
-      - Ca sáng (06:30 - 12:00): 1 Manager, 1 Cashier, 3 Baristas, 1 Stock keeper.
-      - Ca chiều (12:00 - 17:30): 1 Manager, 1 Cashier, 2 Baristas, 1 Stock keeper.
-      - Ca tối (17:30 - 22:30): 1 Manager, 1 Cashier, 2 Baristas, 1 Stock keeper.
+    Weekdays:
+      - Ca sáng (06:30 - 14:30 VN): Manager #1, Cashier #1, Baristas #1 & #2, Stock #1
+      - Ca chiều (14:30 - 22:30 VN): Manager #2, Cashier #2, Baristas #3 & #4 & #5, Stock #2
+    Weekends:
+      - Ca sáng (06:30 - 12:00 VN): Manager #1, Cashier #1, Baristas #1 & #2, Stock #1
+      - Ca chiều (12:00 - 17:30 VN): Manager #1, Cashier #2, Baristas #3 & #4, Stock #2
+      - Ca tối (17:30 - 22:30 VN): Manager #2, Cashier #1, Baristas #4 & #5, Stock #1
     """
-    print("\n[7/8] Lập lịch Ca làm việc (1 tuần trước -> 2 tuần tới, ngày 2 ca, cuối tuần 3 ca)...")
+    print("\n[6/8] Lập lịch Ca làm việc (1 tuần trước -> 2 tuần tới, phân bổ Sáng, Chiều, Tối)...")
 
-    # Current reference date: 2026-10-18
     base_date = datetime.date(2026, 10, 18)
     start_date = base_date - datetime.timedelta(days=7)  # 2026-10-11
     end_date = base_date + datetime.timedelta(days=14)   # 2026-11-01
 
-    total_days = (end_date - start_date).days + 1
-    total_created = 0
+    shift_payloads = []
 
     for s in shops:
         s_id = s.get("id")
@@ -558,7 +705,6 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
         if not staff_list:
             continue
 
-        # Group staff by role
         managers = [st for st in staff_list if st["role"] == 1]
         cashiers = [st for st in staff_list if st["role"] == 2]
         baristas = [st for st in staff_list if st["role"] == 3]
@@ -571,194 +717,102 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
         while current_date <= end_date:
             date_str = current_date.strftime("%Y-%m-%d")
             prev_date_str = (current_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
-            is_weekend = current_date.weekday() in (5, 6) # Sat or Sun
+            is_weekend = current_date.weekday() in (5, 6)
 
             if not is_weekend:
-                # Weekday: 2 shifts
-                # Shift 1: Ca sáng 06:30 - 14:30 (VN) -> UTC: prev_date 23:30 - date 07:30
-                # Staff: Manager #1, Cashier #1, Baristas #1 & #2, Stock #1
-                s1_staff = [
-                    managers[0],
-                    cashiers[0],
-                    baristas[0],
-                    baristas[1],
-                    stocks[0]
-                ]
+                # Ca sáng (06:30 - 14:30 VN -> UTC: prev_date 23:30 - date 07:30)
+                s1_staff = [managers[0], cashiers[0], baristas[0], baristas[1 % len(baristas)], stocks[0]]
                 for st in s1_staff:
-                    payload = {
+                    shift_payloads.append({
                         "staffId": st["id"],
                         "shopId": s_id,
                         "startTime": f"{prev_date_str}T23:30:00Z",
                         "endTime": f"{date_str}T07:30:00Z",
                         "notes": "Ca sáng ngày thường: Mở cửa đón khách, chuẩn bị nguyên liệu và bán hàng"
-                    }
-                    try:
-                        http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
-                        total_created += 1
-                    except Exception:
-                        pass
+                    })
 
-                # Shift 2: Ca chiều/tối 14:30 - 22:30 (VN) -> UTC: date 07:30 - date 15:30
-                # Staff: Manager #2, Cashier #2, Baristas #3, #4, #5, Stock #2
-                s2_staff = [
-                    managers[1 % len(managers)],
-                    cashiers[1 % len(cashiers)],
-                    baristas[2 % len(baristas)],
-                    baristas[3 % len(baristas)],
-                    baristas[4 % len(baristas)],
-                    stocks[1 % len(stocks)]
-                ]
+                # Ca chiều (14:30 - 22:30 VN -> UTC: date 07:30 - date 15:30)
+                m2 = managers[1 % len(managers)]
+                c2 = cashiers[1 % len(cashiers)]
+                b3 = baristas[2 % len(baristas)]
+                b4 = baristas[3 % len(baristas)]
+                b5 = baristas[4 % len(baristas)]
+                st2 = stocks[1 % len(stocks)]
+                s2_staff = [m2, c2, b3, b4, b5, st2]
                 for st in s2_staff:
-                    payload = {
+                    shift_payloads.append({
                         "staffId": st["id"],
                         "shopId": s_id,
                         "startTime": f"{date_str}T07:30:00Z",
                         "endTime": f"{date_str}T15:30:00Z",
-                        "notes": "Ca chiều/tối ngày thường: Đỉnh điểm bán hàng, dọn dẹp vệ sinh và chốt ca"
-                    }
-                    try:
-                        http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
-                        total_created += 1
-                    except Exception:
-                        pass
-
+                        "notes": "Ca chiều ngày thường: Phục vụ cao điểm chiều tối và kiểm kê chốt ca"
+                    })
             else:
                 # Weekend: 3 shifts
-                # Shift 1: Ca sáng cuối tuần 06:30 - 12:00 (VN) -> UTC: prev_date 23:30 - date 05:00
-                # Staff: Manager #1, Cashier #1, Baristas #1, #2, #3, Stock #1
-                w1_staff = [
-                    managers[0],
-                    cashiers[0],
-                    baristas[0],
-                    baristas[1],
-                    baristas[2 % len(baristas)],
-                    stocks[0]
-                ]
-                for st in w1_staff:
-                    payload = {
+                # Ca sáng (06:30 - 12:00 VN -> UTC: prev_date 23:30 - date 05:00)
+                s_morning = [managers[0], cashiers[0], baristas[0], baristas[1 % len(baristas)], stocks[0]]
+                for st in s_morning:
+                    shift_payloads.append({
                         "staffId": st["id"],
                         "shopId": s_id,
                         "startTime": f"{prev_date_str}T23:30:00Z",
                         "endTime": f"{date_str}T05:00:00Z",
-                        "notes": "Ca sáng cuối tuần: Giờ cao điểm đón khách cuối tuần, phục vụ tại chỗ"
-                    }
-                    try:
-                        http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
-                        total_created += 1
-                    except Exception:
-                        pass
+                        "notes": "Ca sáng cuối tuần: Mở cửa đón khách, pha chế phục vụ cao điểm sáng"
+                    })
 
-                # Shift 2: Ca chiều cuối tuần 12:00 - 17:30 (VN) -> UTC: date 05:00 - date 10:30
-                # Staff: Manager #2, Cashier #2, Baristas #4, #5, Stock #2
-                w2_staff = [
-                    managers[1 % len(managers)],
-                    cashiers[1 % len(cashiers)],
-                    baristas[3 % len(baristas)],
-                    baristas[4 % len(baristas)],
-                    stocks[1 % len(stocks)]
-                ]
-                for st in w2_staff:
-                    payload = {
+                # Ca chiều (12:00 - 17:30 VN -> UTC: date 05:00 - date 10:30)
+                s_afternoon = [managers[0], cashiers[1 % len(cashiers)], baristas[2 % len(baristas)], baristas[3 % len(baristas)], stocks[1 % len(stocks)]]
+                for st in s_afternoon:
+                    shift_payloads.append({
                         "staffId": st["id"],
                         "shopId": s_id,
                         "startTime": f"{date_str}T05:00:00Z",
                         "endTime": f"{date_str}T10:30:00Z",
-                        "notes": "Ca chiều cuối tuần: Trực quầy, pha chế đồ uống mang đi và kiểm kê"
-                    }
-                    try:
-                        http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
-                        total_created += 1
-                    except Exception:
-                        pass
+                        "notes": "Ca chiều cuối tuần: Tiếp nhận khách giờ nghỉ trưa, kiểm tra bàn ghế và kho"
+                    })
 
-                # Shift 3: Ca tối cuối tuần 17:30 - 22:30 (VN) -> UTC: date 10:30 - date 15:30
-                # Staff: Manager #1, Cashier #1, Baristas #1, #2, Stock #1
-                w3_staff = [
-                    managers[0],
-                    cashiers[0],
-                    baristas[0],
-                    baristas[1],
-                    stocks[0]
-                ]
-                for st in w3_staff:
-                    payload = {
+                # Ca tối (17:30 - 22:30 VN -> UTC: date 10:30 - date 15:30)
+                s_evening = [managers[1 % len(managers)], cashiers[0], baristas[4 % len(baristas)], baristas[1 % len(baristas)], stocks[0]]
+                for st in s_evening:
+                    shift_payloads.append({
                         "staffId": st["id"],
                         "shopId": s_id,
                         "startTime": f"{date_str}T10:30:00Z",
                         "endTime": f"{date_str}T15:30:00Z",
-                        "notes": "Ca tối cuối tuần: Phục vụ khách tối, kiểm đếm tồn kho và chốt quỹ ngày"
-                    }
-                    try:
-                        http_request(f"{API_BASE}/shifts", method="POST", data=payload, headers=headers)
-                        total_created += 1
-                    except Exception:
-                        pass
+                        "notes": "Ca tối cuối tuần: Phục vụ khách buổi tối, dọn dẹp quầy bar và chốt doanh thu"
+                    })
 
             current_date += datetime.timedelta(days=1)
 
-    print(f" -> Hoàn tất xếp ca làm việc cho {len(shops)} chi nhánh (tổng số ca đã gán: {total_created}).")
-
-def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]], menu_items: List[Dict[str, Any]], staff_map: Dict[str, List[Dict[str, Any]]]):
-    """
-    Creates sample orders and seeds 100 customer reviews into MongoDB via Reviews API.
-    """
-    print("\n[8/8] Khởi tạo Đơn hàng và 100 Đánh giá của Khách hàng...")
-
-    # First, create 1-2 completed orders per shop if not existing
-    order_ids_by_shop: Dict[str, List[str]] = {}
-    for s in shops:
-        s_id = s.get("id")
-        order_ids_by_shop[s_id] = []
-        staff_list = staff_map.get(s_id, [])
-        primary_staff = staff_list[0]["id"] if staff_list else ""
-        if not primary_staff or not menu_items:
-            continue
-
+    print(f" -> Đang nạp {len(shift_payloads)} ca làm việc cho toàn bộ 9 chi nhánh...")
+    def create_single_shift(p):
         try:
-            m1 = menu_items[0]
-            m2 = menu_items[1] if len(menu_items) > 1 else m1
-            payload = {
-                "shopId": s_id,
-                "staffId": primary_staff,
-                "customerInfo": {
-                    "name": "Khách Vãng Lai Trải Nghiệm",
-                    "contact": "0988776655",
-                    "type": 1
-                },
-                "items": [
-                    {
-                        "menuItemId": m1.get("id"),
-                        "name": m1.get("name"),
-                        "description": m1.get("name"),
-                        "unitPrice": m1.get("price", {"amount": 35000}),
-                        "quantity": 2,
-                        "specialInstructions": "Đậm vị, ít đá",
-                        "totalPrice": {"amount": m1.get("price", {}).get("amount", 35000) * 2, "currency": "VND"}
-                    }
-                ]
-            }
-            res_ord = http_request(f"{API_BASE}/orders", method="POST", data=payload, headers=headers)
-            ord_id = res_ord if isinstance(res_ord, str) else res_ord.get("id", "")
-            if ord_id:
-                order_ids_by_shop[s_id].append(ord_id)
-                # Pay and complete
-                try:
-                    http_request(f"{API_BASE}/orders/{ord_id}/payment", method="POST", data={"id": ord_id, "paymentMethod": 2, "amount": 0}, headers=headers)
-                    http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 4}, headers=headers)
-                except Exception:
-                    pass
+            http_request(f"{API_BASE}/shifts", method="POST", data=p, headers=headers)
+            return True
         except Exception:
-            pass
+            return False
 
-    # List of 100 Realistic Vietnamese Customers
+    with ThreadPoolExecutor(max_workers=25) as executor:
+        results = list(executor.map(create_single_shift, shift_payloads))
+
+    print(f" -> Hoàn tất tạo {sum(1 for r in results if r)} ca làm việc thành công!")
+
+def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]], menu_items: List[Dict[str, Any]], shop_staff_map: Dict[str, List[Dict[str, Any]]]):
+    """
+    Creates comprehensive realistic completed orders across all 9 shops, generates full revenue,
+    and creates 100 customer reviews with matching order IDs, products, and customer names.
+    """
+    print("\n[7/8] Khởi tạo Đơn hàng đầy đủ doanh thu & 100 Đánh giá của khách hàng...")
+
     first_names = [
         "Nguyễn", "Trần", "Lê", "Phạm", "Hoàng", "Huỳnh", "Phan", "Vũ", "Võ", "Đặng",
         "Bùi", "Đỗ", "Hồ", "Ngô", "Dương", "Lý", "Đào", "Đinh", "Trịnh", "Lương"
     ]
-    middle_names = ["Văn", "Thị", "Minh", "Thu", "Ngọc", "Đức", "Thanh", "Mỹ", "Quang", "Anh"]
+    middle_names = ["Văn", "Thị", "Minh", "Thu", "Ngọc", "Đức", "Thanh", "Mỹ", "Quang", "Anh", "Hoàng", "Hữu"]
     last_names = [
         "Tuấn", "Hương", "Trang", "Long", "Nam", "Linh", "Hải", "Lan", "Thảo", "Hùng",
-        "Duy", "Phương", "Quỳnh", "Thắng", "Mai", "Tùng", "Bình", "Châu", "Việt", "Trâm"
+        "Duy", "Phương", "Quỳnh", "Thắng", "Mai", "Tùng", "Bình", "Châu", "Việt", "Trâm",
+        "Khánh", "Phúc", "Kiệt", "Ngân", "Yến", "Đạt", "Hậu", "Quang", "Triết", "Thành"
     ]
 
     sample_shop_comments = [
@@ -821,48 +875,151 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         "Đồ uống xuất sắc", "Wifi mạnh", "View đẹp check-in", "Giá cả hợp lý"
     ]
 
-    # Check existing reviews count
-    res_rev = http_request(f"{API_BASE}/reviews?pageSize=1")
-    curr_count = res_rev.get("totalCount", 0)
-    if curr_count >= 100:
-        print(f" -> Đã có sẵn {curr_count} đánh giá trong hệ thống.")
-        return
-
-    reviews_to_create = 100 - curr_count
-    print(f" -> Bắt đầu tạo mới {reviews_to_create} đánh giá từ khách hàng...")
-
-    random.seed(42)  # reproducible random
+    random.seed(2026)
     now = datetime.datetime.now(datetime.timezone.utc)
 
-    for i in range(reviews_to_create):
+    # 1. Generate 100 Completed Orders corresponding to the 100 customer reviews
+    print(" -> Đang tạo 100 đơn hàng thực tế kèm doanh thu tương ứng cho 100 đánh giá...")
+    created_orders: List[Dict[str, Any]] = []
+
+    for i in range(100):
+        shop = shops[i % len(shops)]
+        s_id = shop.get("id")
+        s_name = shop.get("name")
+        staff_list = shop_staff_map.get(s_id, [])
+        assigned_staff = random.choice(staff_list) if staff_list else {"id": ""}
+
         fn = random.choice(first_names)
         mn = random.choice(middle_names)
         ln = random.choice(last_names)
         cust_name = f"{fn} {mn} {ln}"
         cust_phone = f"09{random.randint(0, 9)}{random.randint(1000000, 9999999)}"
 
-        shop = shops[i % len(shops)]
-        s_id = shop.get("id")
-        s_name = shop.get("name")
+        # 1 to 3 items
+        order_items_count = random.randint(1, 3)
+        selected_menu = random.sample(menu_items, min(len(menu_items), order_items_count))
 
-        # Rating distribution: 70% 5-star, 25% 4-star, 5% 3-star
+        items_payload = []
+        order_subtotal = 0
+        for m in selected_menu:
+            qty = random.randint(1, 2)
+            unit_price = m.get("price", {}).get("amount", 35000)
+            item_total = unit_price * qty
+            order_subtotal += item_total
+            items_payload.append({
+                "menuItemId": m.get("id"),
+                "name": m.get("name"),
+                "description": m.get("name"),
+                "unitPrice": {"amount": unit_price, "currency": "VND"},
+                "quantity": qty,
+                "specialInstructions": random.choice(["Đậm vị, ít đá", "Ít ngọt", "Nhiều sữa", "Bình thường"]),
+                "totalPrice": {"amount": item_total, "currency": "VND"}
+            })
+
+        order_type = random.choice([1, 2, 3]) # DineIn, Takeaway, Delivery
+        days_ago = random.randint(1, 25)
+        hours_offset = random.randint(1, 14)
+        order_time = now - datetime.timedelta(days=days_ago, hours=hours_offset)
+
+        order_payload = {
+            "shopId": s_id,
+            "staffId": assigned_staff.get("id", ""),
+            "customerInfo": {
+                "name": cust_name,
+                "contact": cust_phone,
+                "type": order_type
+            },
+            "items": items_payload
+        }
+
+        try:
+            res_ord = http_request(f"{API_BASE}/orders", method="POST", data=order_payload, headers=headers)
+            ord_id = res_ord if isinstance(res_ord, str) else res_ord.get("id", "")
+            if ord_id:
+                # Pay order (1=Cash, 2=Card, 3=E-Wallet)
+                pm = random.choice([1, 2, 3])
+                http_request(f"{API_BASE}/orders/{ord_id}/payment", method="POST", data={"id": ord_id, "paymentMethod": pm, "amount": order_subtotal}, headers=headers)
+                # Mark completed
+                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 4}, headers=headers)
+
+                created_orders.append({
+                    "orderId": ord_id,
+                    "shopId": s_id,
+                    "shopName": s_name,
+                    "customerName": cust_name,
+                    "customerPhone": cust_phone,
+                    "selectedMenu": selected_menu,
+                    "orderTime": order_time,
+                    "subtotal": order_subtotal
+                })
+        except Exception:
+            pass
+
+    print(f" -> Đã tạo thành công {len(created_orders)} đơn hàng đã hoàn tất thanh toán.")
+
+    # 2. Generate 3-5 orders per shop for TODAY (to populate active today dashboard KPIs)
+    print(" -> Đang tạo thêm các đơn hàng phát sinh trong ngày hôm nay cho các chi nhánh...")
+    for s in shops:
+        s_id = s.get("id")
+        staff_list = shop_staff_map.get(s_id, [])
+        primary_staff = staff_list[0]["id"] if staff_list else ""
+        for _ in range(random.randint(3, 5)):
+            c_name = f"{random.choice(first_names)} {random.choice(last_names)}"
+            c_phone = f"09{random.randint(10000000, 99999999)}"
+            m = random.choice(menu_items)
+            qty = random.randint(1, 3)
+            u_price = m.get("price", {}).get("amount", 35000)
+            today_payload = {
+                "shopId": s_id,
+                "staffId": primary_staff,
+                "customerInfo": {
+                    "name": c_name,
+                    "contact": c_phone,
+                    "type": 1
+                },
+                "items": [
+                    {
+                        "menuItemId": m.get("id"),
+                        "name": m.get("name"),
+                        "description": m.get("name"),
+                        "unitPrice": {"amount": u_price, "currency": "VND"},
+                        "quantity": qty,
+                        "specialInstructions": "Pha nhanh mang về",
+                        "totalPrice": {"amount": u_price * qty, "currency": "VND"}
+                    }
+                ]
+            }
+            try:
+                res_t = http_request(f"{API_BASE}/orders", method="POST", data=today_payload, headers=headers)
+                t_id = res_t if isinstance(res_t, str) else res_t.get("id", "")
+                if t_id:
+                    http_request(f"{API_BASE}/orders/{t_id}/payment", method="POST", data={"id": t_id, "paymentMethod": 1, "amount": u_price * qty}, headers=headers)
+                    http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 4}, headers=headers)
+            except Exception:
+                pass
+
+    # 3. Create the 100 Customer Reviews directly linked to the orders
+    print(" -> Bắt đầu tạo 100 Đánh giá của khách hàng khớp 100% với đơn hàng và sản phẩm...")
+    reviews_created = 0
+    for idx, ord_info in enumerate(created_orders):
+        s_id = ord_info["shopId"]
+        s_name = ord_info["shopName"]
+        ord_id = ord_info["orderId"]
+        cust_name = ord_info["customerName"]
+        cust_phone = ord_info["customerPhone"]
+        ordered_menu = ord_info["selectedMenu"]
+        order_time = ord_info["orderTime"]
+
+        # Rating: 75% 5-star, 20% 4-star, 5% 3-star
         roll = random.random()
-        if roll < 0.70:
-            shop_rating = 5
-        elif roll < 0.95:
-            shop_rating = 4
-        else:
-            shop_rating = 3
-
+        shop_rating = 5 if roll < 0.75 else (4 if roll < 0.95 else 3)
         shop_comment = random.choice(sample_shop_comments)
 
-        # Select 1 to 3 items to review
-        selected_items = random.sample(menu_items, min(len(menu_items), random.randint(1, 3)))
         item_reviews = []
-        for it in selected_items:
+        for it in ordered_menu:
             it_name = it.get("name", "")
             it_comments = product_comments_map.get(it_name, ["Hương vị thơm ngon, chuẩn vị và đóng gói cẩn thận."])
-            it_rating = shop_rating if random.random() > 0.3 else max(3, shop_rating - 1)
+            it_rating = shop_rating if random.random() > 0.25 else max(3, shop_rating - 1)
             item_reviews.append({
                 "menuItemId": it.get("id", ""),
                 "menuItemName": it_name,
@@ -871,42 +1028,49 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             })
 
         tags = random.sample(all_tags, random.randint(2, 4))
-        days_ago = random.randint(0, 25)
-        created_dt = now - datetime.timedelta(days=days_ago, hours=random.randint(1, 12))
+        # Review written 1-3 hours after order
+        review_time = order_time + datetime.timedelta(hours=random.randint(1, 3))
 
-        payload = {
+        review_payload = {
             "shopId": s_id,
             "shopName": s_name,
-            "orderId": (order_ids_by_shop.get(s_id) or [""])[0],
+            "orderId": ord_id,
             "customerName": cust_name,
             "customerPhone": cust_phone,
             "shopRating": shop_rating,
             "shopComment": shop_comment,
             "itemReviews": item_reviews,
             "tags": tags,
-            "createdAt": created_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+            "createdAt": review_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
 
         try:
-            http_request(f"{API_BASE}/reviews", method="POST", data=payload)
-        except Exception as e:
+            http_request(f"{API_BASE}/reviews", method="POST", data=review_payload)
+            reviews_created += 1
+        except Exception:
             pass
 
-    print(" -> Tạo thành công đầy đủ 100 đánh giá của khách hàng!")
+    print(f" -> Tạo thành công {reviews_created} đánh giá của khách hàng khớp chuẩn với đơn hàng và doanh thu!")
 
 def main():
     print("================================================================")
     print("  KHỞI TẠO DỮ LIỆU TOÀN DIỆN HỆ THỐNG QUẢN LÝ QUÁN CÀ PHÊ       ")
+    print(f"  Target API: {API_BASE}")
     print("================================================================")
 
-    # 1. Fetch Vietnam provinces
-    provinces = get_vietnam_provinces()
-
-    # 2. Authenticate Admin
+    # 1. Authenticate Admin
+    print("\n[Admin Auth] Xác thực quản trị viên...")
     token = authenticate()
     auth_headers = {"Authorization": f"Bearer {token}"}
+    print(" -> Đăng nhập tài khoản admin thành công.")
 
-    # 3. Seed 9 Shops
+    # 2. Wipe old data clean
+    auth_headers = wipe_database(auth_headers)
+
+    # 3. Fetch Vietnam provinces
+    provinces = get_vietnam_provinces()
+
+    # 4. Seed 9 Shops
     shops = seed_shops(auth_headers, provinces)
     if not shops:
         print("Lỗi: Không tìm thấy chi nhánh nào.")
@@ -914,19 +1078,19 @@ def main():
 
     primary_shop_id = shops[0].get("id")
 
-    # 4. Seed Menu Items (available 24/7)
+    # 5. Seed Menu Items (available 24/7)
     menu_items = seed_menu(auth_headers, primary_shop_id)
 
-    # 5. Seed Inventory for all 9 shops
+    # 6. Seed Inventory for all 9 shops
     seed_inventory_for_shops(auth_headers, shops)
 
-    # 6. Seed Staff & User Accounts (9 shops x 11 staff = 99 staff)
+    # 7. Seed Staff & User Accounts (9 shops x 11 staff = 99 staff with 100% natural Vietnamese names)
     shop_staff_map = seed_staff_and_accounts(auth_headers, shops)
 
-    # 7. Seed Shifts schedule (Weekdays: 2 shifts, Weekends: 3 shifts, 1 week ago -> 2 weeks ahead)
+    # 8. Seed Shifts schedule (Weekdays: 2 shifts, Weekends: 3 shifts, 1 week ago -> 2 weeks ahead)
     seed_shifts_schedule(auth_headers, shops, shop_staff_map)
 
-    # 8. Seed Sample Orders and 100 Customer Reviews
+    # 9. Seed Orders, Full Revenue & 100 Customer Reviews
     seed_reviews_and_orders(auth_headers, shops, menu_items, shop_staff_map)
 
     print("\n================================================================")

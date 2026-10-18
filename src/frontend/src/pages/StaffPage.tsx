@@ -25,6 +25,9 @@ import {
   LayoutGrid,
   List,
   CalendarCheck,
+  Sun,
+  Sunset,
+  Moon,
 } from 'lucide-react';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/common/Card';
@@ -383,7 +386,11 @@ export const StaffPage: React.FC = () => {
   };
 
   // Shift: Create modal open
-  const handleOpenCreateShift = (prefilledDate?: string, prefilledStaffId?: string) => {
+  const handleOpenCreateShift = (
+    prefilledDate?: string,
+    prefilledStaffId?: string,
+    preset?: 'morning' | 'afternoon' | 'evening'
+  ) => {
     const targetShopId =
       shiftFilterShopId !== 'all'
         ? shiftFilterShopId
@@ -395,7 +402,7 @@ export const StaffPage: React.FC = () => {
     setShiftStaffId(defaultStaff?.id || '');
     setShiftShopId(targetShopId);
     setShiftDate(prefilledDate || new Date().toISOString().split('T')[0]);
-    handleShiftPresetChange('morning');
+    handleShiftPresetChange(preset || 'morning');
     setIsCreateShiftModalOpen(true);
   };
 
@@ -701,17 +708,6 @@ export const StaffPage: React.FC = () => {
   };
 
   const todayKey = toLocalDateKey(new Date());
-
-  const getShiftTypeTag = (startTime: string) => {
-    try {
-      const h = new Date(startTime).getHours();
-      if (h < 12) return { label: 'Ca sáng', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
-      if (h < 17) return { label: 'Ca chiều', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
-      return { label: 'Ca tối', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
-    } catch {
-      return { label: 'Ca làm', color: 'bg-neutral-100 text-neutral-700 border-neutral-200' };
-    }
-  };
 
   // Tiêu đề dải ngày tuần
   const weekRangeTitle = useMemo(() => {
@@ -1041,79 +1037,182 @@ export const StaffPage: React.FC = () => {
                         )}
                       </div>
 
-                      {/* Danh sách thẻ ca trong ngày */}
-                      <div className="p-2 flex-1 space-y-2 min-h-[140px] bg-neutral-50/30">
+                      {/* Danh sách ca chia rõ 3 buổi: Sáng, Chiều, Tối */}
+                      <div className="p-2 flex-1 space-y-3 min-h-[160px] bg-neutral-50/30">
                         {dayShifts.length === 0 ? (
                           <div className="h-full flex flex-col items-center justify-center text-center p-3 text-neutral-400">
-                            <span className="text-xs">Trống</span>
+                            <span className="text-xs font-medium">Trống lịch</span>
+                            <span className="text-[10px] text-neutral-400 mt-0.5">Sáng • Chiều • Tối</span>
                             {isManagerOrAdmin && !isPastDay && (
                               <button
                                 type="button"
                                 onClick={() => handleOpenCreateShift(dateKey)}
-                                className="text-xs text-neutral-600 hover:text-neutral-900 hover:underline mt-1 flex items-center gap-0.5"
+                                className="text-xs text-neutral-600 hover:text-neutral-900 hover:underline mt-2 flex items-center gap-0.5"
                               >
-                                <Plus className="w-3 h-3" /> Thêm ca
+                                <Plus className="w-3 h-3" /> Thêm ca làm
                               </button>
                             )}
                           </div>
                         ) : (
-                          dayShifts.map((sh) => {
-                            const shiftStaff = staff.find((s) => s.id === sh.staffId);
-                            const tag = getShiftTypeTag(sh.startTime);
-                            const isMyShift =
-                              user?.email &&
-                              shiftStaff?.email.toLowerCase() === user.email.toLowerCase();
+                          (() => {
+                            const morningShifts = dayShifts.filter((sh) => {
+                              try {
+                                const h = new Date(sh.startTime).getHours();
+                                return h < 12;
+                              } catch {
+                                return false;
+                              }
+                            });
+                            const afternoonShifts = dayShifts.filter((sh) => {
+                              try {
+                                const h = new Date(sh.startTime).getHours();
+                                return h >= 12 && h < 17;
+                              } catch {
+                                return false;
+                              }
+                            });
+                            const eveningShifts = dayShifts.filter((sh) => {
+                              try {
+                                const h = new Date(sh.startTime).getHours();
+                                return h >= 17;
+                              } catch {
+                                return false;
+                              }
+                            });
 
-                            return (
-                              <div
-                                key={sh.id}
-                                onClick={() => handleOpenEditShift(sh)}
-                                className="p-2.5 rounded border border-neutral-200 bg-white cursor-pointer hover:border-neutral-300 transition-colors"
-                              >
-                                {/* Tag ca và giờ */}
-                                <div className="flex items-center justify-between text-[11px] mb-1.5">
-                                  <span className="px-1.5 py-0.5 rounded text-[10px] font-medium bg-neutral-100 text-neutral-600">
-                                    {tag.label}
-                                  </span>
-                                  <span className="font-mono text-xs font-medium text-neutral-700">
-                                    {formatShiftTime(sh.startTime)} - {formatShiftTime(sh.endTime)}
-                                  </span>
-                                </div>
+                            const sections = [
+                              {
+                                key: 'morning' as const,
+                                label: 'Sáng',
+                                timeRange: '06:30 - 12:00',
+                                icon: Sun,
+                                shifts: morningShifts,
+                                headerClass: 'bg-amber-50/80 border-amber-200/80 text-amber-900',
+                                iconClass: 'text-amber-600',
+                                badgeClass: 'bg-white text-amber-800 border-amber-200',
+                              },
+                              {
+                                key: 'afternoon' as const,
+                                label: 'Chiều',
+                                timeRange: '12:00 - 17:30',
+                                icon: Sunset,
+                                shifts: afternoonShifts,
+                                headerClass: 'bg-orange-50/80 border-orange-200/80 text-orange-900',
+                                iconClass: 'text-orange-600',
+                                badgeClass: 'bg-white text-orange-800 border-orange-200',
+                              },
+                              {
+                                key: 'evening' as const,
+                                label: 'Tối',
+                                timeRange: '17:30 - 22:30',
+                                icon: Moon,
+                                shifts: eveningShifts,
+                                headerClass: 'bg-indigo-50/70 border-indigo-200/70 text-indigo-900',
+                                iconClass: 'text-indigo-600',
+                                badgeClass: 'bg-white text-indigo-800 border-indigo-200',
+                              },
+                            ];
 
-                                {/* Tên nhân viên */}
-                                <div className="font-medium text-xs text-neutral-900 truncate">
-                                  {shiftStaff
-                                    ? `${shiftStaff.firstName} ${shiftStaff.lastName}`
-                                    : 'Nhân sự'}
-                                  {isMyShift && (
-                                    <span className="ml-1 text-[10px] text-neutral-500 font-normal">
-                                      (Bạn)
+                            return sections.map((sec) => (
+                              <div key={sec.key} className="space-y-1.5">
+                                {/* Section Header */}
+                                <div
+                                  className={`flex items-center justify-between px-2 py-1 rounded border text-[11px] font-semibold ${sec.headerClass}`}
+                                >
+                                  <div className="flex items-center gap-1.5 truncate">
+                                    <sec.icon className={`w-3.5 h-3.5 shrink-0 ${sec.iconClass}`} />
+                                    <span>{sec.label}</span>
+                                    <span className="text-[10px] font-normal opacity-70 truncate">
+                                      {sec.timeRange}
                                     </span>
-                                  )}
-                                </div>
-
-                                {/* Vai trò & Trạng thái */}
-                                <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500">
-                                  <span>{shiftStaff?.role || ''}</span>
-                                  <span>
-                                    {sh.status === 'InProgress'
-                                      ? 'Đang trực'
-                                      : sh.status === 'Completed'
-                                      ? 'Đã xong'
-                                      : sh.status === 'Cancelled'
-                                      ? 'Đã hủy'
-                                      : 'Đã lên lịch'}
-                                  </span>
-                                </div>
-
-                                {sh.notes && (
-                                  <div className="text-[10px] text-neutral-400 truncate mt-1 border-t border-neutral-100 pt-1">
-                                    {sh.notes}
                                   </div>
+                                  <div className="flex items-center gap-1 shrink-0">
+                                    <span
+                                      className={`text-[10px] font-mono font-medium px-1.5 py-0.2 rounded border ${sec.badgeClass}`}
+                                    >
+                                      {sec.shifts.length}
+                                    </span>
+                                    {isManagerOrAdmin && !isPastDay && (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          handleOpenCreateShift(dateKey, undefined, sec.key)
+                                        }
+                                        className="p-0.5 rounded hover:bg-black/5 text-inherit transition-colors"
+                                        title={`Xếp ca ${sec.label} ngày ${dateKey}`}
+                                      >
+                                        <Plus className="w-3 h-3" />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+
+                                {/* Shift Cards in this section */}
+                                {sec.shifts.length === 0 ? (
+                                  <div className="py-1 px-2 text-center text-[10px] text-neutral-400 border border-dashed border-neutral-200/70 rounded bg-white/40">
+                                    Trống
+                                  </div>
+                                ) : (
+                                  sec.shifts.map((sh) => {
+                                    const shiftStaff = staff.find((s) => s.id === sh.staffId);
+                                    const isMyShift =
+                                      user?.email &&
+                                      shiftStaff?.email.toLowerCase() === user.email.toLowerCase();
+
+                                    return (
+                                      <div
+                                        key={sh.id}
+                                        onClick={() => handleOpenEditShift(sh)}
+                                        className="p-2 rounded border border-neutral-200 bg-white cursor-pointer hover:border-neutral-300 transition-colors shadow-xs"
+                                      >
+                                        {/* Giờ trực ca */}
+                                        <div className="flex items-center justify-between text-[11px] mb-1">
+                                          <span className="font-mono text-xs font-semibold text-neutral-800">
+                                            {formatShiftTime(sh.startTime)} -{' '}
+                                            {formatShiftTime(sh.endTime)}
+                                          </span>
+                                          <span className="text-[10px] text-neutral-500">
+                                            {sh.status === 'InProgress'
+                                              ? 'Đang trực'
+                                              : sh.status === 'Completed'
+                                              ? 'Đã xong'
+                                              : sh.status === 'Cancelled'
+                                              ? 'Đã hủy'
+                                              : 'Lên lịch'}
+                                          </span>
+                                        </div>
+
+                                        {/* Tên nhân viên */}
+                                        <div className="font-medium text-xs text-neutral-900 truncate">
+                                          {shiftStaff
+                                            ? `${shiftStaff.firstName} ${shiftStaff.lastName}`
+                                            : 'Nhân sự'}
+                                          {isMyShift && (
+                                            <span className="ml-1 text-[10px] text-primary-600 font-semibold">
+                                              (Bạn)
+                                            </span>
+                                          )}
+                                        </div>
+
+                                        {/* Vai trò */}
+                                        <div className="flex items-center justify-between mt-1 text-[10px] text-neutral-500">
+                                          <span className="font-medium text-neutral-600">
+                                            {shiftStaff?.role || ''}
+                                          </span>
+                                        </div>
+
+                                        {sh.notes && (
+                                          <div className="text-[10px] text-neutral-400 truncate mt-1 border-t border-neutral-100 pt-1">
+                                            {sh.notes}
+                                          </div>
+                                        )}
+                                      </div>
+                                    );
+                                  })
                                 )}
                               </div>
-                            );
-                          })
+                            ));
+                          })()
                         )}
                       </div>
                     </div>
