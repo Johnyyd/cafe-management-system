@@ -42,6 +42,7 @@ import { StaffMember, Shop, StaffRole, Shift, ShiftStatus } from '../types';
 
 export const StaffPage: React.FC = () => {
   const { activeRole, user } = useAuthStore();
+  const { currentShopId, setCurrentShopId, addNotification } = useAppStore();
   const isManagerOrAdmin = activeRole === 'Admin' || activeRole === 'Manager';
 
   // State tabs: Nếu là nhân viên thường thì mặc định và chỉ được xem tab ca làm việc
@@ -98,7 +99,6 @@ export const StaffPage: React.FC = () => {
   const [editNotes, setEditNotes] = useState<string>('');
 
   // Filters for Shifts
-  const { currentShopId, setCurrentShopId, addNotification } = useAppStore();
   const [shiftSearchStaffId, setShiftSearchStaffId] = useState<string>('all');
   const [shiftFilterShopId, setShiftFilterShopId] = useState<string>(() => currentShopId || 'all');
   const [shiftFilterStatus, setShiftFilterStatus] = useState<string>('all');
