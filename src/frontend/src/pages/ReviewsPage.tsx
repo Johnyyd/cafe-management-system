@@ -249,28 +249,33 @@ export const ReviewsPage: React.FC = () => {
   // Helper render interactive stars
   const renderInteractiveStars = (
     currentRating: number,
-    onSelect: (rating: number) => void
+    onSelect: (rating: number) => void,
+    size: 'sm' | 'md' = 'md'
   ) => {
+    const starSize = size === 'sm' ? 'w-4 h-4' : 'w-6 h-6';
+    const textSize = size === 'sm' ? 'text-xs' : 'text-sm';
     return (
-      <div className="flex items-center gap-1.5">
-        {[1, 2, 3, 4, 5].map((star) => (
-          <button
-            key={star}
-            type="button"
-            onClick={() => onSelect(star)}
-            className="p-1 focus:outline-none transition-transform hover:scale-110"
-          >
-            <Star
-              className={`w-6 h-6 ${
-                star <= currentRating
-                  ? 'fill-amber-400 text-amber-500'
-                  : 'text-neutral-300 hover:text-amber-300'
-              }`}
-            />
-          </button>
-        ))}
-        <span className="ml-2 text-sm font-bold text-neutral-800">
-          {currentRating} / 5 sao
+      <div className="flex items-center gap-1 shrink-0">
+        <div className="flex items-center">
+          {[1, 2, 3, 4, 5].map((star) => (
+            <button
+              key={star}
+              type="button"
+              onClick={() => onSelect(star)}
+              className="p-0.5 focus:outline-none transition-transform hover:scale-110"
+            >
+              <Star
+                className={`${starSize} shrink-0 ${
+                  star <= currentRating
+                    ? 'fill-amber-400 text-amber-500'
+                    : 'text-neutral-300 hover:text-amber-300'
+                }`}
+              />
+            </button>
+          ))}
+        </div>
+        <span className={`ml-1.5 font-bold text-neutral-800 ${textSize} whitespace-nowrap`}>
+          {currentRating}/5
         </span>
       </div>
     );
@@ -279,11 +284,11 @@ export const ReviewsPage: React.FC = () => {
   // Helper render static stars
   const renderStaticStars = (rating: number, size = 'w-4 h-4') => {
     return (
-      <div className="flex items-center gap-0.5">
+      <div className="flex items-center gap-0.5 shrink-0">
         {[1, 2, 3, 4, 5].map((star) => (
           <Star
             key={star}
-            className={`${size} ${
+            className={`${size} shrink-0 ${
               star <= rating ? 'fill-amber-400 text-amber-500' : 'text-neutral-300'
             }`}
           />
@@ -354,9 +359,14 @@ export const ReviewsPage: React.FC = () => {
                   </span>
                   <span className="text-sm font-semibold text-neutral-500">/ 5.0</span>
                 </div>
-                <div className="mt-2 flex items-center gap-1">
-                  {renderStaticStars(Math.round(stats.averageShopRating), 'w-4 h-4')}
-                  <span className="text-xs text-neutral-600 font-medium ml-1.5">
+                <div className="mt-2.5 space-y-1">
+                  <div className="flex items-center gap-1.5 flex-wrap">
+                    {renderStaticStars(Math.round(stats.averageShopRating), 'w-4 h-4')}
+                    <span className="text-xs font-bold text-amber-600 ml-0.5">
+                      {stats.averageShopRating.toFixed(1)}/5
+                    </span>
+                  </div>
+                  <span className="text-xs text-neutral-500 font-medium block">
                     ({stats.totalReviews} lượt đánh giá)
                   </span>
                 </div>
@@ -449,14 +459,14 @@ export const ReviewsPage: React.FC = () => {
                       setSelectedProductFilter(p.menuItemId);
                       setCurrentPage(1);
                     }}
-                    className={`cursor-pointer px-3 py-1.5 rounded border text-xs flex items-center gap-2 transition-all ${
+                    className={`cursor-pointer px-3 py-1.5 rounded border text-xs flex items-center justify-between gap-2 transition-all ${
                       selectedProductFilter === p.menuItemId
                         ? 'border-cafe-orange bg-orange-50 text-cafe-orange font-bold shadow-sm'
-                        : 'border-neutral-200 hover:border-neutral-300 text-neutral-800'
+                        : 'border-neutral-200 hover:border-neutral-300 text-neutral-800 bg-white'
                     }`}
                   >
-                    <span>{p.menuItemName}</span>
-                    <span className="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center gap-0.5">
+                    <span className="truncate max-w-[180px]">{p.menuItemName}</span>
+                    <span className="bg-amber-100 text-amber-800 font-bold px-1.5 py-0.5 rounded text-[10px] flex items-center gap-0.5 shrink-0 whitespace-nowrap">
                       ★ {p.averageRating}
                     </span>
                   </div>
@@ -563,28 +573,30 @@ export const ReviewsPage: React.FC = () => {
               >
                 <div>
                   {/* Card Header: Customer Info & Rating */}
-                  <div className="flex items-start justify-between gap-3 pb-3 border-b border-neutral-100">
-                    <div className="flex items-center gap-2.5">
-                      <div className="w-9 h-9 rounded-full bg-neutral-900 text-white font-bold text-xs flex items-center justify-center uppercase">
+                  <div className="flex items-start justify-between gap-2 pb-3 border-b border-neutral-100">
+                    <div className="flex items-center gap-2.5 min-w-0">
+                      <div className="w-9 h-9 rounded-full bg-neutral-900 text-white font-bold text-xs flex items-center justify-center uppercase shrink-0">
                         {rev.customerName.slice(0, 2)}
                       </div>
-                      <div>
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="text-xs font-bold text-neutral-900">{rev.customerName}</h4>
-                          <span className="inline-flex items-center gap-0.5 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold">
+                      <div className="min-w-0">
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <h4 className="text-xs font-bold text-neutral-900 truncate max-w-[120px] sm:max-w-[150px]">
+                            {rev.customerName}
+                          </h4>
+                          <span className="inline-flex items-center gap-0.5 text-[9px] bg-emerald-50 text-emerald-700 border border-emerald-200 px-1.5 py-0.2 rounded font-semibold shrink-0">
                             <CheckCircle2 className="w-2.5 h-2.5" />
                             Đã mua
                           </span>
                         </div>
                         <div className="flex items-center gap-2 text-[11px] text-neutral-400 mt-0.5">
                           {rev.customerPhone && (
-                            <span className="flex items-center gap-0.5">
+                            <span className="flex items-center gap-0.5 whitespace-nowrap">
                               <Phone className="w-2.5 h-2.5" />
                               {maskPhone(rev.customerPhone)}
                             </span>
                           )}
                           <span>•</span>
-                          <span className="flex items-center gap-0.5">
+                          <span className="flex items-center gap-0.5 whitespace-nowrap">
                             <Calendar className="w-2.5 h-2.5" />
                             {formatDate(rev.createdAt)}
                           </span>
@@ -592,9 +604,9 @@ export const ReviewsPage: React.FC = () => {
                       </div>
                     </div>
 
-                    <div className="flex flex-col items-end">
+                    <div className="flex flex-col items-end shrink-0 pl-1">
                       {renderStaticStars(rev.shopRating, 'w-3.5 h-3.5')}
-                      <span className="text-[10px] font-bold text-neutral-500 mt-0.5">
+                      <span className="text-[10px] font-bold text-neutral-500 mt-0.5 whitespace-nowrap">
                         {rev.shopRating}.0 / 5
                       </span>
                     </div>
@@ -624,11 +636,11 @@ export const ReviewsPage: React.FC = () => {
                           key={idx}
                           className="bg-orange-50/40 border border-orange-100/80 rounded p-2 text-xs"
                         >
-                          <div className="flex items-center justify-between gap-1">
-                            <span className="font-bold text-neutral-900 truncate">
+                          <div className="flex items-center justify-between gap-1.5">
+                            <span className="font-bold text-neutral-900 truncate max-w-[170px]">
                               {it.menuItemName}
                             </span>
-                            <div className="flex items-center gap-0.5">
+                            <div className="flex items-center gap-0.5 shrink-0">
                               {renderStaticStars(it.rating, 'w-2.5 h-2.5')}
                             </div>
                           </div>
@@ -807,16 +819,21 @@ export const ReviewsPage: React.FC = () => {
                     key={it.menuItemId}
                     className="bg-white border border-neutral-200 rounded p-2.5 space-y-1.5"
                   >
-                    <div className="flex items-center justify-between">
-                      <span className="font-bold text-neutral-900 text-xs">{it.menuItemName}</span>
-                      <div className="flex items-center gap-2">
-                        {renderInteractiveStars(it.rating, (r) =>
-                          handleItemRatingChange(it.menuItemId, r)
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                      <span className="font-bold text-neutral-900 text-xs truncate max-w-[200px]">
+                        {it.menuItemName}
+                      </span>
+                      <div className="flex items-center gap-2 shrink-0 self-end sm:self-auto">
+                        {renderInteractiveStars(
+                          it.rating,
+                          (r) => handleItemRatingChange(it.menuItemId, r),
+                          'sm'
                         )}
                         <button
                           type="button"
                           onClick={() => handleRemoveItemReview(it.menuItemId)}
-                          className="text-neutral-400 hover:text-red-500 p-0.5"
+                          className="text-neutral-400 hover:text-red-500 p-1 rounded hover:bg-neutral-100 transition-colors"
+                          title="Xóa món"
                         >
                           <Trash2 className="w-3.5 h-3.5" />
                         </button>

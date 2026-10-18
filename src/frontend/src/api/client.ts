@@ -1,4 +1,4 @@
-import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, OrderStatus, CustomerReview, ReviewStats } from '../types';
+import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, OrderStatus, CustomerReview, ReviewStats, SystemMetrics } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -571,17 +571,8 @@ export const shiftsApi = {
 
 export const metricsApi = {
   getMetrics: api.getMetrics,
-  getSystemMetrics: async () => {
-    const rawMetrics = await api.getMetrics();
-    return {
-      status: 'Online',
-      uptime: '99.98%',
-      avgResponseTimeMs: Math.round(rawMetrics['http.request.duration.avg_ms'] || 32),
-      totalRequests: rawMetrics['http.request.count'] || 148,
-      errorRatePercent: 0.01,
-      cpuUsagePercent: 14,
-      memoryUsageMb: 285,
-    };
+  getSystemMetrics: async (): Promise<SystemMetrics> => {
+    return await fetchJson<SystemMetrics>('/metrics/system');
   },
 };
 

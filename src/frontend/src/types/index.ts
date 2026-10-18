@@ -108,14 +108,35 @@ export interface Staff {
 export type StaffMember = Staff;
 export type UserRole = StaffRole;
 
+export interface EndpointTelemetry {
+  endpoint: string;
+  method: string;
+  count: number;
+  avgLatencyMs: number;
+  status: string;
+}
+
 export interface SystemMetrics {
   status: string;
   uptime: string;
+  uptimeSeconds: number;
   avgResponseTimeMs: number;
+  minResponseTimeMs: number;
+  maxResponseTimeMs: number;
   totalRequests: number;
   errorRatePercent: number;
   cpuUsagePercent: number;
   memoryUsageMb: number;
+  gcMemoryMb: number;
+  threadCount: number;
+  mongoDb: {
+    status: string;
+    pingMs: number;
+    databaseName: string;
+  };
+  endpoints: EndpointTelemetry[];
+  framework: string;
+  serverTime: string;
 }
 
 export interface User {

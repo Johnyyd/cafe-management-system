@@ -70,6 +70,12 @@ public class PerformanceMonitoringMiddleware
                 ["path"] = context.Request.Path,
                 ["status_code"] = statusCode.ToString()
             });
+            metricsService.RecordMetric("http.endpoint.duration", stopwatch.Elapsed.TotalMilliseconds, new Dictionary<string, string>
+            {
+                ["method"] = context.Request.Method,
+                ["path"] = context.Request.Path,
+                ["status_code"] = statusCode.ToString()
+            });
 
             // Log request completion with timing
             _logger.LogInformation("Request completed: {Method} {Path} {StatusCode} in {ElapsedMilliseconds}ms",
@@ -98,6 +104,12 @@ public class PerformanceMonitoringMiddleware
                 ["path"] = context.Request.Path,
                 ["status_code"] = "500",
                 ["error_type"] = ex.GetType().Name
+            });
+            metricsService.RecordMetric("http.endpoint.duration", stopwatch.Elapsed.TotalMilliseconds, new Dictionary<string, string>
+            {
+                ["method"] = context.Request.Method,
+                ["path"] = context.Request.Path,
+                ["status_code"] = "500"
             });
 
             // Log exception with timing

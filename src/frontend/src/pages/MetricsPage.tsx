@@ -194,52 +194,52 @@ export const MetricsPage: React.FC = () => {
           </div>
           <div className="mt-2 flex items-center text-xs text-green-700 font-medium">
             <CheckCircle2 className="w-3.5 h-3.5 mr-1" />
-            99.98% Uptime 30 ngày qua
+            {metrics?.uptime ? `Uptime: ${metrics.uptime}` : 'Uptime: Đang kết nối...'}
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Thời gian phản hồi</span>
+            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Thời gian phản hồi TB</span>
             <Clock className="w-4 h-4 text-orange-600" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-neutral-900">
-              {metrics?.avgResponseTimeMs || 42} ms
+              {metrics ? `${metrics.avgResponseTimeMs} ms` : 'Đang đo...'}
             </span>
           </div>
           <div className="mt-2 text-xs text-neutral-500">
-            P95: 88ms | P99: 145ms
+            {metrics ? `Min: ${metrics.minResponseTimeMs}ms | Max: ${metrics.maxResponseTimeMs}ms` : 'Min / Max độ trễ'}
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Tổng Requests (24h)</span>
+            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">Tổng Requests (.NET)</span>
             <Activity className="w-4 h-4 text-orange-600" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-neutral-900">
-              {metrics?.totalRequests ? metrics.totalRequests.toLocaleString('vi-VN') : '14,820'}
+              {metrics ? metrics.totalRequests.toLocaleString('vi-VN') : '0'}
             </span>
           </div>
           <div className="mt-2 text-xs text-neutral-500">
-            Tỷ lệ lỗi HTTP 5xx: 0.02%
+            Tỷ lệ lỗi HTTP: {metrics?.errorRatePercent ?? 0}%
           </div>
         </Card>
 
         <Card>
           <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">MongoDB Replica</span>
+            <span className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">MongoDB Cluster</span>
             <Database className="w-4 h-4 text-orange-600" />
           </div>
           <div className="mt-2 flex items-baseline gap-2">
             <span className="text-2xl font-bold tracking-tight text-neutral-900">
-              Connected
+              {metrics?.mongoDb?.status || 'Đang kết nối...'}
             </span>
           </div>
           <div className="mt-2 text-xs text-neutral-500">
-            Pool: 10/100 active connections
+            {metrics?.mongoDb?.pingMs !== undefined ? `Ping: ${metrics.mongoDb.pingMs} ms (${metrics.mongoDb.databaseName})` : 'Đang kiểm tra kết nối...'}
           </div>
         </Card>
       </div>
@@ -247,45 +247,45 @@ export const MetricsPage: React.FC = () => {
       {/* Middle Section: Resource Utilization & Endpoints Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Resource Consumption */}
-        <Card title="Tài Nguyên Máy Chủ (Host & Containers)">
+        <Card title="Tài Nguyên Máy Chủ (Host & CLR Telemetry)">
           <div className="space-y-4">
             <div>
               <div className="flex justify-between text-xs font-medium text-neutral-700 mb-1">
                 <span className="flex items-center gap-1.5">
-                  <Cpu className="w-3.5 h-3.5 text-neutral-500" /> CPU Load
+                  <Cpu className="w-3.5 h-3.5 text-neutral-500" /> CPU Load (Host / Proc)
                 </span>
-                <span>{metrics?.cpuUsagePercent || 18}%</span>
+                <span>{metrics?.cpuUsagePercent ?? 0}%</span>
               </div>
               <div className="w-full bg-neutral-100 h-2 rounded-none overflow-hidden">
                 <div
                   className="bg-orange-600 h-2 transition-all duration-300"
-                  style={{ width: `${metrics?.cpuUsagePercent || 18}%` }}
+                  style={{ width: `${Math.min(100, Math.max(0, metrics?.cpuUsagePercent ?? 0))}%` }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between text-xs font-medium text-neutral-700 mb-1">
-                <span>Bộ nhớ RAM (.NET CLR & Cache)</span>
-                <span>{metrics?.memoryUsageMb || 312} MB / 2048 MB</span>
+                <span>Bộ nhớ RAM (.NET WorkingSet & GC)</span>
+                <span>{metrics?.memoryUsageMb ?? 0} MB (GC Heap: {metrics?.gcMemoryMb ?? 0} MB)</span>
               </div>
               <div className="w-full bg-neutral-100 h-2 rounded-none overflow-hidden">
                 <div
                   className="bg-neutral-900 h-2 transition-all duration-300"
-                  style={{ width: `${((metrics?.memoryUsageMb || 312) / 2048) * 100}%` }}
+                  style={{ width: `${Math.min(100, ((metrics?.memoryUsageMb ?? 0) / 1024) * 100)}%` }}
                 />
               </div>
             </div>
 
             <div>
               <div className="flex justify-between text-xs font-medium text-neutral-700 mb-1">
-                <span>Disk I/O (MongoDB Data Volume)</span>
-                <span>1.4 GB / 20 GB</span>
+                <span>Luồng xử lý CLR (Active Threads)</span>
+                <span>{metrics?.threadCount ?? 0} threads đang chạy</span>
               </div>
               <div className="w-full bg-neutral-100 h-2 rounded-none overflow-hidden">
                 <div
                   className="bg-neutral-400 h-2 transition-all duration-300"
-                  style={{ width: '7%' }}
+                  style={{ width: `${Math.min(100, ((metrics?.threadCount ?? 0) / 64) * 100)}%` }}
                 />
               </div>
             </div>
@@ -294,58 +294,71 @@ export const MetricsPage: React.FC = () => {
           <div className="mt-6 pt-4 border-t border-neutral-200 grid grid-cols-2 gap-4 text-xs">
             <div>
               <span className="text-neutral-500">Phiên bản Framework:</span>
-              <p className="font-semibold text-neutral-900">.NET 10.0 ASP.NET Core</p>
+              <p className="font-semibold text-neutral-900">{metrics?.framework || '.NET 8.0 ASP.NET Core'}</p>
             </div>
             <div>
-              <span className="text-neutral-500">Môi trường:</span>
-              <p className="font-semibold text-neutral-900">Production (Docker Container)</p>
+              <span className="text-neutral-500">Giờ máy chủ:</span>
+              <p className="font-semibold text-neutral-900 font-mono">
+                {metrics?.serverTime ? new Date(metrics.serverTime).toLocaleTimeString('vi-VN') : 'Đang đồng bộ...'}
+              </p>
             </div>
           </div>
         </Card>
 
         {/* Endpoints Latency Log */}
-        <Card title="Hiệu Năng Các Điểm Cuối (Top Endpoints)" noPadding>
-          <div className="overflow-x-auto">
+        <Card title="Hiệu Năng Các Điểm Cuối (Live Endpoints Telemetry)" noPadding>
+          <div className="overflow-x-auto max-h-[290px] overflow-y-auto">
             <table className="w-full text-left text-xs text-neutral-700">
-              <thead className="bg-neutral-50 font-semibold text-neutral-600 border-b border-neutral-200">
+              <thead className="bg-neutral-50 font-semibold text-neutral-600 border-b border-neutral-200 sticky top-0 z-10">
                 <tr>
                   <th className="py-2.5 px-4">Endpoint</th>
                   <th className="py-2.5 px-4">Method</th>
+                  <th className="py-2.5 px-4 text-right">Lượt gọi</th>
                   <th className="py-2.5 px-4">Độ trễ TB</th>
                   <th className="py-2.5 px-4 text-right">Trạng thái</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-neutral-200">
-                <tr>
-                  <td className="py-2.5 px-4 font-mono">/api/v1/orders</td>
-                  <td className="py-2.5 px-4"><Badge variant="orange">POST</Badge></td>
-                  <td className="py-2.5 px-4 font-medium">48 ms</td>
-                  <td className="py-2.5 px-4 text-right"><Badge variant="success">201 Created</Badge></td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-4 font-mono">/api/v1/menu/items</td>
-                  <td className="py-2.5 px-4"><Badge variant="neutral">GET</Badge></td>
-                  <td className="py-2.5 px-4 font-medium">19 ms</td>
-                  <td className="py-2.5 px-4 text-right"><Badge variant="success">200 OK</Badge></td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-4 font-mono">/api/v1/inventory/stock</td>
-                  <td className="py-2.5 px-4"><Badge variant="neutral">GET</Badge></td>
-                  <td className="py-2.5 px-4 font-medium">24 ms</td>
-                  <td className="py-2.5 px-4 text-right"><Badge variant="success">200 OK</Badge></td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-4 font-mono">/api/v1/shops</td>
-                  <td className="py-2.5 px-4"><Badge variant="neutral">GET</Badge></td>
-                  <td className="py-2.5 px-4 font-medium">12 ms</td>
-                  <td className="py-2.5 px-4 text-right"><Badge variant="success">200 OK</Badge></td>
-                </tr>
-                <tr>
-                  <td className="py-2.5 px-4 font-mono">/api/v1/auth/login</td>
-                  <td className="py-2.5 px-4"><Badge variant="orange">POST</Badge></td>
-                  <td className="py-2.5 px-4 font-medium">65 ms</td>
-                  <td className="py-2.5 px-4 text-right"><Badge variant="success">200 OK</Badge></td>
-                </tr>
+                {metrics?.endpoints && metrics.endpoints.length > 0 ? (
+                  metrics.endpoints.map((ep, idx) => (
+                    <tr key={`${ep.endpoint}-${ep.method}-${idx}`} className="hover:bg-neutral-50/50">
+                      <td className="py-2 px-4 font-mono font-medium text-neutral-900 max-w-[180px] truncate" title={ep.endpoint}>
+                        {ep.endpoint}
+                      </td>
+                      <td className="py-2 px-4">
+                        <Badge
+                          variant={
+                            ep.method === 'POST' ? 'orange' :
+                            ep.method === 'GET' ? 'neutral' :
+                            ep.method === 'PUT' ? 'warning' :
+                            ep.method === 'DELETE' ? 'danger' : 'neutral'
+                          }
+                        >
+                          {ep.method}
+                        </Badge>
+                      </td>
+                      <td className="py-2 px-4 text-right font-mono text-neutral-600">
+                        {ep.count.toLocaleString('vi-VN')}
+                      </td>
+                      <td className="py-2 px-4 font-medium">
+                        <span className={ep.avgLatencyMs > 500 ? 'text-red-600' : ep.avgLatencyMs > 200 ? 'text-amber-600' : 'text-neutral-900'}>
+                          {ep.avgLatencyMs} ms
+                        </span>
+                      </td>
+                      <td className="py-2 px-4 text-right">
+                        <Badge variant={ep.status.startsWith('2') ? 'success' : ep.status.startsWith('4') ? 'warning' : 'danger'}>
+                          {ep.status}
+                        </Badge>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={5} className="py-8 text-center text-neutral-400">
+                      Chưa ghi nhận lượt gọi API nào từ lúc khởi động. Hãy thao tác trong hệ thống để xem dữ liệu đo thời gian thực!
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -398,6 +411,7 @@ export const MetricsPage: React.FC = () => {
                   orders: 'Đơn hàng (orders)',
                   staff: 'Nhân sự (staff)',
                   users: 'Tài khoản (users)',
+                  reviews: 'Đánh giá (reviews)',
                 };
                 return (
                   <div key={collectionName} className="p-3 bg-neutral-50 border border-neutral-200 text-center">
@@ -434,13 +448,33 @@ export const MetricsPage: React.FC = () => {
       </Card>
 
       {/* Log & Diagnostic stream */}
-      <Card title="Nhật Ký Chẩn Đoán Gần Nhất (Diagnostics Log)">
+      <Card title="Nhật Ký Chẩn Đoán & Sự Kiện Realtime (Diagnostics Log)">
         <div className="bg-neutral-900 text-neutral-100 p-4 font-mono text-xs space-y-1.5 overflow-x-auto">
-          <div><span className="text-neutral-500">[2026-10-06 21:55:01 INF]</span> CafeManagement.Api started on http://0.0.0.0:80</div>
-          <div><span className="text-neutral-500">[2026-10-06 21:55:03 INF]</span> Connected to MongoDB cluster at mongodb://mongodb:27017</div>
-          <div><span className="text-neutral-500">[2026-10-06 21:55:04 INF]</span> Seq centralized logging sink active at http://seq:5341</div>
-          <div><span className="text-neutral-500">[2026-10-06 22:00:15 INF]</span> PerformanceMonitoringMiddleware registered 48ms request on /api/v1/orders</div>
-          <div><span className="text-neutral-500">[2026-10-06 22:02:10 INF]</span> AspNetCoreRateLimit active: 0 client throttled in current window</div>
+          <div>
+            <span className="text-neutral-500">[{metrics?.serverTime ? new Date(metrics.serverTime).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19)} INF]</span>{' '}
+            <span className="text-green-400">HOST:</span> {metrics?.framework || '.NET 8.0 ASP.NET Core'} | Uptime: {metrics?.uptime || 'N/A'} | Threads: {metrics?.threadCount ?? 0}
+          </div>
+          <div>
+            <span className="text-neutral-500">[{metrics?.serverTime ? new Date(metrics.serverTime).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19)} INF]</span>{' '}
+            <span className="text-amber-400">DATABASE:</span> MongoDB '{metrics?.mongoDb?.databaseName || 'cafe_management'}' (Ping: {metrics?.mongoDb?.pingMs ?? 0}ms, Status: {metrics?.mongoDb?.status || 'Unknown'})
+          </div>
+          <div>
+            <span className="text-neutral-500">[{metrics?.serverTime ? new Date(metrics.serverTime).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19)} INF]</span>{' '}
+            <span className="text-cyan-400">MEMORY:</span> WorkingSet: {metrics?.memoryUsageMb ?? 0} MB | GC Heap: {metrics?.gcMemoryMb ?? 0} MB | CPU Load: {metrics?.cpuUsagePercent ?? 0}%
+          </div>
+          {metrics?.endpoints && metrics.endpoints.length > 0 ? (
+            metrics.endpoints.slice(0, 5).map((ep, idx) => (
+              <div key={idx}>
+                <span className="text-neutral-500">[{metrics?.serverTime ? new Date(metrics.serverTime).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19)} INF]</span>{' '}
+                <span className="text-orange-400">TELEMETRY:</span> {ep.method} {ep.endpoint} &rarr; {ep.count} hits, avg {ep.avgLatencyMs}ms [HTTP {ep.status}]
+              </div>
+            ))
+          ) : (
+            <div>
+              <span className="text-neutral-500">[{metrics?.serverTime ? new Date(metrics.serverTime).toISOString().replace('T', ' ').slice(0, 19) : new Date().toISOString().replace('T', ' ').slice(0, 19)} INF]</span>{' '}
+              <span className="text-neutral-400">TELEMETRY:</span> Đang chờ các yêu cầu HTTP tiếp theo...
+            </div>
+          )}
         </div>
       </Card>
 
