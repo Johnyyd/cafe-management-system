@@ -73,7 +73,7 @@ export const StaffPage: React.FC = () => {
   // Filters for Staff
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
-  const [shopFilter, setShopFilter] = useState<string>('all');
+  const [shopFilter, setShopFilter] = useState<string>(() => currentShopId || 'all');
 
   // Modals & Forms for Shifts
   const [isCreateShiftModalOpen, setIsCreateShiftModalOpen] = useState<boolean>(false);
@@ -98,11 +98,10 @@ export const StaffPage: React.FC = () => {
   const [editNotes, setEditNotes] = useState<string>('');
 
   // Filters for Shifts
+  const { currentShopId, setCurrentShopId, addNotification } = useAppStore();
   const [shiftSearchStaffId, setShiftSearchStaffId] = useState<string>('all');
-  const [shiftFilterShopId, setShiftFilterShopId] = useState<string>('all');
+  const [shiftFilterShopId, setShiftFilterShopId] = useState<string>(() => currentShopId || 'all');
   const [shiftFilterStatus, setShiftFilterStatus] = useState<string>('all');
-
-  const addNotification = useAppStore((state) => state.addNotification);
 
   const {
     register,
@@ -169,27 +168,26 @@ export const StaffPage: React.FC = () => {
     loadData();
   }, []);
 
-  // Xác định chi nhánh của người dùng hiện tại (nếu là Quản lý / Nhân viên thì giới hạn theo chi nhánh)
+  // Xác định chi nhánh làm việc đang chọn (đồng bộ theo header currentShopId hoặc shop phân công của user)
   const currentBranchShop = useMemo(() => {
-    if (activeRole === 'Admin') return null;
-    if (user?.shopId) {
-      return shops.find((s) => s.id === user.shopId) || null;
-    }
-    // Lấy shop của user từ danh sách staff nếu có email trùng
-    const myStaffRecord = staff.find((s) => s.email.toLowerCase() === user?.email.toLowerCase());
-    if (myStaffRecord?.shopId) {
-      return shops.find((s) => s.id === myStaffRecord.shopId) || null;
-    }
-    return shops[0] || null;
-  }, [activeRole, user, shops, staff]);
+    const targetShopId =
+      shiftFilterShopId !== 'all'
+        ? shiftFilterShopId
+        : (currentShopId || user?.shopId || shops[0]?.id);
+    return shops.find((s) => s.id === targetShopId) || shops[0] || null;
+  }, [shiftFilterShopId, currentShopId, user?.shopId, shops]);
 
-  // Đồng bộ shop filter nếu không phải Admin
+  // Đồng bộ shop filter với currentShopId từ Header
   useEffect(() => {
-    if (currentBranchShop) {
-      setShiftFilterShopId(currentBranchShop.id);
-      setShopFilter(currentBranchShop.id);
+    if (currentShopId) {
+      setShiftFilterShopId(currentShopId);
+      setShopFilter(currentShopId);
+    } else if (shops.length > 0) {
+      setShiftFilterShopId(shops[0].id);
+      setShopFilter(shops[0].id);
+      setCurrentShopId(shops[0].id);
     }
-  }, [currentBranchShop]);
+  }, [currentShopId, shops]);
 
   // Tính 7 ngày trong tuần từ Thứ Hai đến Chủ Nhật theo weekOffset
   const weekDays = useMemo(() => {
@@ -386,11 +384,16 @@ export const StaffPage: React.FC = () => {
 
   // Shift: Create modal open
   const handleOpenCreateShift = (prefilledDate?: string, prefilledStaffId?: string) => {
+    const targetShopId =
+      shiftFilterShopId !== 'all'
+        ? shiftFilterShopId
+        : (currentShopId || currentBranchShop?.id || shops[0]?.id || '');
+    const shopStaffList = staff.filter((s) => s.shopId === targetShopId);
     const defaultStaff = prefilledStaffId
       ? staff.find((s) => s.id === prefilledStaffId)
-      : staff[0];
+      : (shopStaffList[0] || staff[0]);
     setShiftStaffId(defaultStaff?.id || '');
-    setShiftShopId(currentBranchShop?.id || defaultStaff?.shopId || shops[0]?.id || '');
+    setShiftShopId(targetShopId);
     setShiftDate(prefilledDate || new Date().toISOString().split('T')[0]);
     handleShiftPresetChange('morning');
     setIsCreateShiftModalOpen(true);
@@ -814,7 +817,7 @@ export const StaffPage: React.FC = () => {
               <Users className="w-4 h-4 text-neutral-500" />
               <span>Nhân sự</span>
               <span className="px-1.5 py-0.2 text-xs rounded bg-neutral-100 text-neutral-600">
-                {staff.length}
+                {filteredStaff.length}
               </span>
             </button>
           </div>
@@ -942,10 +945,17 @@ export const StaffPage: React.FC = () => {
                   {activeRole === 'Admin' && (
                     <Select
                       value={shiftFilterShopId}
-                      onChange={(e) => setShiftFilterShopId(e.target.value)}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        setShiftFilterShopId(val);
+                        if (val !== 'all') {
+                          setCurrentShopId(val);
+                          setShopFilter(val);
+                        }
+                      }}
                       options={[
-                        { value: 'all', label: 'Tất cả chi nhánh' },
                         ...shops.map((s) => ({ value: s.id, label: s.name })),
+                        { value: 'all', label: 'Tất cả chi nhánh' },
                       ]}
                     />
                   )}
@@ -955,7 +965,10 @@ export const StaffPage: React.FC = () => {
                     onChange={(e) => setShiftSearchStaffId(e.target.value)}
                     options={[
                       { value: 'all', label: 'Tất cả nhân sự' },
-                      ...staff.map((s) => ({
+                      ...(shiftFilterShopId === 'all'
+                        ? staff
+                        : staff.filter((s) => s.shopId === shiftFilterShopId)
+                      ).map((s) => ({
                         value: s.id,
                         label: `${s.firstName} ${s.lastName} (${s.role})`,
                       })),
@@ -1301,10 +1314,17 @@ export const StaffPage: React.FC = () => {
                 {activeRole === 'Admin' ? (
                   <Select
                     value={shopFilter}
-                    onChange={(e) => setShopFilter(e.target.value)}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setShopFilter(val);
+                      if (val !== 'all') {
+                        setCurrentShopId(val);
+                        setShiftFilterShopId(val);
+                      }
+                    }}
                     options={[
-                      { value: 'all', label: 'Tất cả chi nhánh' },
                       ...shops.map((s) => ({ value: s.id, label: s.name })),
+                      { value: 'all', label: 'Tất cả chi nhánh' },
                     ]}
                   />
                 ) : (

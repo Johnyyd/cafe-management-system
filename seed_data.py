@@ -570,11 +570,12 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
         current_date = start_date
         while current_date <= end_date:
             date_str = current_date.strftime("%Y-%m-%d")
+            prev_date_str = (current_date - datetime.timedelta(days=1)).strftime("%Y-%m-%d")
             is_weekend = current_date.weekday() in (5, 6) # Sat or Sun
 
             if not is_weekend:
                 # Weekday: 2 shifts
-                # Shift 1: Ca sáng 06:30 - 14:30
+                # Shift 1: Ca sáng 06:30 - 14:30 (VN) -> UTC: prev_date 23:30 - date 07:30
                 # Staff: Manager #1, Cashier #1, Baristas #1 & #2, Stock #1
                 s1_staff = [
                     managers[0],
@@ -587,8 +588,8 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     payload = {
                         "staffId": st["id"],
                         "shopId": s_id,
-                        "startTime": f"{date_str}T06:30:00Z",
-                        "endTime": f"{date_str}T14:30:00Z",
+                        "startTime": f"{prev_date_str}T23:30:00Z",
+                        "endTime": f"{date_str}T07:30:00Z",
                         "notes": "Ca sáng ngày thường: Mở cửa đón khách, chuẩn bị nguyên liệu và bán hàng"
                     }
                     try:
@@ -597,7 +598,7 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     except Exception:
                         pass
 
-                # Shift 2: Ca chiều/tối 14:30 - 22:30
+                # Shift 2: Ca chiều/tối 14:30 - 22:30 (VN) -> UTC: date 07:30 - date 15:30
                 # Staff: Manager #2, Cashier #2, Baristas #3, #4, #5, Stock #2
                 s2_staff = [
                     managers[1 % len(managers)],
@@ -611,8 +612,8 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     payload = {
                         "staffId": st["id"],
                         "shopId": s_id,
-                        "startTime": f"{date_str}T14:30:00Z",
-                        "endTime": f"{date_str}T22:30:00Z",
+                        "startTime": f"{date_str}T07:30:00Z",
+                        "endTime": f"{date_str}T15:30:00Z",
                         "notes": "Ca chiều/tối ngày thường: Đỉnh điểm bán hàng, dọn dẹp vệ sinh và chốt ca"
                     }
                     try:
@@ -623,7 +624,7 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
 
             else:
                 # Weekend: 3 shifts
-                # Shift 1: Ca sáng cuối tuần 06:30 - 12:00
+                # Shift 1: Ca sáng cuối tuần 06:30 - 12:00 (VN) -> UTC: prev_date 23:30 - date 05:00
                 # Staff: Manager #1, Cashier #1, Baristas #1, #2, #3, Stock #1
                 w1_staff = [
                     managers[0],
@@ -637,8 +638,8 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     payload = {
                         "staffId": st["id"],
                         "shopId": s_id,
-                        "startTime": f"{date_str}T06:30:00Z",
-                        "endTime": f"{date_str}T12:00:00Z",
+                        "startTime": f"{prev_date_str}T23:30:00Z",
+                        "endTime": f"{date_str}T05:00:00Z",
                         "notes": "Ca sáng cuối tuần: Giờ cao điểm đón khách cuối tuần, phục vụ tại chỗ"
                     }
                     try:
@@ -647,7 +648,7 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     except Exception:
                         pass
 
-                # Shift 2: Ca chiều cuối tuần 12:00 - 17:30
+                # Shift 2: Ca chiều cuối tuần 12:00 - 17:30 (VN) -> UTC: date 05:00 - date 10:30
                 # Staff: Manager #2, Cashier #2, Baristas #4, #5, Stock #2
                 w2_staff = [
                     managers[1 % len(managers)],
@@ -660,8 +661,8 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     payload = {
                         "staffId": st["id"],
                         "shopId": s_id,
-                        "startTime": f"{date_str}T12:00:00Z",
-                        "endTime": f"{date_str}T17:30:00Z",
+                        "startTime": f"{date_str}T05:00:00Z",
+                        "endTime": f"{date_str}T10:30:00Z",
                         "notes": "Ca chiều cuối tuần: Trực quầy, pha chế đồ uống mang đi và kiểm kê"
                     }
                     try:
@@ -670,7 +671,7 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     except Exception:
                         pass
 
-                # Shift 3: Ca tối cuối tuần 17:30 - 22:30
+                # Shift 3: Ca tối cuối tuần 17:30 - 22:30 (VN) -> UTC: date 10:30 - date 15:30
                 # Staff: Manager #1, Cashier #1, Baristas #1, #2, Stock #1
                 w3_staff = [
                     managers[0],
@@ -683,8 +684,8 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
                     payload = {
                         "staffId": st["id"],
                         "shopId": s_id,
-                        "startTime": f"{date_str}T17:30:00Z",
-                        "endTime": f"{date_str}T22:30:00Z",
+                        "startTime": f"{date_str}T10:30:00Z",
+                        "endTime": f"{date_str}T15:30:00Z",
                         "notes": "Ca tối cuối tuần: Phục vụ khách tối, kiểm đếm tồn kho và chốt quỹ ngày"
                     }
                     try:
