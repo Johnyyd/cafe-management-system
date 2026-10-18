@@ -760,7 +760,7 @@ export const ReviewsPage: React.FC = () => {
                 type="text"
                 value={formData.orderId}
                 onChange={(e) => setFormData({ ...formData, orderId: e.target.value })}
-                placeholder="Ví dụ: ORD-20261018-001"
+                placeholder="Ví dụ: ORD-97920C"
                 className="w-full border border-neutral-300 rounded px-3 py-2 focus:outline-none focus:border-cafe-orange text-xs"
               />
             </div>

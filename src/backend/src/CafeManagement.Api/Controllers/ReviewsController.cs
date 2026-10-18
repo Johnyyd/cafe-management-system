@@ -270,6 +270,98 @@ public class ReviewsController : ControllerBase
         }
     }
 
+    [HttpGet("order-context/{identifier}")]
+    [AllowAnonymous]
+    public async Task<IActionResult> GetOrderContext(string identifier, CancellationToken cancellationToken = default)
+    {
+        try
+        {
+            var ordersCol = _mongoDbContext.GetCollection<BsonDocument>("orders");
+            var shopsCol = _mongoDbContext.GetCollection<BsonDocument>("shops");
+
+            BsonDocument? orderDoc = null;
+
+            if (ObjectId.TryParse(identifier, out var objId))
+            {
+                orderDoc = await ordersCol.Find(Builders<BsonDocument>.Filter.Eq("_id", objId))
+                    .FirstOrDefaultAsync(cancellationToken);
+            }
+
+            if (orderDoc == null && identifier.StartsWith("ORD-", StringComparison.OrdinalIgnoreCase))
+            {
+                var suffix = identifier.Substring(4).ToLowerInvariant();
+                var allRecent = await ordersCol.Find(Builders<BsonDocument>.Filter.Empty)
+                    .Sort(Builders<BsonDocument>.Sort.Descending("OrderTime"))
+                    .Limit(300)
+                    .ToListAsync(cancellationToken);
+
+                orderDoc = allRecent.FirstOrDefault(d => d["_id"].AsObjectId.ToString().ToLowerInvariant().EndsWith(suffix));
+            }
+
+            if (orderDoc == null)
+            {
+                return NotFound(new { message = "Không tìm thấy đơn hàng tương ứng." });
+            }
+
+            var shopId = orderDoc.Contains("ShopId") ? orderDoc["ShopId"].ToString() : string.Empty;
+            string shopName = "The Coffee House";
+
+            if (!string.IsNullOrEmpty(shopId) && ObjectId.TryParse(shopId, out var shopObjId))
+            {
+                var shopDoc = await shopsCol.Find(Builders<BsonDocument>.Filter.Eq("_id", shopObjId))
+                    .FirstOrDefaultAsync(cancellationToken);
+                if (shopDoc != null && shopDoc.Contains("Name"))
+                {
+                    shopName = shopDoc["Name"].AsString;
+                }
+            }
+
+            var customerInfo = orderDoc.Contains("CustomerInfo") && orderDoc["CustomerInfo"].IsBsonDocument
+                ? orderDoc["CustomerInfo"].AsBsonDocument
+                : null;
+            var customerName = customerInfo != null && customerInfo.Contains("Name")
+                ? customerInfo["Name"].AsString
+                : string.Empty;
+            var customerPhone = customerInfo != null && customerInfo.Contains("Contact")
+                ? customerInfo["Contact"].AsString
+                : string.Empty;
+
+            var itemsList = new List<object>();
+            if (orderDoc.Contains("Items") && orderDoc["Items"].IsBsonArray)
+            {
+                foreach (var it in orderDoc["Items"].AsBsonArray)
+                {
+                    if (it.IsBsonDocument)
+                    {
+                        var doc = it.AsBsonDocument;
+                        var mId = doc.Contains("MenuItemId") ? doc["MenuItemId"].ToString() : "";
+                        var mName = doc.Contains("Name") ? doc["Name"].AsString : "";
+                        var qty = doc.Contains("Quantity") ? doc["Quantity"].ToInt32() : 1;
+                        itemsList.Add(new { menuItemId = mId, menuItemName = mName, quantity = qty });
+                    }
+                }
+            }
+
+            var orderNumber = $"ORD-{orderDoc["_id"].AsObjectId.ToString().Substring(18).ToUpperInvariant()}";
+
+            return Ok(new
+            {
+                orderId = orderDoc["_id"].ToString(),
+                orderNumber,
+                shopId,
+                shopName,
+                customerName,
+                customerPhone,
+                items = itemsList
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error getting order context for {Identifier}", identifier);
+            return StatusCode(500, new { message = "Lỗi khi tra cứu thông tin đơn hàng", error = ex.Message });
+        }
+    }
+
     [HttpDelete("{id}")]
     [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeleteReview(string id, CancellationToken cancellationToken = default)

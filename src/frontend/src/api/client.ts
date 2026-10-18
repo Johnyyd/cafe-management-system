@@ -21,7 +21,8 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
   if (response.status === 401) {
     localStorage.removeItem('cms_token');
     localStorage.removeItem('cms_user');
-    if (window.location.pathname !== '/login') {
+    const isPublicPage = window.location.pathname.startsWith('/feedback') || window.location.pathname.startsWith('/review');
+    if (window.location.pathname !== '/login' && !isPublicPage) {
       window.location.href = '/login';
     }
     throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
@@ -645,6 +646,17 @@ export const reviewsApi = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+  getOrderContext: async (identifier: string): Promise<{
+    orderId: string;
+    orderNumber: string;
+    shopId: string;
+    shopName: string;
+    customerName?: string;
+    customerPhone?: string;
+    items: Array<{ menuItemId: string; menuItemName: string; quantity: number }>;
+  }> => {
+    return await fetchJson<any>(`/reviews/order-context/${encodeURIComponent(identifier)}`);
   },
   delete: async (id: string): Promise<void> => {
     await fetchJson(`/reviews/${id}`, { method: 'DELETE' });
