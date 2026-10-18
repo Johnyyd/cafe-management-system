@@ -11,7 +11,8 @@ import { Order, OrderItem, OrderStatus, OrderType, MenuItem, Shop } from '../typ
 import { orderSchema, OrderFormData } from '../schemas';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Minus, Trash2, ShoppingCart, CheckCircle, Clock } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart, CheckCircle, Clock, QrCode, Copy, ExternalLink, Printer, Check, Download } from 'lucide-react';
+import QRCode from 'qrcode';
 import { useAppStore } from '../stores/appStore';
 
 export const OrdersPage: React.FC = () => {
@@ -23,6 +24,9 @@ export const OrdersPage: React.FC = () => {
   const [deletingOrder, setDeletingOrder] = useState<Order | null>(null);
   const [isDeleting, setIsDeleting] = useState<boolean>(false);
   const [updatingOrderId, setUpdatingOrderId] = useState<string | null>(null);
+  const [qrOrder, setQrOrder] = useState<Order | null>(null);
+  const [qrDataUrl, setQrDataUrl] = useState<string>('');
+  const [copiedLink, setCopiedLink] = useState<boolean>(false);
   const { currentShopId, notify } = useAppStore();
 
   const {
@@ -74,6 +78,92 @@ export const OrdersPage: React.FC = () => {
       setValue('shopId', currentShopId);
     }
   }, [currentShopId]);
+
+  // Generate QR Code data URL when qrOrder is selected
+  useEffect(() => {
+    if (qrOrder) {
+      const shopObj = shops.find((s) => s.id === qrOrder.shopId);
+      const shopName = shopObj?.name || 'The Coffee House';
+      const itemsParam = JSON.stringify(
+        qrOrder.items.map((i) => ({ menuItemId: i.menuItemId, menuItemName: i.name, quantity: i.quantity }))
+      );
+      const url = `${window.location.origin}/feedback?orderId=${encodeURIComponent(qrOrder.orderNumber)}&shopId=${encodeURIComponent(qrOrder.shopId)}&shopName=${encodeURIComponent(shopName)}&customerName=${encodeURIComponent(qrOrder.customerInfo.name)}&items=${encodeURIComponent(itemsParam)}`;
+
+      QRCode.toDataURL(url, {
+        width: 320,
+        margin: 2,
+        color: {
+          dark: '#1c1917',
+          light: '#ffffff',
+        },
+      })
+        .then((url) => setQrDataUrl(url))
+        .catch((err) => console.error('Lỗi sinh mã QR:', err));
+    } else {
+      setQrDataUrl('');
+      setCopiedLink(false);
+    }
+  }, [qrOrder, shops]);
+
+  const getFeedbackUrl = (order: Order) => {
+    const shopObj = shops.find((s) => s.id === order.shopId);
+    const shopName = shopObj?.name || 'The Coffee House';
+    const itemsParam = JSON.stringify(
+      order.items.map((i) => ({ menuItemId: i.menuItemId, menuItemName: i.name, quantity: i.quantity }))
+    );
+    return `${window.location.origin}/feedback?orderId=${encodeURIComponent(order.orderNumber)}&shopId=${encodeURIComponent(order.shopId)}&shopName=${encodeURIComponent(shopName)}&customerName=${encodeURIComponent(order.customerInfo.name)}&items=${encodeURIComponent(itemsParam)}`;
+  };
+
+  const handleCopyLink = () => {
+    if (!qrOrder) return;
+    const url = getFeedbackUrl(qrOrder);
+    navigator.clipboard.writeText(url);
+    setCopiedLink(true);
+    notify('success', 'Đã sao chép link đánh giá của khách hàng!');
+    setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  const handlePrintQr = () => {
+    if (!qrOrder || !qrDataUrl) return;
+    const shopObj = shops.find((s) => s.id === qrOrder.shopId);
+    const shopName = shopObj?.name || 'The Coffee House';
+    const printWin = window.open('', '_blank');
+    if (!printWin) return;
+    printWin.document.write(`
+      <html>
+        <head>
+          <title>Phiếu Đánh Giá - ${qrOrder.orderNumber}</title>
+          <style>
+            body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, monospace; text-align: center; padding: 20px; width: 280px; margin: 0 auto; color: #1c1917; }
+            h3 { margin-bottom: 4px; font-size: 15px; font-weight: bold; }
+            p { font-size: 12px; margin: 3px 0; color: #333; }
+            img { width: 190px; height: 190px; margin: 10px auto; display: block; border-radius: 8px; }
+            .divider { border-top: 1px dashed #aaa; margin: 10px 0; }
+            .promo { background: #fff7ed; border: 1px solid #fdba74; padding: 6px; border-radius: 6px; font-size: 11px; font-weight: bold; color: #c2410c; }
+            .items { text-align: left; font-size: 11px; margin: 8px 0; }
+          </style>
+        </head>
+        <body>
+          <h3>${shopName}</h3>
+          <p>Mã đơn: <strong>${qrOrder.orderNumber}</strong></p>
+          <p>Khách hàng: <strong>${qrOrder.customerInfo.name}</strong></p>
+          <div class="divider"></div>
+          <div class="items">
+            ${qrOrder.items.map((i) => `<div>• ${i.name} (x${i.quantity})</div>`).join('')}
+          </div>
+          <div class="divider"></div>
+          <p style="font-weight: bold; font-size: 13px; color: #ea580c;">QUÉT MÃ ĐÁNH GIÁ ĐỒ UỐNG</p>
+          <img src="${qrDataUrl}" alt="QR Code" />
+          <p>Góp ý nhận ngay ưu đãi 15%</p>
+          <div class="promo">MÃ: CAFE-THANKYOU15</div>
+          <div class="divider"></div>
+          <p style="font-size: 10px; color: #888;">Cảm ơn quý khách và hẹn gặp lại!</p>
+          <script>window.onload = function() { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWin.document.close();
+  };
 
   const selectedOrderType = watch('type');
 
@@ -485,6 +575,16 @@ export const OrdersPage: React.FC = () => {
                       </td>
                       <td className="py-3 px-4 text-right">
                         <div className="flex items-center justify-end gap-1.5">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="border-neutral-200 text-neutral-700 hover:text-orange-600 hover:border-orange-300"
+                            icon={<QrCode className="w-3.5 h-3.5 text-neutral-500" />}
+                            onClick={() => setQrOrder(o)}
+                            title="Tạo mã QR đánh giá cho khách"
+                          >
+                            Mã QR
+                          </Button>
                           {(o.status === 'Pending' || o.status === 'Confirmed') && (
                             <Button
                               variant="secondary"
@@ -560,6 +660,104 @@ export const OrdersPage: React.FC = () => {
             </Button>
           </div>
         </div>
+      </Modal>
+
+      {/* QR Code Customer Feedback Modal */}
+      <Modal
+        isOpen={!!qrOrder}
+        onClose={() => setQrOrder(null)}
+        title="Mã QR Đánh Giá Cho Khách Hàng"
+        description="Khách hàng quét mã này bằng Camera điện thoại hoặc Zalo để chấm điểm đồ uống và phục vụ."
+      >
+        {qrOrder && (
+          <div className="space-y-4">
+            <div className="flex flex-col items-center justify-center p-4 bg-gradient-to-b from-orange-50/60 to-amber-50/40 rounded-2xl border border-orange-100">
+              <div className="bg-white p-3 rounded-2xl shadow-md border border-neutral-200 mb-3">
+                {qrDataUrl ? (
+                  <img
+                    src={qrDataUrl}
+                    alt="QR Code"
+                    className="w-56 h-56 object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="w-56 h-56 flex items-center justify-center text-xs text-neutral-400">
+                    Đang tạo mã QR...
+                  </div>
+                )}
+              </div>
+
+              <div className="text-center space-y-1">
+                <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-mono font-bold bg-orange-100 text-orange-800">
+                  {qrOrder.orderNumber}
+                </span>
+                <p className="text-xs font-bold text-neutral-800">
+                  {qrOrder.customerInfo.name} {qrOrder.customerInfo.tableNumber && `• ${qrOrder.customerInfo.tableNumber}`}
+                </p>
+                <p className="text-[11px] text-neutral-500 max-w-xs truncate">
+                  {qrOrder.items.map((i) => `${i.name} (x${i.quantity})`).join(', ')}
+                </p>
+              </div>
+            </div>
+
+            {/* Quick Link Field */}
+            <div className="space-y-1.5">
+              <label className="text-[11px] font-semibold text-neutral-500 uppercase tracking-wider">
+                Đường dẫn đánh giá trực tiếp
+              </label>
+              <div className="flex items-center gap-1.5">
+                <input
+                  type="text"
+                  readOnly
+                  value={getFeedbackUrl(qrOrder)}
+                  className="flex-1 px-3 py-1.5 text-xs bg-neutral-50 border border-neutral-200 rounded-lg text-neutral-600 font-mono select-all focus:outline-none"
+                />
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleCopyLink}
+                  icon={copiedLink ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                >
+                  {copiedLink ? 'Đã chép' : 'Sao chép'}
+                </Button>
+              </div>
+            </div>
+
+            {/* Modal Actions */}
+            <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-neutral-200">
+              <a
+                href={getFeedbackUrl(qrOrder)}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold text-orange-600 hover:text-orange-700 hover:bg-orange-50 rounded-lg transition-colors"
+              >
+                <ExternalLink className="w-3.5 h-3.5" />
+                Mở trang đánh giá
+              </a>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  onClick={handlePrintQr}
+                  icon={<Printer className="w-3.5 h-3.5" />}
+                >
+                  In phiếu QR
+                </Button>
+
+                {qrDataUrl && (
+                  <a
+                    href={qrDataUrl}
+                    download={`QR-DanhGia-${qrOrder.orderNumber}.png`}
+                    className="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-semibold bg-neutral-900 hover:bg-neutral-800 text-white rounded-lg transition-colors"
+                  >
+                    <Download className="w-3.5 h-3.5" />
+                    Tải ảnh QR
+                  </a>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </Modal>
     </PageContainer>
   );

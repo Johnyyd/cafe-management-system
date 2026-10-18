@@ -35,6 +35,7 @@ public class ShopsController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(ShopDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetShopById(ObjectId id, CancellationToken cancellationToken)
@@ -48,6 +49,7 @@ public class ShopsController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PagedResult<ShopDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShops([FromQuery] GetShopsQuery query, CancellationToken cancellationToken)
     {

@@ -12,6 +12,7 @@ import { StaffPage } from './pages/StaffPage';
 import { MetricsPage } from './pages/MetricsPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { LoginPage } from './pages/LoginPage';
+import { PublicFeedbackPage } from './pages/PublicFeedbackPage';
 import { useAuthStore } from './stores/authStore';
 
 const getDefaultRouteForRole = (role?: string): string => {
@@ -61,6 +62,11 @@ export const App: React.FC = () => {
     <BrowserRouter>
       <NotificationToast />
       <Routes>
+        {/* Public Customer Feedback & Review Routes (No Login Required) */}
+        <Route path="/feedback" element={<PublicFeedbackPage />} />
+        <Route path="/review" element={<PublicFeedbackPage />} />
+
+        {/* Authentication */}
         <Route path="/login" element={<LoginPage />} />
 
         {/* Protected Dashboard and Management Routes */}

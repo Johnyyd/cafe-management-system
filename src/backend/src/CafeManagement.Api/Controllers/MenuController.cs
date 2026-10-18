@@ -35,6 +35,7 @@ public class MenuController : ControllerBase
     }
 
     [HttpGet("{id}")]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(MenuItemDto), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetMenuItemById(ObjectId id, CancellationToken cancellationToken)
@@ -48,6 +49,7 @@ public class MenuController : ControllerBase
     }
 
     [HttpGet]
+    [AllowAnonymous]
     [ProducesResponseType(typeof(PagedResult<MenuItemDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetMenuItems([FromQuery] GetMenuItemsQuery query, CancellationToken cancellationToken)
     {
