@@ -460,95 +460,83 @@ def seed_inventory_for_shops(headers: Dict[str, str], shops: List[Dict[str, Any]
 
     for s in shops:
         s_id = s.get("id")
-        if not s_id:
-            continue
-        try:
-            res_inv = http_request(f"{API_BASE}/inventory?shopId={s_id}", headers=headers)
-            existing_items = res_inv if isinstance(res_inv, list) else res_inv.get("items", [])
-            for it in inventory_items:
-                if any(x.get("itemName") == it["itemName"] for x in existing_items):
-                    continue
-                payload = {
-                    "shopId": s_id,
-                    "itemName": it["itemName"],
-                    "unit": it["unit"],
-                    "quantity": it["quantity"],
-                    "reorderLevel": it["reorderLevel"]
-                }
-                http_request(f"{API_BASE}/inventory", method="POST", data=payload, headers=headers)
-        except Exception:
-            pass
-    print(" -> Đã đồng bộ đầy đủ kho nguyên liệu cho toàn bộ 9 chi nhánh.")
-
-# Curated 99 unique, natural, diverse Vietnamese staff profiles (11 staff per shop * 9 shops)
 SHOP_STAFF_PROFILES = [
-    # Shop 1: Landmark 81 - Bình Thạnh (slug: landmark81)
+    # Shop 1: Landmark 81 - Bình Thạnh (slug: landmark81, alias: q1)
     {
         "slug": "landmark81",
+        "alias": "q1",
         "managers": [("Nguyễn Hoàng", "Bách"), ("Trần Minh", "Tâm")],
         "cashiers": [("Lê Phương", "Thảo"), ("Phạm Thanh", "Hà")],
         "baristas": [("Đặng Gia", "Huy"), ("Hoàng Nhật", "Minh"), ("Vũ Thảo", "Nguyên"), ("Bùi Tuấn", "Kiệt"), ("Đỗ Quỳnh", "Như")],
         "stocks": [("Ngô Quốc", "Hưng"), ("Dương Thành", "Đạt")]
     },
-    # Shop 2: Nhà Hát Lớn - Hoàn Kiếm (slug: nhahatlon)
+    # Shop 2: Nhà Hát Lớn - Hoàn Kiếm (slug: nhahatlon, alias: hn)
     {
         "slug": "nhahatlon",
+        "alias": "hn",
         "managers": [("Trịnh Đức", "Anh"), ("Phan Thu", "Trang")],
         "cashiers": [("Đinh Hải", "Yến"), ("Mai Việt", "Cường")],
         "baristas": [("Hồ Trọng", "Nghĩa"), ("Lý Ngọc", "Lan"), ("Lương Bảo", "Châu"), ("Chu Đình", "Trọng"), ("Đoàn Diệu", "Linh")],
         "stocks": [("Võ Tiến", "Dũng"), ("Tạ Hoàng", "Nam")]
     },
-    # Shop 3: Cầu Rồng - Hải Châu (slug: danang)
+    # Shop 3: Cầu Rồng - Hải Châu (slug: danang, alias: dn)
     {
         "slug": "danang",
+        "alias": "dn",
         "managers": [("Nguyễn Văn", "An"), ("Huỳnh Thị", "Bích")],
         "cashiers": [("Phan Hữu", "Cảnh"), ("Trần Kim", "Dung")],
         "baristas": [("Lê Thế", "Hiển"), ("Đỗ Thùy", "Linh"), ("Vũ Đình", "Phong"), ("Phạm Xuân", "Trường"), ("Bùi Cẩm", "Vân")],
         "stocks": [("Hoàng Văn", "Quyết"), ("Đặng Quốc", "Thái")]
     },
-    # Shop 4: Cafe Cầu Đất Farm - Đà Lạt (slug: caudat)
+    # Shop 4: Cafe Cầu Đất Farm - Đà Lạt (slug: caudat, alias: dalat)
     {
         "slug": "caudat",
+        "alias": "dalat",
         "managers": [("Nguyễn Hữu", "Thắng"), ("Trần Thị", "Tuyết")],
         "cashiers": [("Lê Ngọc", "Sơn"), ("Hoàng Mai", "Phương")],
         "baristas": [("Phan Thanh", "Bình"), ("Đỗ Gia", "Bảo"), ("Phạm Hồng", "Nhung"), ("Vũ Trọng", "Khang"), ("Bùi Ánh", "Dương")],
         "stocks": [("Ngô Thế", "Vinh"), ("Đinh Văn", "Hậu")]
     },
-    # Shop 5: Trung Nguyên Legend - Buôn Ma Thuột (slug: bmt)
+    # Shop 5: Trung Nguyên Legend - Buôn Ma Thuột (slug: bmt, alias: bmt)
     {
         "slug": "bmt",
+        "alias": "bmt",
         "managers": [("Nguyễn Cao", "Sơn"), ("Trần Thu", "Hằng")],
         "cashiers": [("Lê Văn", "Hòa"), ("Phạm Thị", "Loan")],
         "baristas": [("Hoàng Minh", "Đức"), ("Đặng Thùy", "Trang"), ("Vũ Đình", "Khoa"), ("Bùi Quốc", "Toàn"), ("Đỗ Mỹ", "Duyên")],
         "stocks": [("Phan Văn", "Kiên"), ("Hồ Hữu", "Phước")]
     },
-    # Shop 6: Cafe Thảo Điền - TP. Thủ Đức (slug: thaodien)
+    # Shop 6: Cafe Thảo Điền - TP. Thủ Đức (slug: thaodien, alias: thaodien)
     {
         "slug": "thaodien",
+        "alias": "thaodien",
         "managers": [("Nguyễn Hoàng", "Long"), ("Lê Kiều", "My")],
         "cashiers": [("Trần Thanh", "Trúc"), ("Phạm Văn", "Hùng")],
         "baristas": [("Đặng Anh", "Tuấn"), ("Hoàng Trúc", "Anh"), ("Bùi Hữu", "Lộc"), ("Đỗ Ngọc", "Điệp"), ("Vũ Minh", "Khôi")],
         "stocks": [("Ngô Đình", "Khải"), ("Dương Thị", "Ngọc")]
     },
-    # Shop 7: Highlands Coffee Bến Ninh Kiều (slug: ninhkieu)
+    # Shop 7: Highlands Coffee Bến Ninh Kiều (slug: ninhkieu, alias: cantho)
     {
         "slug": "ninhkieu",
+        "alias": "cantho",
         "managers": [("Huỳnh Văn", "Thuận"), ("Nguyễn Thị", "Cẩm")],
         "cashiers": [("Trần Thanh", "Phong"), ("Lê Thị", "Diễm")],
         "baristas": [("Phạm Minh", "Sang"), ("Hoàng Hữu", "Tài"), ("Đỗ Thị Kim", "Ngân"), ("Phan Hùng", "Dũng"), ("Bùi Thị Bích", "Ngọc")],
         "stocks": [("Vũ Thanh", "Bình"), ("Đặng Văn", "Lợi")]
     },
-    # Shop 8: Phúc Long Nhà Hát Thành Phố - Hải Phòng (slug: haiphong)
+    # Shop 8: Phúc Long Nhà Hát Thành Phố - Hải Phòng (slug: haiphong, alias: hp)
     {
         "slug": "haiphong",
+        "alias": "hp",
         "managers": [("Nguyễn Thế", "Hải"), ("Trần Thị", "Lan")],
         "cashiers": [("Lê Văn", "Cường"), ("Hoàng Thu", "Giang")],
         "baristas": [("Phạm Hoàng", "Phúc"), ("Đỗ Quốc", "Tuấn"), ("Vũ Thị Mai", "Anh"), ("Bùi Đình", "Luật"), ("Đặng Ngọc", "Khánh")],
         "stocks": [("Ngô Văn", "Minh"), ("Phan Hữu", "Tình")]
     },
-    # Shop 9: Cafe Cố Đô Sông Hương - Huế (slug: hue)
+    # Shop 9: Cafe Cố Đô Sông Hương - Huế (slug: hue, alias: hue)
     {
         "slug": "hue",
+        "alias": "hue",
         "managers": [("Nguyễn Phúc", "Khang"), ("Tôn Nữ Bích", "Thủy")],
         "cashiers": [("Trần Văn", "Thành"), ("Lê Thị Đoan", "Trang")],
         "baristas": [("Phan Nhật", "Tân"), ("Hoàng Văn", "Nghĩa"), ("Đỗ Thị Minh", "Châu"), ("Vũ Anh", "Dũng"), ("Bùi Thị Lệ", "Hằng")],
@@ -675,6 +663,14 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 http_request(f"{API_BASE}/auth/register", method="POST", data=reg_payload)
             except Exception:
                 pass
+            # Also register alias email if present (e.g. q1, hn, dn...)
+            if "alias" in profile and profile["alias"] != s_slug:
+                alias_email = email.replace(f".{s_slug}@", f".{profile['alias']}@")
+                try:
+                    reg_alias = dict(reg_payload, email=alias_email)
+                    http_request(f"{API_BASE}/auth/register", method="POST", data=reg_alias)
+                except Exception:
+                    pass
 
         print(f" -> Đã thiết lập 11 nhân sự & tài khoản tên thật cho: {s_name}")
 
