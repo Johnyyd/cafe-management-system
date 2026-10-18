@@ -48,7 +48,21 @@ public class Order : AggregateRoot<ObjectId>
     public ObjectId ShopId { get; private set; }
     public ObjectId StaffId { get; private set; }
     public CustomerInfo CustomerInfo { get; private set; } = default!;
-    public IReadOnlyList<OrderItem> Items => _items.AsReadOnly();
+    
+    [BsonElement("Items")]
+    public List<OrderItem> Items
+    {
+        get => _items;
+        private set
+        {
+            _items.Clear();
+            if (value != null)
+            {
+                _items.AddRange(value);
+            }
+        }
+    }
+
     public OrderStatus Status { get; private set; }
     public PaymentStatus PaymentStatus { get; private set; } = PaymentStatus.Pending;
     public Money TotalAmount { get; private set; } = default!;

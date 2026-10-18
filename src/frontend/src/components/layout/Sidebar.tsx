@@ -11,6 +11,7 @@ import {
   LogOut,
   Coffee as LogoIcon,
   Star,
+  Flame,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -28,21 +29,22 @@ export const Sidebar: React.FC = () => {
     { name: 'Quán & Chi nhánh', href: '/shops', icon: Store },
     { name: 'Thực đơn đồ uống', href: '/menu', icon: Coffee },
     { name: 'Kho & Nguyên liệu', href: '/inventory', icon: Boxes },
-    { name: 'Bán hàng & Thu ngân', href: '/orders', icon: ShoppingCart },
+    { name: 'Bán hàng (POS)', href: '/orders', icon: ShoppingCart },
+    { name: 'Pha chế (KDS)', href: '/kds', icon: Flame },
     { name: 'Nhân sự & Ca làm', href: '/staff', icon: Users },
     { name: 'Đánh giá & Phản hồi', href: '/reviews', icon: Star },
     { name: 'Giám sát hệ thống', href: '/metrics', icon: Activity },
   ];
 
   const allowedHrefsByRole: Record<string, string[]> = {
-    Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/staff', '/metrics', '/reviews'],
-    Manager: ['/dashboard', '/orders', '/inventory', '/staff', '/reviews'],
+    Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/kds', '/staff', '/metrics', '/reviews'],
+    Manager: ['/dashboard', '/orders', '/kds', '/inventory', '/staff', '/reviews'],
     Cashier: ['/orders', '/staff', '/reviews'],
-    Barista: ['/orders', '/staff', '/reviews'],
+    Barista: ['/kds', '/staff', '/reviews'],
     InventoryStaff: ['/inventory', '/staff', '/reviews'],
   };
 
-  const allowedRoutes = allowedHrefsByRole[activeRole] || ['/orders'];
+  const allowedRoutes = allowedHrefsByRole[activeRole] || ['/kds'];
   const visibleNavigation = navigation.filter((item) => allowedRoutes.includes(item.href));
 
   const getRoleDisplayName = (role?: string): string => {

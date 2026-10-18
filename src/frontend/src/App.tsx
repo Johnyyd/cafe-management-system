@@ -13,13 +13,15 @@ import { MetricsPage } from './pages/MetricsPage';
 import { ReviewsPage } from './pages/ReviewsPage';
 import { LoginPage } from './pages/LoginPage';
 import { PublicFeedbackPage } from './pages/PublicFeedbackPage';
+import { KdsPage } from './pages/KdsPage';
 import { useAuthStore } from './stores/authStore';
 
 const getDefaultRouteForRole = (role?: string): string => {
   switch (role) {
     case 'Cashier':
-    case 'Barista':
       return '/orders';
+    case 'Barista':
+      return '/kds';
     case 'InventoryStaff':
       return '/inventory';
     default:
@@ -122,9 +124,21 @@ export const App: React.FC = () => {
           path="/orders"
           element={
             <ProtectedRoute>
-              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Cashier', 'Barista']}>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Cashier']}>
                 <AppLayout>
                   <OrdersPage />
+                </AppLayout>
+              </RoleRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/kds"
+          element={
+            <ProtectedRoute>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Barista']}>
+                <AppLayout>
+                  <KdsPage />
                 </AppLayout>
               </RoleRouteGuard>
             </ProtectedRoute>

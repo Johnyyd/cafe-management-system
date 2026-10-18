@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { PageContainer } from '../components/layout/PageContainer';
 import { Card } from '../components/common/Card';
 import { Badge } from '../components/common/Badge';
@@ -11,11 +12,14 @@ import { Order, OrderItem, OrderStatus, OrderType, MenuItem, Shop } from '../typ
 import { orderSchema, OrderFormData } from '../schemas';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Plus, Minus, Trash2, ShoppingCart, CheckCircle, Clock, QrCode, Copy, ExternalLink, Printer, Check, Download } from 'lucide-react';
+import { Plus, Minus, Trash2, ShoppingCart, CheckCircle, Clock, QrCode, Copy, ExternalLink, Printer, Check, Download, Flame } from 'lucide-react';
 import QRCode from 'qrcode';
 import { useAppStore } from '../stores/appStore';
+import { useAuthStore } from '../stores/authStore';
 
 export const OrdersPage: React.FC = () => {
+  const navigate = useNavigate();
+  const { activeRole } = useAuthStore();
   const [orders, setOrders] = useState<Order[]>([]);
   const [menuItems, setMenuItems] = useState<MenuItem[]>([]);
   const [shops, setShops] = useState<Shop[]>([]);
@@ -286,7 +290,19 @@ export const OrdersPage: React.FC = () => {
   return (
     <PageContainer
       title="Bán Hàng & Xử Lý Đơn Hàng (POS)"
-      subtitle="Giao diện tạo đơn tại quầy thu ngân, tính tiền tự động và quản lý trạng thái pha chế"
+      subtitle="Giao diện tạo đơn tại quầy thu ngân, tính tiền tự động và quản lý hóa đơn bán lẻ"
+      actions={
+        (activeRole === 'Admin' || activeRole === 'Manager') ? (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => navigate('/kds')}
+            icon={<Flame className="w-4 h-4 text-orange-600" />}
+          >
+            Mở Màn hình Pha chế (KDS)
+          </Button>
+        ) : undefined
+      }
     >
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 mb-12">
         {/* Left: Menu catalog selection (7 cols) */}

@@ -92,9 +92,6 @@ public class OrderRepository : RepositoryBase<Domain.Orders.Order>, IOrderReposi
             cm.MapMember(c => c.DeletedAt);
             cm.MapMember(c => c.CreatedBy);
             cm.MapMember(c => c.UpdatedBy);
-
-            // Map OrderItem nested class
-            cm.MapMember(c => c.Items).SetSerializer(new ArraySerializer<OrderItem>());
         });
     }
 }
