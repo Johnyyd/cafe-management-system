@@ -74,7 +74,8 @@ public class CreateOrderHandler : IRequestHandler<CreateOrderCommand, Result<Obj
                 request.ShopId,
                 request.StaffId,
                 customerInfo,
-                orderItems);
+                orderItems,
+                request.OrderTime ?? DateTime.UtcNow);
 
             if (orderResult.IsFailed)
             {

@@ -416,6 +416,7 @@ export const OrdersPage: React.FC = () => {
             <thead>
               <tr className="border-b border-neutral-200 bg-neutral-50 text-[11px] font-bold uppercase tracking-wider text-neutral-600">
                 <th className="py-3 px-4">Mã đơn</th>
+                <th className="py-3 px-4">Thời gian</th>
                 <th className="py-3 px-4">Khách hàng</th>
                 <th className="py-3 px-4">Món đã gọi</th>
                 <th className="py-3 px-4">Hình thức</th>
@@ -427,14 +428,14 @@ export const OrdersPage: React.FC = () => {
             <tbody className="divide-y divide-neutral-200 text-xs">
               {loading ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-neutral-500">
+                  <td colSpan={8} className="py-8 text-center text-neutral-500">
                     Đang tải danh sách đơn hàng từ máy chủ...
                   </td>
                 </tr>
               ) : displayedOrders.length === 0 ? (
                 <tr>
-                  <td colSpan={7} className="py-8 text-center text-neutral-500">
-                    Chưa có đơn hàng nào tại chi nhánh này hôm nay.
+                  <td colSpan={8} className="py-8 text-center text-neutral-500">
+                    Chưa có đơn hàng nào tại chi nhánh này.
                   </td>
                 </tr>
               ) : (
@@ -448,9 +449,22 @@ export const OrdersPage: React.FC = () => {
                     Cancelled: <Badge variant="danger" size="sm">Đã hủy</Badge>,
                   }[o.status];
 
+                  const orderDate = new Date(o.createdAt);
+                  const formattedTime = !isNaN(orderDate.getTime())
+                    ? `${orderDate.getHours().toString().padStart(2, '0')}:${orderDate
+                        .getMinutes()
+                        .toString()
+                        .padStart(2, '0')} ${orderDate.getDate().toString().padStart(2, '0')}/${(
+                        orderDate.getMonth() + 1
+                      )
+                        .toString()
+                        .padStart(2, '0')}`
+                    : '—';
+
                   return (
                     <tr key={o.id} className="hover:bg-neutral-50 transition-colors">
                       <td className="py-3 px-4 font-mono font-bold text-neutral-900">{o.orderNumber}</td>
+                      <td className="py-3 px-4 text-neutral-500 font-mono text-[11px] whitespace-nowrap">{formattedTime}</td>
                       <td className="py-3 px-4 font-medium text-neutral-800">
                         {o.customerInfo.name}
                         {o.customerInfo.tableNumber && (

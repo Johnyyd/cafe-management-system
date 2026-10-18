@@ -254,9 +254,19 @@ export const api = {
   },
 
   // Orders
-  getOrders: async (shopId?: string): Promise<Order[]> => {
-    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}&pageSize=100` : '?pageSize=100';
-    const res = await fetchJson<any>(`/orders${query}`);
+  getOrders: async (
+    shopId?: string,
+    fromDate?: string,
+    toDate?: string,
+    pageSize = 2000
+  ): Promise<Order[]> => {
+    const params = new URLSearchParams();
+    if (shopId) params.append('shopId', shopId);
+    if (fromDate) params.append('fromDate', fromDate);
+    if (toDate) params.append('toDate', toDate);
+    params.append('pageSize', pageSize.toString());
+
+    const res = await fetchJson<any>(`/orders?${params.toString()}`);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
     return rawItems.map((o) => {
       const subTotal = (o.items || []).reduce(
@@ -288,7 +298,7 @@ export const api = {
         subTotal,
         tax: Math.round(orderTotal * 0.08),
         total: orderTotal,
-        createdAt: o.createdAt || o.orderTime || new Date().toISOString(),
+        createdAt: o.orderTime || o.createdAt || new Date().toISOString(),
       };
     });
   },

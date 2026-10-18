@@ -46,7 +46,7 @@ def detect_api_base() -> str:
 
     # Check localhost:7890
     try:
-        req = urllib.request.Request("http://localhost:7890/health", headers={"User-Agent": "Probe"})
+        req = urllib.request.Request("http://localhost:7890/healthz", headers={"User-Agent": "Probe"})
         with urllib.request.urlopen(req, timeout=1):
             return "http://localhost:7890/api/v1"
     except Exception:
@@ -878,7 +878,24 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
     random.seed(2026)
     now = datetime.datetime.now(datetime.timezone.utc)
 
-    # 1. Generate 100 Completed Orders corresponding to the 100 customer reviews
+    # Fetch all registered staff to guarantee valid staff IDs for orders
+    all_staff_res = http_request(f"{API_BASE}/staff?pageSize=500", headers=headers)
+    all_staff = all_staff_res if isinstance(all_staff_res, list) else all_staff_res.get("items", [])
+
+    shop_staff_dict: Dict[str, List[Dict[str, Any]]] = {}
+    for s in shops:
+        s_id = s.get("id")
+        assigned = [
+            st for st in all_staff
+            if any(sa.get("shopId") == s_id for sa in st.get("shopAssignments", []))
+        ]
+        if not assigned:
+            assigned = shop_staff_map.get(s_id, [])
+        if not assigned and all_staff:
+            assigned = all_staff
+        shop_staff_dict[s_id] = assigned
+
+    # 1. Generate 100 Completed Orders corresponding to the 100 customer reviews (distributed across the past year)
     print(" -> Đang tạo 100 đơn hàng thực tế kèm doanh thu tương ứng cho 100 đánh giá...")
     created_orders: List[Dict[str, Any]] = []
 
@@ -886,8 +903,8 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         shop = shops[i % len(shops)]
         s_id = shop.get("id")
         s_name = shop.get("name")
-        staff_list = shop_staff_map.get(s_id, [])
-        assigned_staff = random.choice(staff_list) if staff_list else {"id": ""}
+        staff_list = shop_staff_dict.get(s_id, [])
+        assigned_staff = random.choice(staff_list) if staff_list else (all_staff[0] if all_staff else {"id": ""})
 
         fn = random.choice(first_names)
         mn = random.choice(middle_names)
@@ -917,9 +934,10 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             })
 
         order_type = random.choice([1, 2, 3]) # DineIn, Takeaway, Delivery
-        days_ago = random.randint(1, 25)
+        # Distribute across past 350 days
+        days_ago = random.randint(1, 350)
         hours_offset = random.randint(1, 14)
-        order_time = now - datetime.timedelta(days=days_ago, hours=hours_offset)
+        order_time = now - datetime.timedelta(days=days_ago, hours=hours_offset, minutes=random.randint(0, 59))
 
         order_payload = {
             "shopId": s_id,
@@ -929,7 +947,8 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 "contact": cust_phone,
                 "type": order_type
             },
-            "items": items_payload
+            "items": items_payload,
+            "orderTime": order_time.strftime("%Y-%m-%dT%H:%M:%SZ")
         }
 
         try:
@@ -955,27 +974,110 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         except Exception:
             pass
 
-    print(f" -> Đã tạo thành công {len(created_orders)} đơn hàng đã hoàn tất thanh toán.")
+    print(f" -> Đã tạo thành công {len(created_orders)} đơn hàng đánh giá đã hoàn tất thanh toán.")
 
-    # 2. Generate 3-5 orders per shop for TODAY (to populate active today dashboard KPIs)
+    # 2. Generate comprehensive historical orders across all intervals (1 tuần, 1 tháng, 3 tháng, 6 tháng, 1 năm)
+    print(" -> Đang khởi tạo thêm các đơn hàng lịch sử phủ khắp 1 tuần, 1 tháng, 3 tháng, 6 tháng, 1 năm...")
+    
+    historical_tasks = []
+    # Intervals for each shop:
+    # - 1 tuần: 1 - 7 ngày trước (5 đơn/quán)
+    # - 1 tháng: 8 - 30 ngày trước (8 đơn/quán)
+    # - 3 tháng: 31 - 90 ngày trước (12 đơn/quán)
+    # - 6 tháng: 91 - 180 ngày trước (15 đơn/quán)
+    # - 1 năm: 181 - 365 ngày trước (18 đơn/quán)
+    period_configs = [
+        (1, 7, 5),      # 1 tuần
+        (8, 30, 8),     # 1 tháng
+        (31, 90, 12),   # 3 tháng
+        (91, 180, 15),  # 6 tháng
+        (181, 365, 18)  # 1 năm
+    ]
+
+    for s in shops:
+        s_id = s.get("id")
+        staff_list = shop_staff_dict.get(s_id, [])
+        primary_staff = staff_list[0]["id"] if staff_list else (all_staff[0]["id"] if all_staff else "")
+
+        for min_days, max_days, count in period_configs:
+            for _ in range(count):
+                d_ago = random.randint(min_days, max_days)
+                h_ago = random.randint(6, 21)
+                m_ago = random.randint(0, 59)
+                o_time = now - datetime.timedelta(days=d_ago, hours=h_ago, minutes=m_ago)
+
+                c_name = f"{random.choice(first_names)} {random.choice(last_names)}"
+                c_phone = f"09{random.randint(10000000, 99999999)}"
+                o_type = random.choice([1, 2, 3])
+
+                sel_menu = random.sample(menu_items, min(len(menu_items), random.randint(1, 3)))
+                items = []
+                subtotal = 0
+                for mi in sel_menu:
+                    q = random.randint(1, 2)
+                    p = mi.get("price", {}).get("amount", 35000)
+                    t = p * q
+                    subtotal += t
+                    items.append({
+                        "menuItemId": mi.get("id"),
+                        "name": mi.get("name"),
+                        "description": mi.get("name"),
+                        "unitPrice": {"amount": p, "currency": "VND"},
+                        "quantity": q,
+                        "specialInstructions": random.choice(["Đậm vị", "Ít ngọt", "Nhiều đá", "Tiêu chuẩn"]),
+                        "totalPrice": {"amount": t, "currency": "VND"}
+                    })
+
+                payload = {
+                    "shopId": s_id,
+                    "staffId": primary_staff,
+                    "customerInfo": {
+                        "name": c_name,
+                        "contact": c_phone,
+                        "type": o_type
+                    },
+                    "items": items,
+                    "orderTime": o_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+                }
+                historical_tasks.append((payload, subtotal))
+
+    def submit_historical_order(task):
+        p, subtotal = task
+        try:
+            res = http_request(f"{API_BASE}/orders", method="POST", data=p, headers=headers)
+            o_id = res if isinstance(res, str) else res.get("id", "")
+            if o_id:
+                http_request(f"{API_BASE}/orders/{o_id}/payment", method="POST", data={"id": o_id, "paymentMethod": random.choice([1, 2, 3]), "amount": subtotal}, headers=headers)
+                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 4}, headers=headers)
+                return True
+        except Exception:
+            pass
+        return False
+
+    with ThreadPoolExecutor(max_workers=14) as executor:
+        results = list(executor.map(submit_historical_order, historical_tasks))
+    print(f" -> Hoàn tất tạo {sum(1 for r in results if r)} đơn hàng lịch sử phủ khắp 1 tuần -> 1 năm cho 9 chi nhánh!")
+
+    # 3. Generate 4-6 orders per shop for TODAY (active ongoing operations)
     print(" -> Đang tạo thêm các đơn hàng phát sinh trong ngày hôm nay cho các chi nhánh...")
     for s in shops:
         s_id = s.get("id")
-        staff_list = shop_staff_map.get(s_id, [])
-        primary_staff = staff_list[0]["id"] if staff_list else ""
-        for _ in range(random.randint(3, 5)):
+        staff_list = shop_staff_dict.get(s_id, [])
+        primary_staff = staff_list[0]["id"] if staff_list else (all_staff[0]["id"] if all_staff else "")
+        for idx in range(random.randint(4, 6)):
             c_name = f"{random.choice(first_names)} {random.choice(last_names)}"
             c_phone = f"09{random.randint(10000000, 99999999)}"
             m = random.choice(menu_items)
             qty = random.randint(1, 3)
             u_price = m.get("price", {}).get("amount", 35000)
+            today_time = now - datetime.timedelta(hours=random.randint(0, 8), minutes=random.randint(0, 50))
             today_payload = {
                 "shopId": s_id,
                 "staffId": primary_staff,
                 "customerInfo": {
                     "name": c_name,
                     "contact": c_phone,
-                    "type": 1
+                    "type": random.choice([1, 2, 3])
                 },
                 "items": [
                     {
@@ -987,14 +1089,21 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
                         "specialInstructions": "Pha nhanh mang về",
                         "totalPrice": {"amount": u_price * qty, "currency": "VND"}
                     }
-                ]
+                ],
+                "orderTime": today_time.strftime("%Y-%m-%dT%H:%M:%SZ")
             }
             try:
                 res_t = http_request(f"{API_BASE}/orders", method="POST", data=today_payload, headers=headers)
                 t_id = res_t if isinstance(res_t, str) else res_t.get("id", "")
                 if t_id:
-                    http_request(f"{API_BASE}/orders/{t_id}/payment", method="POST", data={"id": t_id, "paymentMethod": 1, "amount": u_price * qty}, headers=headers)
-                    http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 4}, headers=headers)
+                    # Stagger statuses for today: mostly Completed, some Preparing, some Confirmed
+                    if idx == 0:
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Preparing
+                    elif idx == 1:
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 1}, headers=headers) # Confirmed
+                    else:
+                        http_request(f"{API_BASE}/orders/{t_id}/payment", method="POST", data={"id": t_id, "paymentMethod": 1, "amount": u_price * qty}, headers=headers)
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 4}, headers=headers) # Completed
             except Exception:
                 pass
 

@@ -362,6 +362,8 @@ public class GetOrdersHandler : IRequestHandler<GetOrdersQuery, FluentResults.Re
         if (request.ToDate.HasValue)
             orders = orders.Where(o => o.OrderTime <= request.ToDate.Value).ToList();
 
+        orders = orders.OrderByDescending(o => o.OrderTime).ToList();
+
         var totalCount = orders.Count;
         var pagedOrders = orders
             .Skip((request.Page - 1) * request.PageSize)

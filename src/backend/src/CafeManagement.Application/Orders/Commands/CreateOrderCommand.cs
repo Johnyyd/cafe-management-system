@@ -11,5 +11,6 @@ public record CreateOrderCommand(
     ObjectId ShopId,
     ObjectId StaffId,
     CustomerInfoDto CustomerInfo,
-    IEnumerable<OrderItemDto> Items
+    IEnumerable<OrderItemDto> Items,
+    DateTime? OrderTime = null
 ) : IRequest<Result<ObjectId>>;
