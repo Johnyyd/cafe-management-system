@@ -1,4 +1,4 @@
-import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, OrderStatus } from '../types';
+import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, OrderStatus, CustomerReview, ReviewStats } from '../types';
 
 const API_BASE = '/api/v1';
 
@@ -597,6 +597,54 @@ export const backupApi = {
       method: 'POST',
       body: JSON.stringify(data),
     });
+  },
+};
+
+export const reviewsApi = {
+  getAll: async (params?: { shopId?: string; rating?: number; menuItemId?: string; search?: string; page?: number; pageSize?: number }): Promise<{
+    items: CustomerReview[];
+    totalCount: number;
+    page: number;
+    pageSize: number;
+    totalPages: number;
+  }> => {
+    const query = new URLSearchParams();
+    if (params?.shopId && params.shopId !== 'all') query.set('shopId', params.shopId);
+    if (params?.rating) query.set('rating', params.rating.toString());
+    if (params?.menuItemId && params.menuItemId !== 'all') query.set('menuItemId', params.menuItemId);
+    if (params?.search) query.set('search', params.search);
+    if (params?.page) query.set('page', params.page.toString());
+    if (params?.pageSize) query.set('pageSize', params.pageSize.toString());
+    const qs = query.toString();
+    return await fetchJson<any>(`/reviews${qs ? `?${qs}` : ''}`);
+  },
+  getStats: async (shopId?: string): Promise<ReviewStats> => {
+    const query = shopId && shopId !== 'all' ? `?shopId=${encodeURIComponent(shopId)}` : '';
+    return await fetchJson<ReviewStats>(`/reviews/stats${query}`);
+  },
+  create: async (data: {
+    shopId: string;
+    shopName: string;
+    orderId?: string;
+    customerName: string;
+    customerPhone?: string;
+    shopRating: number;
+    shopComment?: string;
+    itemReviews?: Array<{
+      menuItemId: string;
+      menuItemName: string;
+      rating: number;
+      comment?: string;
+    }>;
+    tags?: string[];
+  }): Promise<CustomerReview> => {
+    return await fetchJson<CustomerReview>('/reviews', {
+      method: 'POST',
+      body: JSON.stringify(data),
+    });
+  },
+  delete: async (id: string): Promise<void> => {
+    await fetchJson(`/reviews/${id}`, { method: 'DELETE' });
   },
 };
 

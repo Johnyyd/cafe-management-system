@@ -145,3 +145,41 @@ export interface Shift {
   notes?: string;
 }
 
+export interface ReviewItem {
+  menuItemId: string;
+  menuItemName: string;
+  rating: number;
+  comment?: string;
+}
+
+export interface CustomerReview {
+  id: string;
+  shopId: string;
+  shopName: string;
+  orderId?: string;
+  customerName: string;
+  customerPhone: string;
+  shopRating: number;
+  shopComment: string;
+  itemReviews: ReviewItem[];
+  tags: string[];
+  createdAt: string;
+}
+
+export interface ReviewStats {
+  totalReviews: number;
+  averageShopRating: number;
+  satisfactionRate: number;
+  ratingDistribution: Record<string, number>;
+  topProducts: Array<{
+    menuItemId: string;
+    menuItemName: string;
+    count: number;
+    averageRating: number;
+  }>;
+  topTags: Array<{
+    tag: string;
+    count: number;
+  }>;
+}
+

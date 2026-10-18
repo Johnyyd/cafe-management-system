@@ -28,7 +28,8 @@ public class BackupController : ControllerBase
         "inventoryItems",
         "orders",
         "staff",
-        "users"
+        "users",
+        "reviews"
     };
 
     public BackupController(IMongoDbContext mongoDbContext, ILogger<BackupController> logger)

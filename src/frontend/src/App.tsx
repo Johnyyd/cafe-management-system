@@ -10,6 +10,7 @@ import { InventoryPage } from './pages/InventoryPage';
 import { OrdersPage } from './pages/OrdersPage';
 import { StaffPage } from './pages/StaffPage';
 import { MetricsPage } from './pages/MetricsPage';
+import { ReviewsPage } from './pages/ReviewsPage';
 import { LoginPage } from './pages/LoginPage';
 import { useAuthStore } from './stores/authStore';
 
@@ -142,6 +143,18 @@ export const App: React.FC = () => {
               <RoleRouteGuard allowedRoles={['Admin']}>
                 <AppLayout>
                   <MetricsPage />
+                </AppLayout>
+              </RoleRouteGuard>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/reviews"
+          element={
+            <ProtectedRoute>
+              <RoleRouteGuard allowedRoles={['Admin', 'Manager', 'Cashier', 'Barista', 'InventoryStaff']}>
+                <AppLayout>
+                  <ReviewsPage />
                 </AppLayout>
               </RoleRouteGuard>
             </ProtectedRoute>

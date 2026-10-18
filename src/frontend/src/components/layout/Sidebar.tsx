@@ -10,6 +10,7 @@ import {
   Activity,
   LogOut,
   Coffee as LogoIcon,
+  Star,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/authStore';
 
@@ -29,15 +30,16 @@ export const Sidebar: React.FC = () => {
     { name: 'Kho & Nguyên liệu', href: '/inventory', icon: Boxes },
     { name: 'Bán hàng & Thu ngân', href: '/orders', icon: ShoppingCart },
     { name: 'Nhân sự & Ca làm', href: '/staff', icon: Users },
+    { name: 'Đánh giá & Phản hồi', href: '/reviews', icon: Star },
     { name: 'Giám sát hệ thống', href: '/metrics', icon: Activity },
   ];
 
   const allowedHrefsByRole: Record<string, string[]> = {
-    Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/staff', '/metrics'],
-    Manager: ['/dashboard', '/orders', '/inventory', '/staff'],
-    Cashier: ['/orders', '/staff'],
-    Barista: ['/orders', '/staff'],
-    InventoryStaff: ['/inventory', '/staff'],
+    Admin: ['/dashboard', '/shops', '/menu', '/inventory', '/orders', '/staff', '/metrics', '/reviews'],
+    Manager: ['/dashboard', '/orders', '/inventory', '/staff', '/reviews'],
+    Cashier: ['/orders', '/staff', '/reviews'],
+    Barista: ['/orders', '/staff', '/reviews'],
+    InventoryStaff: ['/inventory', '/staff', '/reviews'],
   };
 
   const allowedRoutes = allowedHrefsByRole[activeRole] || ['/orders'];
