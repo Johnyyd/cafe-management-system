@@ -370,7 +370,7 @@ export const api = {
 
   // Staff
   getStaff: async (shopId?: string): Promise<Staff[]> => {
-    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}` : '';
+    const query = shopId ? `?shopId=${encodeURIComponent(shopId)}&pageSize=500` : '?pageSize=500';
     const res = await fetchJson<any>(`/staff${query}`);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
     const roleNames = ['Admin', 'Manager', 'Cashier', 'Barista', 'InventoryStaff'];
@@ -512,11 +512,13 @@ export const staffApi = {
 };
 
 export const shiftsApi = {
-  getAll: async (params?: { shopId?: string; staffId?: string }): Promise<Shift[]> => {
+  getAll: async (params?: { shopId?: string; staffId?: string; startDate?: string; endDate?: string; pageSize?: number }): Promise<Shift[]> => {
     const queryParams = new URLSearchParams();
-    if (params?.shopId) queryParams.append('shopId', params.shopId);
-    if (params?.staffId) queryParams.append('staffId', params.staffId);
-    queryParams.append('pageSize', '100');
+    if (params?.shopId && params.shopId !== 'all') queryParams.append('shopId', params.shopId);
+    if (params?.staffId && params.staffId !== 'all') queryParams.append('staffId', params.staffId);
+    if (params?.startDate) queryParams.append('startDate', params.startDate);
+    if (params?.endDate) queryParams.append('endDate', params.endDate);
+    queryParams.append('pageSize', (params?.pageSize || 3000).toString());
     const res = await fetchJson<any>(`/shifts?${queryParams.toString()}`);
     const items: any[] = Array.isArray(res) ? res : res.items || [];
     const statusMap = ['Scheduled', 'InProgress', 'Completed', 'Cancelled'];
