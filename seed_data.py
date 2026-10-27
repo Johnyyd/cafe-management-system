@@ -448,18 +448,57 @@ def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
 def seed_inventory_for_shops(headers: Dict[str, str], shops: List[Dict[str, Any]]):
     print("\n[4/8] Đồng bộ Kho nguyên vật liệu cho 9 chi nhánh...")
     inventory_items = [
-        {"itemName": "Hạt Cà phê Robusta Buôn Ma Thuột", "unit": "kg", "quantity": 150, "reorderLevel": 25},
-        {"itemName": "Hạt Cà phê Arabica Cầu Đất Đà Lạt", "unit": "kg", "quantity": 90, "reorderLevel": 20},
-        {"itemName": "Sữa đặc có đường Ông Thọ", "unit": "lon", "quantity": 180, "reorderLevel": 30},
-        {"itemName": "Sữa tươi thanh trùng Dalat Milk", "unit": "hộp 1L", "quantity": 80, "reorderLevel": 15},
-        {"itemName": "Trà Ô Long Bảo Lộc Tuyển Chọn", "unit": "kg", "quantity": 40, "reorderLevel": 10},
-        {"itemName": "Đào ngâm đóng hộp Kronos", "unit": "hộp", "quantity": 60, "reorderLevel": 12},
-        {"itemName": "Kem béo thực vật Rich's", "unit": "hộp 454g", "quantity": 50, "reorderLevel": 10},
-        {"itemName": "Đường cát trắng tinh luyện Biên Hòa", "unit": "kg", "quantity": 100, "reorderLevel": 20},
+        {"itemName": "Hạt Cà phê Robusta Buôn Ma Thuột", "unit": "kg", "quantity": 120, "reorderLevel": 25},
+        {"itemName": "Hạt Cà phê Arabica Cầu Đất Đà Lạt", "unit": "kg", "quantity": 85, "reorderLevel": 20},
+        {"itemName": "Sữa đặc có đường Ông Thọ", "unit": "lon", "quantity": 160, "reorderLevel": 30},
+        {"itemName": "Sữa tươi thanh trùng Dalat Milk", "unit": "hộp 1L", "quantity": 75, "reorderLevel": 15},
+        {"itemName": "Trà Ô Long Bảo Lộc Tuyển Chọn", "unit": "kg", "quantity": 35, "reorderLevel": 10},
+        {"itemName": "Trà Đen Thượng Hạng Bảo Lộc", "unit": "kg", "quantity": 40, "reorderLevel": 10},
+        {"itemName": "Đào ngâm đóng hộp Kronos", "unit": "hộp", "quantity": 18, "reorderLevel": 20},
+        {"itemName": "Kem béo thực vật Rich's", "unit": "hộp 454g", "quantity": 45, "reorderLevel": 10},
+        {"itemName": "Đường cát trắng tinh luyện Biên Hòa", "unit": "kg", "quantity": 90, "reorderLevel": 20},
+        {"itemName": "Muối hồng Himalaya & Bột kem muối", "unit": "kg", "quantity": 8, "reorderLevel": 10},
+        {"itemName": "Bột Kem Cheese Phô Mai Anchor", "unit": "kg", "quantity": 25, "reorderLevel": 8},
+        {"itemName": "Bánh Mì Baguette Vỏ Giòn", "unit": "ổ", "quantity": 60, "reorderLevel": 15},
+        {"itemName": "Pate Gan Heo Thượng Hạng", "unit": "kg", "quantity": 15, "reorderLevel": 5},
+        {"itemName": "Bơ Lạt Nướng Bánh Anchor", "unit": "kg", "quantity": 20, "reorderLevel": 5},
+        {"itemName": "Bột Mì Đa Dụng Cao Cấp", "unit": "kg", "quantity": 50, "reorderLevel": 15},
     ]
 
+    total_created = 0
     for s in shops:
         s_id = s.get("id")
+        s_name = s.get("name")
+        # Check existing items for this shop to prevent duplicates
+        try:
+            res = http_request(f"{API_BASE}/inventory?shopId={s_id}", headers=headers)
+            existing = res if isinstance(res, list) else res.get("items", [])
+            existing_names = {item.get("itemName") for item in existing}
+        except Exception:
+            existing_names = set()
+
+        created_for_shop = 0
+        for item in inventory_items:
+            if item["itemName"] in existing_names:
+                continue
+            payload = {
+                "shopId": s_id,
+                "itemName": item["itemName"],
+                "unit": item["unit"],
+                "quantity": item["quantity"],
+                "reorderLevel": item["reorderLevel"]
+            }
+            try:
+                http_request(f"{API_BASE}/inventory", method="POST", data=payload, headers=headers)
+                created_for_shop += 1
+                total_created += 1
+            except Exception as e:
+                print(f" -> Lỗi khi thêm {item['itemName']} cho {s_name}: {e}")
+
+        print(f" -> {s_name}: đã thêm {created_for_shop} nguyên liệu vào kho.")
+
+    print(f" -> Tổng cộng đã khởi tạo {total_created} mục kho nguyên liệu cho toàn hệ thống.")
+
 SHOP_STAFF_PROFILES = [
     # Shop 1: Landmark 81 - Bình Thạnh (slug: landmark81, alias: q1)
     {
