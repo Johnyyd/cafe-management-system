@@ -18,37 +18,65 @@ public abstract class RepositoryBase<T> : IRepository<T> where T : Entity<Object
 
     protected IClientSessionHandle? Session => Context.CurrentSession;
 
+    private IFindFluent<T, T> FindWithSession(FilterDefinition<T> filter)
+    {
+        return Session != null
+            ? Collection.Find(Session, filter)
+            : Collection.Find(filter);
+    }
+
     public virtual async Task<T?> GetByIdAsync(ObjectId id, CancellationToken cancellationToken = default)
     {
         var filter = Builders<T>.Filter.And(
             Builders<T>.Filter.Eq(e => e.Id, id),
             Builders<T>.Filter.Eq(e => e.DeletedAt, (DateTime?)null));
-        return await Collection.Find(Session, filter).SingleOrDefaultAsync(cancellationToken);
+        return await FindWithSession(filter).SingleOrDefaultAsync(cancellationToken);
     }
 
     public virtual async Task<IReadOnlyList<T>> ListAsync(CancellationToken cancellationToken = default)
     {
         var filter = Builders<T>.Filter.Eq(e => e.DeletedAt, (DateTime?)null);
-        return await Collection.Find(Session, filter).ToListAsync(cancellationToken);
+        return await FindWithSession(filter).ToListAsync(cancellationToken);
     }
 
     public virtual async Task<T> AddAsync(T entity, CancellationToken cancellationToken = default)
     {
-        await Collection.InsertOneAsync(Session, entity, cancellationToken: cancellationToken);
+        if (Session != null)
+        {
+            await Collection.InsertOneAsync(Session, entity, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await Collection.InsertOneAsync(entity, cancellationToken: cancellationToken);
+        }
         return entity;
     }
 
     public virtual async Task UpdateAsync(T entity, CancellationToken cancellationToken = default)
     {
         var filter = Builders<T>.Filter.Eq(e => e.Id, entity.Id);
-        await Collection.ReplaceOneAsync(Session, filter, entity, cancellationToken: cancellationToken);
+        if (Session != null)
+        {
+            await Collection.ReplaceOneAsync(Session, filter, entity, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await Collection.ReplaceOneAsync(filter, entity, cancellationToken: cancellationToken);
+        }
     }
 
     public virtual async Task DeleteAsync(ObjectId id, CancellationToken cancellationToken = default)
     {
         var filter = Builders<T>.Filter.Eq(e => e.Id, id);
         var update = Builders<T>.Update.Set(e => e.DeletedAt, DateTime.UtcNow);
-        await Collection.UpdateOneAsync(Session, filter, update, cancellationToken: cancellationToken);
+        if (Session != null)
+        {
+            await Collection.UpdateOneAsync(Session, filter, update, cancellationToken: cancellationToken);
+        }
+        else
+        {
+            await Collection.UpdateOneAsync(filter, update, cancellationToken: cancellationToken);
+        }
     }
 
     public virtual async Task<bool> ExistsAsync(ObjectId id, CancellationToken cancellationToken = default)
@@ -56,7 +84,9 @@ public abstract class RepositoryBase<T> : IRepository<T> where T : Entity<Object
         var filter = Builders<T>.Filter.And(
             Builders<T>.Filter.Eq(e => e.Id, id),
             Builders<T>.Filter.Eq(e => e.DeletedAt, (DateTime?)null));
-        var count = await Collection.CountDocumentsAsync(Session, filter, cancellationToken: cancellationToken);
+        var count = Session != null
+            ? await Collection.CountDocumentsAsync(Session, filter, cancellationToken: cancellationToken)
+            : await Collection.CountDocumentsAsync(filter, cancellationToken: cancellationToken);
         return count > 0;
     }
 }
