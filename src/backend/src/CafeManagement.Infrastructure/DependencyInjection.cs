@@ -1,3 +1,4 @@
+using CafeManagement.Application.Common.Authorization;
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Staff;
@@ -7,6 +8,7 @@ using CafeManagement.Infrastructure.Identity;
 using CafeManagement.Infrastructure.Persistence;
 using CafeManagement.Infrastructure.Services;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -54,7 +56,9 @@ public static class DependencyInjection
         .AddDefaultTokenProviders();
 
         // JWT Authentication - Read from environment variable for security
-        var jwtKey = configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+        var jwtKey = configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
         var jwtIssuer = configuration["Jwt:Issuer"] ?? Environment.GetEnvironmentVariable("JWT_ISSUER") ?? "cafe-management";
         var jwtAudience = configuration["Jwt:Audience"] ?? Environment.GetEnvironmentVariable("JWT_AUDIENCE") ?? "cafe-management-client";
 
@@ -101,7 +105,13 @@ public static class DependencyInjection
             });
         }
 
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy("ShopScope", policy =>
+            {
+                policy.Requirements.Add(new ShopScopeRequirement());
+            });
+        });
 
         // Repositories
         services.AddScoped<IShopRepository, ShopRepository>();
@@ -113,14 +123,12 @@ public static class DependencyInjection
         services.AddScoped<ITimeOffRequestRepository, TimeOffRequestRepository>();
         services.AddScoped<IShiftSwapRepository, ShiftSwapRepository>();
 
-        // Unit of Work
-        services.AddScoped<IUnitOfWork, MongoDbUnitOfWork>();
-
         // Services
         services.AddSingleton<IDateTimeProvider, DateTimeProvider>();
         services.AddScoped<IInventoryService, Infrastructure.Services.InventoryService>();
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
+        services.AddScoped<IUnitOfWork, MongoDbUnitOfWork>();
         services.AddHttpContextAccessor();
 
         return services;

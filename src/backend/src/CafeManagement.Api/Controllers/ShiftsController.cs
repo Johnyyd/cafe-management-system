@@ -1,3 +1,4 @@
+using CafeManagement.Api.Authorization;
 using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Shifts.Commands;
 using CafeManagement.Application.Shifts.Queries;
@@ -25,6 +26,7 @@ public class ShiftsController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(PagedResult<ShiftDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetShifts([FromQuery] GetShiftsQuery query, CancellationToken cancellationToken)
     {
@@ -38,6 +40,7 @@ public class ShiftsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ObjectId), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CreateShift([FromBody] CreateShiftCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
@@ -76,6 +79,7 @@ public class ShiftsController : ControllerBase
     [HttpPost("{id}/cancel")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CancelShift(ObjectId id, [FromBody] CancelShiftRequest? request, CancellationToken cancellationToken)
     {
         var command = new CancelShiftCommand(id, request?.Reason);
@@ -90,6 +94,7 @@ public class ShiftsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateShift(ObjectId id, [FromBody] UpdateShiftRequest request, CancellationToken cancellationToken)
     {
         var command = new UpdateShiftCommand(id, request.StaffId, request.StartTime, request.EndTime, request.Notes);
@@ -103,6 +108,7 @@ public class ShiftsController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeleteShift(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeleteShiftCommand(id);

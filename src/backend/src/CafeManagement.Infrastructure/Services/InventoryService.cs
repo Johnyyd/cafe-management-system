@@ -1,9 +1,9 @@
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Inventory;
+using CafeManagement.Domain.Inventory.Events;
 using FluentResults;
 using MongoDB.Bson;
-using MongoDB.Driver;
 
 namespace CafeManagement.Infrastructure.Services;
 
@@ -45,16 +45,24 @@ public class InventoryService : IInventoryService
 
     public async Task<Result> AdjustQuantityAsync(ObjectId id, decimal quantityChange, string reason, ObjectId? adjustedBy = null)
     {
-        var existing = await _inventoryItemRepository.GetByIdAsync(id);
-        if (existing == null)
-            return Result.Fail("Inventory Item Not Found");
-
-        var result = existing.AdjustQuantity(quantityChange, reason, adjustedBy);
+        // Use atomic MongoDB $inc operation to prevent race conditions
+        var result = await _inventoryItemRepository.AdjustQuantityAtomicAsync(id, quantityChange, adjustedBy);
 
         if (result.IsFailed)
             return Result.Fail(result.Errors);
 
-        await _inventoryItemRepository.UpdateAsync(existing, CancellationToken.None);
+        // Raise domain event manually since we bypassed the domain entity
+        var updatedItem = result.Value;
+        updatedItem.AddDomainEvent(new InventoryQuantityAdjustedEvent(
+            updatedItem.Id,
+            updatedItem.ShopId,
+            updatedItem.ItemName,
+            updatedItem.Quantity - quantityChange, // old quantity
+            updatedItem.Quantity,                  // new quantity
+            quantityChange,
+            reason,
+            adjustedBy));
+
         return Result.Ok();
     }
 

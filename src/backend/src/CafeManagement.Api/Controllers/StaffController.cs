@@ -1,3 +1,4 @@
+using CafeManagement.Api.Authorization;
 using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Staff.Commands;
 using CafeManagement.Application.Staff.Queries;
@@ -25,6 +26,7 @@ public class StaffController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ObjectId), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CreateStaff([FromBody] CreateStaffCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
@@ -48,6 +50,7 @@ public class StaffController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(PagedResult<StaffDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStaff([FromQuery] GetStaffQuery query, CancellationToken cancellationToken)
     {
@@ -62,6 +65,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateStaff(ObjectId id, [FromBody] UpdateStaffCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -76,6 +80,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateStaffRole(ObjectId id, [FromBody] UpdateStaffRoleCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -90,6 +95,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateStaffEmploymentStatus(ObjectId id, [FromBody] UpdateStaffEmploymentStatusCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -104,6 +110,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> AssignStaffToShop(ObjectId id, [FromBody] AssignStaffToShopCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -118,6 +125,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UnassignStaffFromShop(ObjectId id, [FromBody] UnassignStaffFromShopCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -132,6 +140,7 @@ public class StaffController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> SetStaffPrimaryShop(ObjectId id, [FromBody] SetStaffPrimaryShopCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -145,6 +154,7 @@ public class StaffController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeactivateStaff(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeactivateStaffCommand(id);

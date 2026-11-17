@@ -15,13 +15,11 @@ namespace CafeManagement.Application.Menu.Handlers;
 public class UpdateMenuItemHandler : IRequestHandler<UpdateMenuItemCommand, FluentResults.Result>
 {
     private readonly IMenuItemRepository _menuItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateMenuItemHandler> _logger;
 
-    public UpdateMenuItemHandler(IMenuItemRepository menuItemRepository, IUnitOfWork unitOfWork, ILogger<UpdateMenuItemHandler> logger)
+    public UpdateMenuItemHandler(IMenuItemRepository menuItemRepository, ILogger<UpdateMenuItemHandler> logger)
     {
         _menuItemRepository = menuItemRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -47,7 +45,6 @@ public class UpdateMenuItemHandler : IRequestHandler<UpdateMenuItemCommand, Flue
             return FluentResults.Result.Fail(result.Errors);
 
         await _menuItemRepository.UpdateAsync(menuItem, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Menu item updated: {MenuItemId}", menuItem.Id);
         return FluentResults.Result.Ok();
@@ -57,13 +54,11 @@ public class UpdateMenuItemHandler : IRequestHandler<UpdateMenuItemCommand, Flue
 public class UpdateMenuItemAvailabilityHandler : IRequestHandler<UpdateMenuItemAvailabilityCommand, FluentResults.Result>
 {
     private readonly IMenuItemRepository _menuItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateMenuItemAvailabilityHandler> _logger;
 
-    public UpdateMenuItemAvailabilityHandler(IMenuItemRepository menuItemRepository, IUnitOfWork unitOfWork, ILogger<UpdateMenuItemAvailabilityHandler> logger)
+    public UpdateMenuItemAvailabilityHandler(IMenuItemRepository menuItemRepository, ILogger<UpdateMenuItemAvailabilityHandler> logger)
     {
         _menuItemRepository = menuItemRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -83,7 +78,6 @@ public class UpdateMenuItemAvailabilityHandler : IRequestHandler<UpdateMenuItemA
             return FluentResults.Result.Fail(result.Errors);
 
         await _menuItemRepository.UpdateAsync(menuItem, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Menu item availability updated: {MenuItemId}", menuItem.Id);
         return FluentResults.Result.Ok();
@@ -93,13 +87,11 @@ public class UpdateMenuItemAvailabilityHandler : IRequestHandler<UpdateMenuItemA
 public class DeactivateMenuItemHandler : IRequestHandler<DeactivateMenuItemCommand, FluentResults.Result>
 {
     private readonly IMenuItemRepository _menuItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DeactivateMenuItemHandler> _logger;
 
-    public DeactivateMenuItemHandler(IMenuItemRepository menuItemRepository, IUnitOfWork unitOfWork, ILogger<DeactivateMenuItemHandler> logger)
+    public DeactivateMenuItemHandler(IMenuItemRepository menuItemRepository, ILogger<DeactivateMenuItemHandler> logger)
     {
         _menuItemRepository = menuItemRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -114,7 +106,6 @@ public class DeactivateMenuItemHandler : IRequestHandler<DeactivateMenuItemComma
             return FluentResults.Result.Fail(result.Errors);
 
         await _menuItemRepository.UpdateAsync(menuItem, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Menu item deactivated: {MenuItemId}", menuItem.Id);
         return FluentResults.Result.Ok();
@@ -179,9 +170,11 @@ public class GetMenuItemsHandler : IRequestHandler<GetMenuItemsQuery, FluentResu
             items = items.Where(i => i.Status == request.Status.Value).ToList();
 
         var totalCount = items.Count;
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 500);
         var pagedItems = items
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(i => new MenuItemDto(
                 i.Id,
                 i.ShopId,
@@ -198,7 +191,7 @@ public class GetMenuItemsHandler : IRequestHandler<GetMenuItemsQuery, FluentResu
                 i.DeletedAt))
             .ToList();
 
-        var result = new PagedResult<MenuItemDto>(pagedItems, totalCount, request.Page, request.PageSize);
+        var result = new PagedResult<MenuItemDto>(pagedItems, totalCount, page, pageSize);
         return FluentResults.Result.Ok(result);
     }
 }

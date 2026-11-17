@@ -154,7 +154,7 @@ export interface MetricSnapshot {
   timestamp: string;
 }
 
-export type ShiftStatus = 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled';
+export type ShiftStatus = 'Scheduled' | 'InProgress' | 'Completed' | 'Cancelled' | 'Covered';
 
 export interface Shift {
   id: string;

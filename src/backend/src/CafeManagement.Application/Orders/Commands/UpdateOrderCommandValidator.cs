@@ -50,8 +50,14 @@ public class ProcessPaymentCommandValidator : AbstractValidator<ProcessPaymentCo
     public ProcessPaymentCommandValidator()
     {
         RuleFor(x => x.Id).NotEmpty().WithMessage("Order ID is required");
-        RuleFor(x => x.PaymentMethod).IsInEnum().WithMessage("Invalid payment method");
-        RuleFor(x => x.Amount).GreaterThan(0).WithMessage("Payment amount must be greater than 0");
+    }
+}
+
+public class PayAndCompleteCommandValidator : AbstractValidator<PayAndCompleteCommand>
+{
+    public PayAndCompleteCommandValidator()
+    {
+        RuleFor(x => x.Id).NotEmpty().WithMessage("Order ID is required");
     }
 }
 

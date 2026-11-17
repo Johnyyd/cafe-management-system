@@ -1,4 +1,3 @@
-using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Application.Shops.Commands;
 using CafeManagement.Domain.Common;
@@ -14,16 +13,13 @@ namespace CafeManagement.Application.Shops.Handlers;
 public class CreateShopHandler : IRequestHandler<CreateShopCommand, Result<ObjectId>>
 {
     private readonly IShopRepository _shopRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateShopHandler> _logger;
 
     public CreateShopHandler(
         IShopRepository shopRepository,
-        IUnitOfWork unitOfWork,
         ILogger<CreateShopHandler> logger)
     {
         _shopRepository = shopRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -71,7 +67,6 @@ public class CreateShopHandler : IRequestHandler<CreateShopCommand, Result<Objec
 
             // Save to repository
             await _shopRepository.AddAsync(shop, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Shop created successfully with Id: {ShopId}", shop.Id);
 

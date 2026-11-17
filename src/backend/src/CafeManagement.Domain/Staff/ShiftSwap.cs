@@ -115,6 +115,8 @@ public class ShiftSwap : AggregateRoot<ObjectId>
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel a deleted shift swap"));
         if (Status == ShiftSwapStatus.Cancelled)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Swap is already cancelled"));
+        if (Status == ShiftSwapStatus.Rejected)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel a rejected swap"));
         if (Status == ShiftSwapStatus.Approved)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel an approved swap"));
 

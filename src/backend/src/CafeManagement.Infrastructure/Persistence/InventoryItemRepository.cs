@@ -2,6 +2,7 @@ using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Inventory;
 using CafeManagement.Domain.Inventory.Events;
+using FluentResults;
 using MongoDB.Bson;
 using MongoDB.Bson.Serialization;
 using MongoDB.Bson.Serialization.Serializers;
@@ -45,20 +46,91 @@ public class InventoryItemRepository : RepositoryBase<Domain.Inventory.Inventory
         return await itemNames.ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Domain.Inventory.InventoryItem>> GetLowStockItemsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Domain.Inventory.InventoryItem>> GetLowStockItemsAsync(ObjectId? shopId = null, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Domain.Inventory.InventoryItem>.Filter.And(
+        var filters = new List<FilterDefinition<Domain.Inventory.InventoryItem>>
+        {
             Builders<Domain.Inventory.InventoryItem>.Filter.Eq(i => i.DeletedAt, (DateTime?)null),
-            Builders<Domain.Inventory.InventoryItem>.Filter.Lte("Quantity", "$ReorderLevel"));
-        return await Collection.Find(filter).ToListAsync(cancellationToken);
+            Builders<Domain.Inventory.InventoryItem>.Filter.Gt(i => i.ReorderLevel, 0),
+            new BsonDocument("$expr", new BsonDocument("$lte", new BsonArray { "$Quantity", "$ReorderLevel" }))
+        };
+
+        if (shopId.HasValue && shopId.Value != ObjectId.Empty)
+            filters.Add(Builders<Domain.Inventory.InventoryItem>.Filter.Eq(i => i.ShopId, shopId.Value));
+
+        return await Collection.Find(Builders<Domain.Inventory.InventoryItem>.Filter.And(filters)).ToListAsync(cancellationToken);
     }
 
-    public async Task<IReadOnlyList<Domain.Inventory.InventoryItem>> GetOutOfStockItemsAsync(CancellationToken cancellationToken = default)
+    public async Task<IReadOnlyList<Domain.Inventory.InventoryItem>> GetOutOfStockItemsAsync(ObjectId? shopId = null, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Domain.Inventory.InventoryItem>.Filter.And(
+        var filters = new List<FilterDefinition<Domain.Inventory.InventoryItem>>
+        {
             Builders<Domain.Inventory.InventoryItem>.Filter.Eq(i => i.DeletedAt, (DateTime?)null),
-            Builders<Domain.Inventory.InventoryItem>.Filter.Lte(i => i.Quantity, 0));
-        return await Collection.Find(filter).ToListAsync(cancellationToken);
+            Builders<Domain.Inventory.InventoryItem>.Filter.Lte(i => i.Quantity, 0)
+        };
+
+        if (shopId.HasValue && shopId.Value != ObjectId.Empty)
+            filters.Add(Builders<Domain.Inventory.InventoryItem>.Filter.Eq(i => i.ShopId, shopId.Value));
+
+        return await Collection.Find(Builders<Domain.Inventory.InventoryItem>.Filter.And(filters)).ToListAsync(cancellationToken);
+    }
+
+    public async Task<Result<Domain.Inventory.InventoryItem>> AdjustQuantityAtomicAsync(
+        ObjectId id,
+        decimal quantityChange,
+        ObjectId? adjustedBy,
+        CancellationToken cancellationToken = default)
+    {
+        // Build filter: item must exist, not deleted, and resulting quantity >= 0
+        // For negative quantityChange (consumption): Quantity + quantityChange >= 0 => Quantity >= -quantityChange
+        // For positive quantityChange (restocking): always allowed (no upper bound check)
+        var builder = Builders<Domain.Inventory.InventoryItem>.Filter;
+        var filter = builder.And(
+            builder.Eq(i => i.Id, id),
+            builder.Eq(i => i.DeletedAt, (DateTime?)null));
+
+        if (quantityChange < 0)
+        {
+            // Prevent negative stock: current Quantity must be >= absolute value of quantityChange
+            filter = builder.And(filter, builder.Gte(i => i.Quantity, -quantityChange));
+        }
+
+        // Atomic update: increment Quantity, update LastUpdated and UpdatedBy
+        var update = Builders<Domain.Inventory.InventoryItem>.Update
+            .Inc(i => i.Quantity, quantityChange)
+            .Set(i => i.LastUpdated, DateTime.UtcNow);
+
+        if (adjustedBy.HasValue && adjustedBy.Value != ObjectId.Empty)
+        {
+            update = update.Set(i => i.UpdatedBy, adjustedBy.Value);
+            update = update.Set(i => i.UpdatedAt, DateTime.UtcNow);
+        }
+
+        var options = new FindOneAndUpdateOptions<Domain.Inventory.InventoryItem>
+        {
+            ReturnDocument = ReturnDocument.After, // Return the updated document
+            IsUpsert = false
+        };
+
+        var updatedItem = await Collection.FindOneAndUpdateAsync(filter, update, options, cancellationToken);
+
+        if (updatedItem == null)
+        {
+            // Check if item exists but would go negative
+            var existsFilter = builder.And(
+                builder.Eq(i => i.Id, id),
+                builder.Eq(i => i.DeletedAt, (DateTime?)null));
+            var exists = await Collection.Find(existsFilter).AnyAsync(cancellationToken);
+
+            if (!exists)
+                return Result.Fail(DomainErrors.General.NotFound("Inventory Item", id));
+
+            // Item exists but would go negative
+            var currentItem = await Collection.Find(existsFilter).SingleOrDefaultAsync(cancellationToken);
+            return Result.Fail(DomainErrors.Business.InsufficientStock(currentItem?.ItemName ?? "Unknown", currentItem?.Quantity ?? 0, Math.Abs(quantityChange)));
+        }
+
+        return Result.Ok(updatedItem);
     }
 
     private void RegisterInventoryItemClassMap()

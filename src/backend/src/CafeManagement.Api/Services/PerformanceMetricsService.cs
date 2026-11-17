@@ -106,7 +106,7 @@ public class PerformanceMetricsService : IPerformanceMetricsService
 
     private void CleanupOldMetrics(object? state)
     {
-        var cutoffTime = DateTime.UtcNow.AddHours(1); // Keep metrics for 1 hour
+        var cutoffTime = DateTime.UtcNow.AddHours(-1); // Keep metrics for 1 hour
 
         var keysToRemove = new List<string>();
 

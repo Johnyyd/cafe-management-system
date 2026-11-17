@@ -36,6 +36,16 @@ public static class WebApplicationExtensions
         // CORS - Must be before Authentication/Authorization
         app.UseCors("CafeCorsPolicy");
 
+        // Request buffering - Must be before Authorization to allow reading body in handlers
+        app.Use((context, next) =>
+        {
+            if (!context.Request.Body.CanSeek)
+            {
+                context.Request.EnableBuffering();
+            }
+            return next();
+        });
+
         // Swagger
         app.UseSwagger();
         app.UseSwaggerUI(options =>

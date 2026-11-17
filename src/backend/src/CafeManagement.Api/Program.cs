@@ -53,6 +53,20 @@ namespace CafeManagement.Api
                 builder.Services.AddInfrastructureServices(builder.Configuration);
                 Console.WriteLine("[Program.Main] Infrastructure services added");
 
+                // Fail fast if JWT_KEY not configured (required for auth)
+                var jwtKey = builder.Configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
+                if (string.IsNullOrWhiteSpace(jwtKey) && !isTest)
+                {
+                    throw new InvalidOperationException(
+                        "JWT_KEY environment variable or Jwt:Key configuration is required. " +
+                        "Set a secure key (min 32 chars) for JWT token signing.");
+                }
+                if (jwtKey?.Length < 32 && !isTest)
+                {
+                    throw new InvalidOperationException(
+                        "JWT_KEY must be at least 32 characters long for security.");
+                }
+
                 Console.WriteLine("[Program.Main] Adding API services");
                 builder.Services.AddApiServices(builder.Configuration);
                 Console.WriteLine("[Program.Main] API services added");

@@ -10,6 +10,20 @@ export default defineConfig({
       plugins: [tailwindcss(), autoprefixer()],
     },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom'],
+          ui: ['lucide-react', 'react-hook-form', '@hookform/resolvers', 'zod'],
+          state: ['zustand'],
+          query: ['@tanstack/react-query'],
+          utils: ['clsx', 'tailwind-merge', 'qrcode'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 300,
+  },
   server: {
     host: true,
     port: 3000,

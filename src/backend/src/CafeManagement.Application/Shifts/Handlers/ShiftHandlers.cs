@@ -20,18 +20,15 @@ public class CreateShiftHandler : IRequestHandler<CreateShiftCommand, Result<Obj
 {
     private readonly IShiftRepository _shiftRepository;
     private readonly IStaffRepository _staffRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateShiftHandler> _logger;
 
     public CreateShiftHandler(
         IShiftRepository shiftRepository,
         IStaffRepository staffRepository,
-        IUnitOfWork unitOfWork,
         ILogger<CreateShiftHandler> logger)
     {
         _shiftRepository = shiftRepository;
         _staffRepository = staffRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -53,7 +50,6 @@ public class CreateShiftHandler : IRequestHandler<CreateShiftCommand, Result<Obj
 
         var shift = shiftResult.Value;
         await _shiftRepository.AddAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shift scheduled: {ShiftId} for Staff {StaffId} at Shop {ShopId}", shift.Id, request.StaffId, request.ShopId);
         return Result.Ok(shift.Id);
@@ -139,12 +135,10 @@ public class GetShiftsHandler : IRequestHandler<GetShiftsQuery, Result<PagedResu
 public class StartShiftHandler : IRequestHandler<StartShiftCommand, Result>
 {
     private readonly IShiftRepository _shiftRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public StartShiftHandler(IShiftRepository shiftRepository, IUnitOfWork unitOfWork)
+    public StartShiftHandler(IShiftRepository shiftRepository)
     {
         _shiftRepository = shiftRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(StartShiftCommand request, CancellationToken cancellationToken)
@@ -158,7 +152,6 @@ public class StartShiftHandler : IRequestHandler<StartShiftCommand, Result>
             return Result.Fail(result.Errors);
 
         await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Ok();
     }
 }
@@ -166,12 +159,10 @@ public class StartShiftHandler : IRequestHandler<StartShiftCommand, Result>
 public class CompleteShiftHandler : IRequestHandler<CompleteShiftCommand, Result>
 {
     private readonly IShiftRepository _shiftRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public CompleteShiftHandler(IShiftRepository shiftRepository, IUnitOfWork unitOfWork)
+    public CompleteShiftHandler(IShiftRepository shiftRepository)
     {
         _shiftRepository = shiftRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(CompleteShiftCommand request, CancellationToken cancellationToken)
@@ -185,7 +176,6 @@ public class CompleteShiftHandler : IRequestHandler<CompleteShiftCommand, Result
             return Result.Fail(result.Errors);
 
         await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Ok();
     }
 }
@@ -193,12 +183,10 @@ public class CompleteShiftHandler : IRequestHandler<CompleteShiftCommand, Result
 public class CancelShiftHandler : IRequestHandler<CancelShiftCommand, Result>
 {
     private readonly IShiftRepository _shiftRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public CancelShiftHandler(IShiftRepository shiftRepository, IUnitOfWork unitOfWork)
+    public CancelShiftHandler(IShiftRepository shiftRepository)
     {
         _shiftRepository = shiftRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(CancelShiftCommand request, CancellationToken cancellationToken)
@@ -212,7 +200,6 @@ public class CancelShiftHandler : IRequestHandler<CancelShiftCommand, Result>
             return Result.Fail(result.Errors);
 
         await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Ok();
     }
 }
@@ -220,12 +207,10 @@ public class CancelShiftHandler : IRequestHandler<CancelShiftCommand, Result>
 public class DeleteShiftHandler : IRequestHandler<DeleteShiftCommand, Result>
 {
     private readonly IShiftRepository _shiftRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteShiftHandler(IShiftRepository shiftRepository, IUnitOfWork unitOfWork)
+    public DeleteShiftHandler(IShiftRepository shiftRepository)
     {
         _shiftRepository = shiftRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(DeleteShiftCommand request, CancellationToken cancellationToken)
@@ -236,7 +221,6 @@ public class DeleteShiftHandler : IRequestHandler<DeleteShiftCommand, Result>
 
         shift.MarkAsDeleted();
         await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Ok();
     }
 }
@@ -245,13 +229,11 @@ public class UpdateShiftHandler : IRequestHandler<UpdateShiftCommand, Result>
 {
     private readonly IShiftRepository _shiftRepository;
     private readonly IStaffRepository _staffRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateShiftHandler(IShiftRepository shiftRepository, IStaffRepository staffRepository, IUnitOfWork unitOfWork)
+    public UpdateShiftHandler(IShiftRepository shiftRepository, IStaffRepository staffRepository)
     {
         _shiftRepository = shiftRepository;
         _staffRepository = staffRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(UpdateShiftCommand request, CancellationToken cancellationToken)
@@ -269,7 +251,6 @@ public class UpdateShiftHandler : IRequestHandler<UpdateShiftCommand, Result>
             return Result.Fail(result.Errors);
 
         await _shiftRepository.UpdateAsync(shift, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
         return Result.Ok();
     }
 }

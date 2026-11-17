@@ -47,6 +47,7 @@ public class Order : AggregateRoot<ObjectId>
 {
     public ObjectId ShopId { get; private set; }
     public ObjectId StaffId { get; private set; }
+    public string OrderNumber { get; private set; } = string.Empty;
     public CustomerInfo CustomerInfo { get; private set; } = default!;
     
     [BsonElement("Items")]
@@ -73,12 +74,13 @@ public class Order : AggregateRoot<ObjectId>
 
     private Order() { }
 
-    private Order(ObjectId id, ObjectId shopId, ObjectId staffId, CustomerInfo customerInfo,
+    internal Order(ObjectId id, ObjectId shopId, ObjectId staffId, CustomerInfo customerInfo,
         IEnumerable<OrderItem> items, DateTime orderTime, ObjectId? createdBy = null)
         : base(id)
     {
         ShopId = shopId;
         StaffId = staffId;
+        OrderNumber = GenerateOrderNumber(id);
         CustomerInfo = customerInfo;
         _items.AddRange(items);
         OrderTime = orderTime;
@@ -87,6 +89,16 @@ public class Order : AggregateRoot<ObjectId>
         SetAuditInfo(createdBy);
         RecalculateTotalAmount();
         AddDomainEvent(new OrderPlacedEvent(Id, ShopId, StaffId, CustomerInfo, Items, orderTime, createdBy));
+    }
+
+    public static string GenerateOrderNumber(ObjectId id)
+    {
+        // Generate a human-readable order number from the ObjectId timestamp portion
+        // ObjectId first 4 bytes are timestamp (seconds since epoch)
+        var timestamp = id.CreationTime;
+        var datePart = timestamp.ToString("yyMMdd");
+        var sequencePart = id.ToString().Substring(18, 6).ToUpperInvariant(); // Last 6 chars of ObjectId
+        return $"ORD-{datePart}-{sequencePart}";
     }
 
     public static Result<Order> Create(ObjectId shopId, ObjectId staffId, CustomerInfo customerInfo,
@@ -125,7 +137,14 @@ public class Order : AggregateRoot<ObjectId>
 
     private void RecalculateTotalAmount()
     {
-        TotalAmount = _items.Aggregate(Money.Zero(), (total, item) => total.Add(item.TotalPrice));
+        if (_items.Count == 0)
+        {
+            TotalAmount = Money.Zero();
+            return;
+        }
+
+        var currency = _items[0].TotalPrice.Currency;
+        TotalAmount = _items.Aggregate(Money.Zero(currency), (total, item) => total.Add(item.TotalPrice));
     }
 
     public Result UpdateCustomerInfo(CustomerInfo customerInfo, ObjectId? updatedBy = null)
@@ -246,6 +265,16 @@ public class Order : AggregateRoot<ObjectId>
         return Result.Ok();
     }
 
+    private static readonly IReadOnlyDictionary<OrderStatus, OrderStatus[]> AllowedTransitions =
+        new Dictionary<OrderStatus, OrderStatus[]>
+        {
+            [OrderStatus.Placed] = new[] { OrderStatus.Preparing, OrderStatus.Cancelled },
+            [OrderStatus.Preparing] = new[] { OrderStatus.Ready, OrderStatus.Cancelled },
+            [OrderStatus.Ready] = new[] { OrderStatus.Completed, OrderStatus.Cancelled },
+            [OrderStatus.Completed] = Array.Empty<OrderStatus>(),
+            [OrderStatus.Cancelled] = Array.Empty<OrderStatus>()
+        };
+
     public Result ChangeStatus(OrderStatus newStatus, ObjectId? updatedBy = null)
     {
         if (IsDeleted)
@@ -257,11 +286,11 @@ public class Order : AggregateRoot<ObjectId>
         if (Status == newStatus)
             return Result.Ok();
 
-        // Business rules for status transitions
+        if (!AllowedTransitions.TryGetValue(Status, out var allowed) || !allowed.Contains(newStatus))
+            return Result.Fail(DomainErrors.Business.InvalidStatusTransition("Order", Status.ToString(), newStatus.ToString()));
+
         if (newStatus == OrderStatus.Completed && PaymentStatus != PaymentStatus.Paid)
-        {
-            PaymentStatus = PaymentStatus.Paid;
-        }
+            return Result.Fail(DomainErrors.Business.PaymentRequired());
 
         var oldStatus = Status;
         Status = newStatus;
@@ -274,6 +303,13 @@ public class Order : AggregateRoot<ObjectId>
         }
         else if (newStatus == OrderStatus.Cancelled)
         {
+            // A paid order that is cancelled must be refunded; never leave Cancelled + Paid.
+            if (PaymentStatus == PaymentStatus.Paid)
+            {
+                PaymentStatus = PaymentStatus.Refunded;
+                AddDomainEvent(new OrderRefundedEvent(Id, TotalAmount, updatedBy));
+            }
+
             AddDomainEvent(new OrderCancelledEvent(Id, updatedBy));
         }
         else
@@ -284,47 +320,54 @@ public class Order : AggregateRoot<ObjectId>
         return Result.Ok();
     }
 
-    public Result ProcessPayment(PaymentStatus newPaymentStatus, ObjectId? processedBy = null)
+    /// <summary>
+    /// Records a cash payment for this order. Cash is the only accepted payment method.
+    /// </summary>
+    public Result ProcessCashPayment(Money amountPaid, ObjectId? processedBy = null)
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot process payment for a deleted order"));
-        if (!Enum.IsDefined(typeof(PaymentStatus), newPaymentStatus))
-            return Result.Fail(DomainErrors.Validation.InvalidEnumValue("PaymentStatus", "Pending, Paid, Failed, Refunded"));
-        if (PaymentStatus == newPaymentStatus)
-            return Result.Ok();
+        if (OrderStatusExtensions.IsTerminal(Status))
+            return Result.Fail(DomainErrors.Business.OrderCannotBeModified($"Order is already in terminal status: {Status}"));
+        if (PaymentStatus == PaymentStatus.Paid)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Order has already been paid"));
+        if (PaymentStatus == PaymentStatus.Refunded)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot pay a refunded order"));
+        if (!_items.Any())
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot process payment for an empty order"));
 
-        var oldPaymentStatus = PaymentStatus;
-        PaymentStatus = newPaymentStatus;
+        if (amountPaid == null)
+            return Result.Fail(DomainErrors.Validation.Required("AmountPaid"));
+        if (!string.Equals(amountPaid.Currency, TotalAmount.Currency, StringComparison.OrdinalIgnoreCase))
+            return Result.Fail(DomainErrors.Validation.InvalidFormat("AmountPaid.Currency", TotalAmount.Currency));
+        if (amountPaid < TotalAmount)
+            return Result.Fail(DomainErrors.Business.InvalidOperation(
+                $"Cash received ({amountPaid}) is less than the order total ({TotalAmount})"));
+
+        PaymentStatus = PaymentStatus.Paid;
         SetAuditInfo(updatedBy: processedBy);
-
-        if (newPaymentStatus == PaymentStatus.Paid)
-        {
-            AddDomainEvent(new OrderPaymentProcessedEvent(Id, TotalAmount, processedBy));
-        }
-        else if (newPaymentStatus == PaymentStatus.Failed)
-        {
-            AddDomainEvent(new OrderPaymentFailedEvent(Id, processedBy));
-        }
-        else if (newPaymentStatus == PaymentStatus.Refunded)
-        {
-            AddDomainEvent(new OrderRefundedEvent(Id, TotalAmount, processedBy));
-        }
-
+        AddDomainEvent(new OrderPaymentProcessedEvent(Id, TotalAmount, processedBy));
         return Result.Ok();
     }
 
-    public Result Cancel(ObjectId? cancelledBy = null)
+    /// <summary>
+    /// Processes cash payment and completes the order in a single atomic operation.
+    /// This avoids the race condition between payment and completion.
+    /// </summary>
+    public Result PayAndComplete(Money amountPaid, ObjectId? processedBy = null)
     {
-        if (IsDeleted)
-            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel a deleted order"));
-        if (!OrderStatusExtensions.CanBeCancelled(Status))
-            return Result.Fail(DomainErrors.Business.OrderCannotBeModified($"Order status is {Status}"));
+        var paymentResult = ProcessCashPayment(amountPaid, processedBy);
+        if (paymentResult.IsFailed)
+            return paymentResult;
 
-        Status = OrderStatus.Cancelled;
-        SetAuditInfo(updatedBy: cancelledBy);
-        AddDomainEvent(new OrderCancelledEvent(Id, cancelledBy));
-        return Result.Ok();
+        // Must be in Ready status to complete
+        if (Status != OrderStatus.Ready)
+            return Result.Fail(DomainErrors.Business.InvalidStatusTransition("Order", Status.ToString(), OrderStatus.Completed.ToString()));
+
+        return ChangeStatus(OrderStatus.Completed, processedBy);
     }
+
+    public Result Cancel(ObjectId? cancelledBy = null) => ChangeStatus(OrderStatus.Cancelled, cancelledBy);
 
     public Result Deactivate(ObjectId? deletedBy = null)
     {

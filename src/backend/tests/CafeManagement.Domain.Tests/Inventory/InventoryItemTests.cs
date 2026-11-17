@@ -217,4 +217,60 @@ public class InventoryItemTests
         inventoryItem.SetQuantity(5.0m);
         Assert.False(inventoryItem.IsOutOfStock());
     }
+
+    [Fact]
+    public void IsLowStock_QuantityEqualsReorderLevel_ReturnsTrue()
+    {
+        // Arrange
+        var shopId = ObjectId.GenerateNewId();
+        var inventoryItem = InventoryItem.Create(
+            shopId,
+            "Coffee Beans",
+            "kg",
+            2.0m, // Exactly at reorder level
+            2.0m
+        ).Value;
+
+        // Act & Assert - Boundary: quantity == reorderLevel should be low stock
+        Assert.True(inventoryItem.IsLowStock());
+    }
+
+    [Fact]
+    public void IsLowStock_ReorderLevelZero_ReturnsFalse()
+    {
+        // Arrange
+        var shopId = ObjectId.GenerateNewId();
+        var inventoryItem = InventoryItem.Create(
+            shopId,
+            "Water",
+            "liters",
+            0.0m, // No stock but no reorder level
+            0.0m // No reorder level
+        ).Value;
+
+        // Act & Assert - When reorder level is 0, never low stock
+        Assert.False(inventoryItem.IsLowStock());
+    }
+
+    [Fact]
+    public void AdjustQuantity_ExactAmountToZero_ReturnsSuccess()
+    {
+        // Arrange
+        var shopId = ObjectId.GenerateNewId();
+        var inventoryItem = InventoryItem.Create(
+            shopId,
+            "Milk",
+            "liters",
+            5.0m,
+            1.0m
+        ).Value;
+
+        // Act - Use exact amount
+        var result = inventoryItem.AdjustQuantity(-5.0m, "Used all");
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(0.0m, inventoryItem.Quantity);
+        Assert.True(inventoryItem.IsOutOfStock());
+    }
 }

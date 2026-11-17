@@ -15,7 +15,7 @@ namespace CafeManagement.Api.Controllers;
 
 [ApiController]
 [Route("api/v1/system/backup")]
-[Authorize]
+[Authorize(Roles = "Admin")]
 public class BackupController : ControllerBase
 {
     private readonly IMongoDbContext _mongoDbContext;

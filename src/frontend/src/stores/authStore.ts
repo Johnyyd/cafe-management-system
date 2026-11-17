@@ -7,11 +7,23 @@ interface AuthState {
   user: User | null;
   activeRole: StaffRole;
   isAuthenticated: boolean;
-  setAuth: (token: string, user: User) => void;
+  setAuth: (token: string, user: User, refreshToken?: string) => void;
   setActiveRole: (role: StaffRole) => void;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
 }
+
+// Backend roles arrive as either canonical names ("Barista") or upper-case
+// normalized names ("BARISTA"). Map them to the single frontend role union.
+const roleMap: Record<string, StaffRole> = {
+  ADMIN: 'Admin',
+  MANAGER: 'Manager',
+  CASHIER: 'Cashier',
+  BARISTA: 'Barista',
+};
+
+const toStaffRole = (role?: string | null): StaffRole =>
+  roleMap[(role || '').toUpperCase()] || 'Barista';
 
 const savedToken = localStorage.getItem('cms_token');
 const savedUser = localStorage.getItem('cms_user');
@@ -21,9 +33,6 @@ if (savedUser) {
   try {
     const parsed = JSON.parse(savedUser);
     if (parsed && typeof parsed === 'object') {
-      if (parsed.email && parsed.email.toLowerCase().includes('admin')) {
-        parsed.roles = ['Admin'];
-      }
       initialUser = parsed;
       if (initialUser?.shopId) {
         useAppStore.getState().setCurrentShopId(initialUser.shopId);
@@ -32,35 +41,28 @@ if (savedUser) {
   } catch {
     initialUser = null;
   }
-} else if (savedToken) {
-  initialUser = {
-    id: 'usr_admin',
-    email: 'admin@cafemanagement.com',
-    fullName: 'Quản trị viên Hệ thống',
-    roles: ['Admin'],
-  };
 }
 
 export const useAuthStore = create<AuthState>((set) => ({
   token: savedToken,
   user: initialUser,
-  activeRole: (initialUser?.roles?.[0] as StaffRole) || 'Admin',
-  isAuthenticated: !!savedToken,
+  activeRole: toStaffRole(initialUser?.roles?.[0]),
+  isAuthenticated: !!savedToken && !!initialUser,
 
-  setAuth: (token, user) => {
-    if (user.email && user.email.toLowerCase().includes('admin')) {
-      user.roles = ['Admin'];
-    }
+  setAuth: (token, user, refreshToken) => {
     if (user.shopId) {
       useAppStore.getState().setCurrentShopId(user.shopId);
     }
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
+    if (refreshToken) {
+      localStorage.setItem('cms_refresh_token', refreshToken);
+    }
     set({
       token,
       user,
       isAuthenticated: true,
-      activeRole: (user.roles[0] as StaffRole) || 'Admin',
+      activeRole: toStaffRole(user.roles[0]),
     });
   },
 
@@ -86,26 +88,16 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     const data = await res.json();
     const token = data.accessToken;
-    const roleMap: Record<string, StaffRole> = {
-      ADMIN: 'Admin',
-      MANAGER: 'Manager',
-      CASHIER: 'Cashier',
-      BARISTA: 'Barista',
-      INVENTORYSTAFF: 'InventoryStaff',
-    };
-    let mappedRole: StaffRole =
-      (data.user?.roles && roleMap[data.user.roles[0]?.toUpperCase()]) || 'Admin';
 
-    if (email.toLowerCase().includes('admin') || (data.user?.email && data.user.email.toLowerCase().includes('admin'))) {
-      mappedRole = 'Admin';
-    }
+    // The backend returns a role list; never infer privileges from the email.
+    const mappedRole = toStaffRole(data.user?.roles?.[0]);
 
     const userShopId = (data.user?.shopId && data.user.shopId.trim() !== '') ? data.user.shopId : undefined;
 
     const user: User = {
-      id: typeof data.user?.id === 'string' ? data.user.id : 'usr_current',
+      id: typeof data.user?.id === 'string' ? data.user.id : '',
       email: data.user?.email || email,
-      fullName: data.user?.fullName || (mappedRole === 'Admin' ? 'Quản trị viên Hệ thống' : 'Người dùng hệ thống'),
+      fullName: data.user?.fullName || 'Người dùng hệ thống',
       roles: [mappedRole],
       shopId: userShopId,
     };
@@ -116,6 +108,9 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
+    if (data.refreshToken) {
+      localStorage.setItem('cms_refresh_token', data.refreshToken);
+    }
 
     set({
       token,
@@ -126,7 +121,17 @@ export const useAuthStore = create<AuthState>((set) => ({
   },
 
   logout: () => {
+    const refreshToken = localStorage.getItem('cms_refresh_token');
+    if (refreshToken) {
+      // Best-effort server-side revocation; local logout must not depend on it.
+      fetch('/api/v1/auth/logout', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => undefined);
+    }
     localStorage.removeItem('cms_token');
+    localStorage.removeItem('cms_refresh_token');
     localStorage.removeItem('cms_user');
     set({
       token: null,
@@ -135,4 +140,3 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 }));
-

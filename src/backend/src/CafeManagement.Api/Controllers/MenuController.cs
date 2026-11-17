@@ -1,3 +1,4 @@
+using CafeManagement.Api.Authorization;
 using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Menu.Commands;
 using CafeManagement.Application.Menu.Queries;
@@ -25,6 +26,7 @@ public class MenuController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ObjectId), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CreateMenuItem([FromBody] CreateMenuItemCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
@@ -64,6 +66,7 @@ public class MenuController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateMenuItem(ObjectId id, [FromBody] UpdateMenuItemCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -78,6 +81,7 @@ public class MenuController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateMenuItemAvailability(ObjectId id, [FromBody] UpdateMenuItemAvailabilityCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -91,6 +95,7 @@ public class MenuController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeactivateMenuItem(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeactivateMenuItemCommand(id);

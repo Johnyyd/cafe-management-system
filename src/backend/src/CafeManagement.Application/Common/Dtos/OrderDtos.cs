@@ -8,6 +8,7 @@ public record OrderDto(
     ObjectId Id,
     ObjectId ShopId,
     ObjectId StaffId,
+    string OrderNumber,
     CustomerInfoDto CustomerInfo,
     IReadOnlyList<OrderItemDto> Items,
     OrderStatus Status,
@@ -45,6 +46,7 @@ public enum CustomerType
 
 public record OrderSummaryDto(
     ObjectId Id,
+    string OrderNumber,
     DateTime OrderTime,
     OrderStatus Status,
     PaymentStatus PaymentStatus,

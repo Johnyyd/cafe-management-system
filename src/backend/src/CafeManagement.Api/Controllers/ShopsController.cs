@@ -25,6 +25,7 @@ public class ShopsController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(ObjectId), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CreateShop([FromBody] CreateShopCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
@@ -64,6 +65,7 @@ public class ShopsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateShop(ObjectId id, [FromBody] UpdateShopCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -77,6 +79,7 @@ public class ShopsController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeactivateShop(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeactivateShopCommand(id);
@@ -104,6 +107,7 @@ public class ShopsController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateOperatingHours(ObjectId id, [FromBody] UpdateOperatingHoursCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { ShopId = id };

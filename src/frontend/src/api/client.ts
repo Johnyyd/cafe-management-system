@@ -2,7 +2,32 @@ import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, O
 
 const API_BASE = '/api/v1';
 
-async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
+async function tryRefreshSession(): Promise<boolean> {
+  const refreshToken = localStorage.getItem('cms_refresh_token');
+  if (!refreshToken) return false;
+
+  try {
+    const response = await fetch(`${API_BASE}/auth/refresh`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ refreshToken }),
+    });
+    if (!response.ok) return false;
+
+    const data = await response.json();
+    if (!data?.accessToken) return false;
+
+    localStorage.setItem('cms_token', data.accessToken);
+    if (data.refreshToken) {
+      localStorage.setItem('cms_refresh_token', data.refreshToken);
+    }
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function fetchJson<T>(endpoint: string, options: RequestInit = {}, allowRetry = true): Promise<T> {
   const token = localStorage.getItem('cms_token');
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
@@ -19,10 +44,21 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}): Promis
   });
 
   if (response.status === 401) {
+    // Public pages must stay usable without a session.
+    // Use prefix match for /feedback/* and /review/* but exclude admin /reviews page.
+    const path = window.location.pathname.replace(/\/+$/, '');
+    const isPublicPage = path.startsWith('/feedback') || path === '/review';
+    const isAdminReviews = path.startsWith('/reviews');
+    const canRetry = allowRetry && !isPublicPage && !isAdminReviews && !endpoint.startsWith('/auth/');
+
+    if (canRetry && await tryRefreshSession()) {
+      return fetchJson<T>(endpoint, options, false);
+    }
+
     localStorage.removeItem('cms_token');
+    localStorage.removeItem('cms_refresh_token');
     localStorage.removeItem('cms_user');
-    const isPublicPage = window.location.pathname.startsWith('/feedback') || window.location.pathname.startsWith('/review');
-    if (window.location.pathname !== '/login' && !isPublicPage) {
+    if (path !== '/login' && !isPublicPage && !isAdminReviews) {
       window.location.href = '/login';
     }
     throw new Error('Phiên đăng nhập đã hết hạn, vui lòng đăng nhập lại.');
@@ -275,13 +311,16 @@ export const api = {
         0
       );
       const orderTotal = o.totalAmount?.amount || subTotal;
-      const statusNames = ['Pending', 'Confirmed', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
-      const status = typeof o.status === 'number' ? statusNames[o.status] || 'Pending' : o.status || 'Pending';
+      // Backend OrderStatus: Placed = 1, Preparing = 2, Ready = 3, Completed = 4, Cancelled = 5
+      const statusNames = ['Pending', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
+      const status = typeof o.status === 'number'
+        ? statusNames[o.status - 1] || 'Pending'
+        : o.status || 'Pending';
 
       return {
         id: typeof o.id === 'string' ? o.id : o.id?.toString?.() || '',
         shopId: typeof o.shopId === 'string' ? o.shopId : o.shopId?.toString?.() || '',
-        orderNumber: `ORD-${(typeof o.id === 'string' ? o.id.slice(-6) : '000000').toUpperCase()}`,
+        orderNumber: o.orderNumber || `ORD-${(typeof o.id === 'string' ? o.id.slice(-6) : '000000').toUpperCase()}`,
         type: o.customerInfo?.type === 2 ? 'Takeaway' : o.customerInfo?.type === 3 ? 'Delivery' : 'DineIn',
         status: status as any,
         customerInfo: {
@@ -297,7 +336,7 @@ export const api = {
           specialInstructions: it.specialInstructions,
         })),
         subTotal,
-        tax: Math.round(orderTotal * 0.08),
+        tax: 0,
         total: orderTotal,
         createdAt: o.orderTime || o.createdAt || new Date().toISOString(),
       };
@@ -339,6 +378,7 @@ export const api = {
     const found = orders.find((o) => o.id === createdId);
     if (found) return found;
 
+    // Fallback if getOrders doesn't return the new order yet
     return {
       id: createdId,
       shopId: primaryShopId,
@@ -379,16 +419,38 @@ export const api = {
     });
   },
 
+  // Cash payment. Cash is the only accepted payment method; the backend
+  // validates that the received amount covers the order total.
+  processPayment: async (id: string, amount: number, currency = 'VND'): Promise<void> => {
+    await fetchJson(`/orders/${id}/payment`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency }),
+    });
+  },
+
+  // Pay and complete in a single atomic operation (avoids race condition)
+  payAndComplete: async (id: string, amount: number, currency = 'VND'): Promise<void> => {
+    await fetchJson(`/orders/${id}/pay-and-complete`, {
+      method: 'POST',
+      body: JSON.stringify({ amount, currency }),
+    });
+  },
+
   // Staff
   getStaff: async (shopId?: string): Promise<Staff[]> => {
     const query = shopId ? `?shopId=${encodeURIComponent(shopId)}&pageSize=500` : '?pageSize=500';
     const res = await fetchJson<any>(`/staff${query}`);
     const rawItems: any[] = Array.isArray(res) ? res : res.items || [];
-    const roleNames = ['Admin', 'Manager', 'Cashier', 'Barista', 'InventoryStaff'];
+    // Backend StaffRole: Barista = 1, Cashier = 2, Manager = 3, Admin = 4
+    const roleNames: Record<number, string> = { 1: 'Barista', 2: 'Cashier', 3: 'Manager', 4: 'Admin' };
     let mapped: Staff[] = rawItems.map((st) => {
-      const roleStr = typeof st.role === 'number' ? roleNames[st.role] || 'Cashier' : st.role || 'Cashier';
+      const roleStr = typeof st.role === 'number' ? roleNames[st.role] || 'Barista' : st.role || 'Barista';
       const status: EmploymentStatus =
-        st.employmentStatus === 1 || st.employmentStatus === 'Active' ? 'Active' : 'Terminated';
+        st.employmentStatus === 1 || st.employmentStatus === 'Active'
+          ? 'Active'
+          : st.employmentStatus === 2 || st.employmentStatus === 'OnLeave'
+            ? 'OnLeave'
+            : 'Terminated';
       const primaryAssignment =
         (Array.isArray(st.shopAssignments) && st.shopAssignments.find((sa: any) => !sa.unassignedDate)) ||
         (Array.isArray(st.shopAssignments) && st.shopAssignments[0]);
@@ -419,11 +481,10 @@ export const api = {
     const shops = await api.getShops();
     const primaryShopId = data.shopId || shops[0]?.id || '6ac517757b7bff2eb801baac';
     const roleMap: Record<string, number> = {
-      Admin: 0,
-      Manager: 1,
+      Admin: 4,
+      Manager: 3,
       Cashier: 2,
-      Barista: 3,
-      InventoryStaff: 4,
+      Barista: 1,
     };
     const payload = {
       firstName: data.firstName || 'Nhân',
@@ -458,7 +519,39 @@ export const api = {
     const staffList = await api.getStaff();
     const found = staffList.find((s) => s.id === id);
     if (!found) throw new Error('Không tìm thấy nhân viên');
-    return { ...found, ...updates };
+
+    if (updates.status && updates.status !== found.status) {
+      const statusMap: Record<EmploymentStatus, number> = { Active: 1, OnLeave: 2, Terminated: 3 };
+      await fetchJson(`/staff/${id}/employment-status`, {
+        method: 'PUT',
+        body: JSON.stringify({ status: statusMap[updates.status] }),
+      });
+    }
+
+    if (updates.role && updates.role !== found.role) {
+      const roleMap: Record<string, number> = { Admin: 4, Manager: 3, Cashier: 2, Barista: 1 };
+      await fetchJson(`/staff/${id}/role`, {
+        method: 'PUT',
+        body: JSON.stringify({ role: roleMap[updates.role] }),
+      });
+    }
+
+    if (updates.firstName !== undefined || updates.lastName !== undefined || updates.contact !== undefined || updates.email !== undefined) {
+      await fetchJson(`/staff/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({
+          firstName: updates.firstName ?? found.firstName,
+          lastName: updates.lastName ?? found.lastName,
+          contact: {
+            phone: updates.contact?.phone ?? found.contact.phone,
+            email: updates.contact?.email ?? updates.email ?? found.contact.email,
+          },
+        }),
+      });
+    }
+
+    const refreshed = (await api.getStaff()).find((s) => s.id === id);
+    return refreshed ?? { ...found, ...updates };
   },
 
   deleteStaff: async (id: string): Promise<void> => {
@@ -476,16 +569,7 @@ export const api = {
 
   // Metrics
   getMetrics: async (): Promise<Record<string, number>> => {
-    try {
-      return await fetchJson<Record<string, number>>('/metrics');
-    } catch {
-      return {
-        'http.request.count': 148,
-        'http.request.duration.avg_ms': 32.4,
-        'system.active_connections': 8,
-        'database.mongodb.latency_ms': 2.1,
-      };
-    }
+    return await fetchJson<Record<string, number>>('/metrics');
   },
 };
 
@@ -532,7 +616,7 @@ export const shiftsApi = {
     queryParams.append('pageSize', (params?.pageSize || 3000).toString());
     const res = await fetchJson<any>(`/shifts?${queryParams.toString()}`);
     const items: any[] = Array.isArray(res) ? res : res.items || [];
-    const statusMap = ['Scheduled', 'InProgress', 'Completed', 'Cancelled'];
+    const statusMap = ['Scheduled', 'InProgress', 'Completed', 'Cancelled', 'Covered'];
     return items.map((it) => ({
       id: typeof it.id === 'string' ? it.id : it.id?.toString?.() || '',
       staffId: typeof it.staffId === 'string' ? it.staffId : it.staffId?.toString?.() || '',

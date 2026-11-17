@@ -42,6 +42,8 @@ public class Shop : AggregateRoot<ObjectId>
 
         if (contact == null || !contact.IsValid)
             return Result.Fail(DomainErrors.Validation.Required("Contact"));
+        if (operatingHours == null)
+            return Result.Fail(DomainErrors.Validation.Required("OperatingHours"));
 
         var shop = new Shop(ObjectId.GenerateNewId(), name.Trim(), address, contact, operatingHours, createdBy);
         return Result.Ok(shop);
@@ -98,6 +100,8 @@ public class Shop : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot change status of a deleted shop"));
+        if (!Enum.IsDefined(typeof(ShopStatus), status))
+            return Result.Fail(DomainErrors.Validation.InvalidEnumValue("Status", "Active, UnderMaintenance, Closed"));
 
         if (Status == status)
             return Result.Ok();

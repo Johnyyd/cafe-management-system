@@ -1,4 +1,3 @@
-using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Application.Staff.Commands;
 using CafeManagement.Domain.Common;
@@ -14,16 +13,13 @@ namespace CafeManagement.Application.Staff.Handlers;
 public class CreateStaffHandler : IRequestHandler<CreateStaffCommand, Result<ObjectId>>
 {
     private readonly IStaffRepository _staffRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateStaffHandler> _logger;
 
     public CreateStaffHandler(
         IStaffRepository staffRepository,
-        IUnitOfWork unitOfWork,
         ILogger<CreateStaffHandler> logger)
     {
         _staffRepository = staffRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -66,7 +62,6 @@ public class CreateStaffHandler : IRequestHandler<CreateStaffCommand, Result<Obj
 
             // Save to repository
             await _staffRepository.AddAsync(staff, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
 
             _logger.LogInformation("Staff created successfully with Id: {StaffId}", staff.Id);

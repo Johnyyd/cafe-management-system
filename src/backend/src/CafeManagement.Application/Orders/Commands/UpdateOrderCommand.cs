@@ -17,9 +17,11 @@ public record CancelOrderCommand(ObjectId Id) : IRequest<Result>;
 public record DeleteOrderCommand(ObjectId Id) : IRequest<Result>;
 
 public record ProcessPaymentCommand(
-    ObjectId Id,
-    PaymentMethod PaymentMethod,
-    decimal Amount
+    ObjectId Id
+) : IRequest<Result>;
+
+public record PayAndCompleteCommand(
+    ObjectId Id
 ) : IRequest<Result>;
 
 public record UpdateOrderStatusCommand(
@@ -45,11 +47,3 @@ public record RemoveOrderItemCommand(
     ObjectId OrderId,
     ObjectId OrderItemId
 ) : IRequest<Result>;
-
-public enum PaymentMethod
-{
-    Cash = 1,
-    Card = 2,
-    Mobile = 3,
-    Other = 4
-}

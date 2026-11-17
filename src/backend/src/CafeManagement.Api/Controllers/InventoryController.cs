@@ -1,3 +1,4 @@
+using CafeManagement.Api.Authorization;
 using CafeManagement.Application.Inventory.Commands;
 using CafeManagement.Application.Inventory.Queries;
 using CafeManagement.Application.Inventory.Responses;
@@ -52,10 +53,11 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("low-stock")]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(IReadOnlyList<InventoryItemResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetLowStockItems(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetLowStockItems([FromQuery] ObjectId? shopId, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetLowStockItemsQuery(), cancellationToken);
+        var result = await _mediator.Send(new GetLowStockItemsQuery(shopId), cancellationToken);
         if (result.IsFailed)
             return BadRequest(result.Errors);
 
@@ -63,10 +65,11 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("out-of-stock")]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(IReadOnlyList<InventoryItemResponse>), StatusCodes.Status200OK)]
-    public async Task<IActionResult> GetOutOfStockItems(CancellationToken cancellationToken)
+    public async Task<IActionResult> GetOutOfStockItems([FromQuery] ObjectId? shopId, CancellationToken cancellationToken)
     {
-        var result = await _mediator.Send(new GetOutOfStockItemsQuery(), cancellationToken);
+        var result = await _mediator.Send(new GetOutOfStockItemsQuery(shopId), cancellationToken);
         if (result.IsFailed)
             return BadRequest(result.Errors);
 
@@ -74,6 +77,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("item-names")]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(IReadOnlyList<string>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetItemNames([FromQuery] GetItemNamesQuery query, CancellationToken cancellationToken)
     {
@@ -85,6 +89,7 @@ public class InventoryController : ControllerBase
     }
 
     [HttpGet("{shopId}/{itemName}")]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(InventoryItemResponse), StatusCodes.Status200OK)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> GetInventoryItemByShopIdAndName(ObjectId shopId, string itemName, CancellationToken cancellationToken)
@@ -99,6 +104,7 @@ public class InventoryController : ControllerBase
     [HttpPost]
     [ProducesResponseType(typeof(InventoryItemResponse), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> CreateInventoryItem([FromBody] CreateInventoryItemCommand command, CancellationToken cancellationToken)
     {
         var result = await _mediator.Send(command, cancellationToken);
@@ -112,6 +118,7 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> UpdateInventoryItem(ObjectId id, [FromBody] UpdateInventoryItemCommand command, CancellationToken cancellationToken)
     {
         var updateCommand = command with { Id = id };
@@ -125,6 +132,7 @@ public class InventoryController : ControllerBase
     [HttpDelete("{id}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeleteInventoryItem(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeleteInventoryItemCommand(id);
@@ -139,6 +147,7 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> AdjustQuantity(ObjectId id, [FromBody] AdjustInventoryQuantityCommand command, CancellationToken cancellationToken)
     {
         var adjustCommand = command with { Id = id };
@@ -153,6 +162,7 @@ public class InventoryController : ControllerBase
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> SetQuantity(ObjectId id, [FromBody] SetInventoryQuantityCommand command, CancellationToken cancellationToken)
     {
         var setCommand = command with { Id = id };
@@ -166,6 +176,7 @@ public class InventoryController : ControllerBase
     [HttpPost("{id}/deactivate")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    [Authorize(Roles = "Admin,Manager")]
     public async Task<IActionResult> DeactivateInventoryItem(ObjectId id, CancellationToken cancellationToken)
     {
         var command = new DeactivateInventoryItemCommand(id, null);

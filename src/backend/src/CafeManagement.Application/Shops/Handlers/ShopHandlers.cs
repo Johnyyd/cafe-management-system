@@ -15,13 +15,11 @@ namespace CafeManagement.Application.Shops.Handlers;
 public class UpdateShopHandler : IRequestHandler<UpdateShopCommand, FluentResults.Result>
 {
     private readonly IShopRepository _shopRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateShopHandler> _logger;
 
-    public UpdateShopHandler(IShopRepository shopRepository, IUnitOfWork unitOfWork, ILogger<UpdateShopHandler> logger)
+    public UpdateShopHandler(IShopRepository shopRepository, ILogger<UpdateShopHandler> logger)
     {
         _shopRepository = shopRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -39,7 +37,6 @@ public class UpdateShopHandler : IRequestHandler<UpdateShopCommand, FluentResult
             return FluentResults.Result.Fail(result.Errors);
 
         await _shopRepository.UpdateAsync(shop, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shop updated: {ShopId}", shop.Id);
         return FluentResults.Result.Ok();
@@ -49,13 +46,11 @@ public class UpdateShopHandler : IRequestHandler<UpdateShopCommand, FluentResult
 public class DeactivateShopHandler : IRequestHandler<DeactivateShopCommand, FluentResults.Result>
 {
     private readonly IShopRepository _shopRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DeactivateShopHandler> _logger;
 
-    public DeactivateShopHandler(IShopRepository shopRepository, IUnitOfWork unitOfWork, ILogger<DeactivateShopHandler> logger)
+    public DeactivateShopHandler(IShopRepository shopRepository, ILogger<DeactivateShopHandler> logger)
     {
         _shopRepository = shopRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -70,7 +65,6 @@ public class DeactivateShopHandler : IRequestHandler<DeactivateShopCommand, Flue
             return FluentResults.Result.Fail(result.Errors);
 
         await _shopRepository.UpdateAsync(shop, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Shop deactivated: {ShopId}", shop.Id);
         return FluentResults.Result.Ok();
@@ -80,13 +74,11 @@ public class DeactivateShopHandler : IRequestHandler<DeactivateShopCommand, Flue
 public class UpdateOperatingHoursHandler : IRequestHandler<UpdateOperatingHoursCommand, FluentResults.Result>
 {
     private readonly IShopRepository _shopRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateOperatingHoursHandler> _logger;
 
-    public UpdateOperatingHoursHandler(IShopRepository shopRepository, IUnitOfWork unitOfWork, ILogger<UpdateOperatingHoursHandler> logger)
+    public UpdateOperatingHoursHandler(IShopRepository shopRepository, ILogger<UpdateOperatingHoursHandler> logger)
     {
         _shopRepository = shopRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -103,7 +95,6 @@ public class UpdateOperatingHoursHandler : IRequestHandler<UpdateOperatingHoursC
             return FluentResults.Result.Fail(result.Errors);
 
         await _shopRepository.UpdateAsync(shop, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Operating hours updated for shop: {ShopId}", shop.Id);
         return FluentResults.Result.Ok();

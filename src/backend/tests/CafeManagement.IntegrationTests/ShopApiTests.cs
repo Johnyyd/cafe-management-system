@@ -164,7 +164,7 @@ public class ShopApiTests
         // Assert
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        var pagedResult = await response.Content.ReadFromJsonAsync<PagedResultDto<ShopDto>>();
+        var pagedResult = await response.Content.ReadFromJsonAsync<PagedResult<ShopDto>>();
         pagedResult.Should().NotBeNull();
         pagedResult!.Items.Should().HaveCountGreaterOrEqualTo(2);
         pagedResult.Items.Should().Contain(s => s.Name == "Shop 1");
@@ -299,14 +299,4 @@ public class ObjectIdDto
 public class ValidationProblemDetailsDto
 {
     public Dictionary<string, string[]> Errors { get; set; } = default!;
-}
-
-public class PagedResultDto<T>
-{
-    public List<T> Items { get; set; } = default!;
-    public int TotalCount { get; set; }
-    public int Page { get; set; }
-    public int PageSize { get; set; }
-    public bool HasNextPage => Page < ((int)Math.Ceiling((double)TotalCount / PageSize));
-    public bool HasPreviousPage => Page > 1;
 }

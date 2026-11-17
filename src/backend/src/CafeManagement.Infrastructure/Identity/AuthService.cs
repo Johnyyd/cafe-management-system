@@ -52,13 +52,15 @@ public class AuthService : IAuthService
             return Result.Fail("Email already registered");
         }
 
+        // Self-service registration never trusts caller-supplied role or shop.
+        // Elevated roles and shop assignments are managed by an administrator.
         var user = new ApplicationUser
         {
             UserName = email,
             Email = email,
             FullName = fullName,
             EmailConfirmed = true,
-            ShopId = string.IsNullOrEmpty(shopId) ? null : ObjectId.Parse(shopId)
+            ShopId = null
         };
 
         var result = await _userManager.CreateAsync(user, password);
@@ -67,11 +69,7 @@ public class AuthService : IAuthService
             return Result.Fail("Registration failed: Invalid email or password");
         }
 
-        // Assign role: Role from request, or Admin if email starts with admin, otherwise Barista
-        var assignedRole = !string.IsNullOrEmpty(role)
-            ? role
-            : (email.StartsWith("admin", StringComparison.OrdinalIgnoreCase) ? "Admin" : "Barista");
-
+        const string assignedRole = "Barista";
         if (!await _roleManager.RoleExistsAsync(assignedRole))
         {
             await _roleManager.CreateAsync(new ApplicationRole { Name = assignedRole, NormalizedName = assignedRole.ToUpperInvariant() });
@@ -148,6 +146,11 @@ public class AuthService : IAuthService
             return Result.Fail($"Password change failed: {errors}");
         }
 
+        // Changing the password invalidates every existing refresh token.
+        foreach (var token in user.RefreshTokens.Where(t => t.IsActive))
+            token.Revoked = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
+
         return Result.Ok();
     }
 
@@ -181,6 +184,11 @@ public class AuthService : IAuthService
             var errors = string.Join(", ", result.Errors.Select(e => e.Description));
             return Result.Fail($"Password reset failed: {errors}");
         }
+
+        // A reset invalidates every existing refresh token.
+        foreach (var existing in user.RefreshTokens.Where(t => t.IsActive))
+            existing.Revoked = DateTime.UtcNow;
+        await _userManager.UpdateAsync(user);
 
         return Result.Ok();
     }
@@ -249,10 +257,21 @@ public class AuthService : IAuthService
         );
     }
 
+    private static readonly Dictionary<string, string> CanonicalRoleNames = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["Admin"] = "Admin",
+        ["Manager"] = "Manager",
+        ["Cashier"] = "Cashier",
+        ["Barista"] = "Barista",
+        ["InventoryStaff"] = "InventoryStaff"
+    };
+
     private async Task<string> GenerateJwtTokenAsync(ApplicationUser user)
     {
-        var jwtKey = _configuration["Jwt:Key"] ?? Environment.GetEnvironmentVariable("JWT_KEY");
-        if (string.IsNullOrEmpty(jwtKey))
+        var jwtKey = _configuration["Jwt:Key"];
+        if (string.IsNullOrWhiteSpace(jwtKey))
+            jwtKey = Environment.GetEnvironmentVariable("JWT_KEY");
+        if (string.IsNullOrWhiteSpace(jwtKey))
         {
             throw new InvalidOperationException("JWT Key is not configured. Set JWT_KEY environment variable or Jwt:Key in configuration.");
         }
@@ -272,7 +291,12 @@ public class AuthService : IAuthService
         var roles = await _userManager.GetRolesAsync(user);
         foreach (var role in roles)
         {
-            claims.Add(new Claim(ClaimTypes.Role, role));
+            // UserManager normalizes stored role names to upper case; authorization
+            // compares role claims case-sensitively against "Admin", "Manager", ...
+            var canonicalRole = CanonicalRoleNames.TryGetValue(role, out var known)
+                ? known
+                : role;
+            claims.Add(new Claim(ClaimTypes.Role, canonicalRole));
         }
 
         var token = new JwtSecurityToken(

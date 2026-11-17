@@ -1,3 +1,4 @@
+using CafeManagement.Api.Authorization;
 using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Orders.Commands;
 using CafeManagement.Application.Orders.Queries;
@@ -48,6 +49,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpGet]
+    [Authorize(Policy = "ShopScope")]
     [ProducesResponseType(typeof(PagedResult<OrderDto>), StatusCodes.Status200OK)]
     public async Task<IActionResult> GetOrders([FromQuery] GetOrdersQuery query, CancellationToken cancellationToken)
     {
@@ -100,13 +102,29 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("{id}/payment")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
-    public async Task<IActionResult> ProcessPayment(ObjectId id, [FromBody] ProcessPaymentCommand command, CancellationToken cancellationToken)
+    public async Task<IActionResult> ProcessPayment(ObjectId id, CancellationToken cancellationToken)
     {
-        var updateCommand = command with { Id = id };
-        var result = await _mediator.Send(updateCommand, cancellationToken);
+        var command = new ProcessPaymentCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
+        if (result.IsFailed)
+            return BadRequest(result.Errors);
+
+        return NoContent();
+    }
+
+    [HttpPost("{id}/pay-and-complete")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
+    [ProducesResponseType(StatusCodes.Status204NoContent)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
+    [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
+    public async Task<IActionResult> PayAndComplete(ObjectId id, CancellationToken cancellationToken)
+    {
+        var command = new PayAndCompleteCommand(id);
+        var result = await _mediator.Send(command, cancellationToken);
         if (result.IsFailed)
             return BadRequest(result.Errors);
 
@@ -114,6 +132,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

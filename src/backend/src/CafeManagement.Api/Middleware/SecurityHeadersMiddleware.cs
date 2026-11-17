@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Hosting;
 using System.Threading.Tasks;
 
 namespace CafeManagement.Api.Middleware;
@@ -9,10 +10,12 @@ namespace CafeManagement.Api.Middleware;
 public class SecurityHeadersMiddleware
 {
     private readonly RequestDelegate _next;
+    private readonly bool _isDevelopment;
 
-    public SecurityHeadersMiddleware(RequestDelegate next)
+    public SecurityHeadersMiddleware(RequestDelegate next, IHostEnvironment env)
     {
         _next = next;
+        _isDevelopment = env.IsDevelopment();
     }
 
     public async Task InvokeAsync(HttpContext context)
@@ -20,17 +23,18 @@ public class SecurityHeadersMiddleware
         // Add security headers before processing the request
         context.Response.OnStarting(() =>
         {
-            // Content Security Policy
-            context.Response.Headers["Content-Security-Policy"] =
-                "default-src 'self'; " +
-                "script-src 'self' 'unsafe-inline' 'unsafe-eval'; " +
-                "style-src 'self' 'unsafe-inline'; " +
-                "img-src 'self' data: https:; " +
-                "font-src 'self' data:; " +
-                "connect-src 'self' https:; " +
-                "frame-ancestors 'none'; " +
-                "base-uri 'self'; " +
-                "form-action 'self';";
+            // Content Security Policy - stricter in production
+            var csp = "default-src 'self'; " +
+                      "script-src 'self'" + (_isDevelopment ? " 'unsafe-inline' 'unsafe-eval'" : "") + "; " +
+                      "style-src 'self'" + (_isDevelopment ? " 'unsafe-inline'" : "") + "; " +
+                      "img-src 'self' data: https:; " +
+                      "font-src 'self' data:; " +
+                      "connect-src 'self' https:; " +
+                      "frame-ancestors 'none'; " +
+                      "base-uri 'self'; " +
+                      "form-action 'self';";
+
+            context.Response.Headers["Content-Security-Policy"] = csp;
 
             // X-Frame-Options
             context.Response.Headers["X-Frame-Options"] = "DENY";

@@ -1,28 +1,23 @@
 using CafeManagement.Application.Common.Interfaces;
-using CafeManagement.Application.Common.Behaviors;
 using CafeManagement.Application.Inventory.Commands;
 using CafeManagement.Application.Inventory.Responses;
 using CafeManagement.Application.Inventory.Queries;
 using CafeManagement.Domain.Common;
 using CafeManagement.Domain.Inventory;
+using CafeManagement.Domain.Inventory.Events;
 using FluentResults;
 using MediatR;
 using MongoDB.Bson;
-using System;
-using System.Threading;
-using System.Threading.Tasks;
 
 namespace CafeManagement.Application.Inventory.Handlers;
 
 public class CreateInventoryItemHandler : IRequestHandler<CreateInventoryItemCommand, Result<InventoryItemResponse>>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public CreateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public CreateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<InventoryItemResponse>> Handle(CreateInventoryItemCommand request, CancellationToken cancellationToken)
@@ -42,8 +37,6 @@ public class CreateInventoryItemHandler : IRequestHandler<CreateInventoryItemCom
         var item = result.Value;
         await _inventoryItemRepository.AddAsync(item, cancellationToken);
 
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
-
         var response = new InventoryItemResponse(
             item.Id,
             item.ShopId,
@@ -62,12 +55,10 @@ public class CreateInventoryItemHandler : IRequestHandler<CreateInventoryItemCom
 public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCommand, Result<InventoryItemResponse>>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public UpdateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public UpdateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result<InventoryItemResponse>> Handle(UpdateInventoryItemCommand request, CancellationToken cancellationToken)
@@ -87,7 +78,6 @@ public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCom
             return Result.Fail<InventoryItemResponse>(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(item, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         var response = new InventoryItemResponse(
             item.Id,
@@ -107,30 +97,35 @@ public class UpdateInventoryItemHandler : IRequestHandler<UpdateInventoryItemCom
 public class AdjustInventoryQuantityHandler : IRequestHandler<AdjustInventoryQuantityCommand, Result>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public AdjustInventoryQuantityHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public AdjustInventoryQuantityHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(AdjustInventoryQuantityCommand request, CancellationToken cancellationToken)
     {
-        var item = await _inventoryItemRepository.GetByIdAsync(request.Id);
-        if (item == null)
-            return Result.Fail("Inventory Item not found");
-
-        var result = item.AdjustQuantity(
+        // Use atomic MongoDB $inc operation to prevent race conditions
+        var result = await _inventoryItemRepository.AdjustQuantityAtomicAsync(
+            request.Id,
             request.QuantityChange,
-            request.Reason,
-            request.AdjustedBy);
+            request.AdjustedBy,
+            cancellationToken);
 
         if (result.IsFailed)
             return Result.Fail(result.Errors);
 
-        await _inventoryItemRepository.UpdateAsync(item, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        // Raise domain event manually since we bypassed the domain entity
+        var updatedItem = result.Value;
+        updatedItem.AddDomainEvent(new InventoryQuantityAdjustedEvent(
+            updatedItem.Id,
+            updatedItem.ShopId,
+            updatedItem.ItemName,
+            updatedItem.Quantity - request.QuantityChange, // old quantity
+            updatedItem.Quantity,                          // new quantity
+            request.QuantityChange,
+            request.Reason,
+            request.AdjustedBy));
 
         return Result.Ok();
     }
@@ -139,12 +134,10 @@ public class AdjustInventoryQuantityHandler : IRequestHandler<AdjustInventoryQua
 public class SetInventoryQuantityHandler : IRequestHandler<SetInventoryQuantityCommand, Result>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public SetInventoryQuantityHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public SetInventoryQuantityHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(SetInventoryQuantityCommand request, CancellationToken cancellationToken)
@@ -161,7 +154,6 @@ public class SetInventoryQuantityHandler : IRequestHandler<SetInventoryQuantityC
             return Result.Fail(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(item, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
     }
@@ -170,12 +162,10 @@ public class SetInventoryQuantityHandler : IRequestHandler<SetInventoryQuantityC
 public class DeactivateInventoryItemHandler : IRequestHandler<DeactivateInventoryItemCommand, Result>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public DeactivateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public DeactivateInventoryItemHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(DeactivateInventoryItemCommand request, CancellationToken cancellationToken)
@@ -191,7 +181,6 @@ public class DeactivateInventoryItemHandler : IRequestHandler<DeactivateInventor
             return Result.Fail(result.Errors);
 
         await _inventoryItemRepository.UpdateAsync(item, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
     }
@@ -200,12 +189,10 @@ public class DeactivateInventoryItemHandler : IRequestHandler<DeactivateInventor
 public class DeleteInventoryItemHandler : IRequestHandler<DeleteInventoryItemCommand, Result>
 {
     private readonly IInventoryItemRepository _inventoryItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
 
-    public DeleteInventoryItemHandler(IInventoryItemRepository inventoryItemRepository, IUnitOfWork unitOfWork)
+    public DeleteInventoryItemHandler(IInventoryItemRepository inventoryItemRepository)
     {
         _inventoryItemRepository = inventoryItemRepository;
-        _unitOfWork = unitOfWork;
     }
 
     public async Task<Result> Handle(DeleteInventoryItemCommand request, CancellationToken cancellationToken)
@@ -215,7 +202,6 @@ public class DeleteInventoryItemHandler : IRequestHandler<DeleteInventoryItemCom
             return Result.Fail(DomainErrors.General.NotFound("Inventory Item", request.Id));
 
         await _inventoryItemRepository.DeleteAsync(request.Id, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         return Result.Ok();
     }
@@ -261,7 +247,7 @@ public class GetLowStockItemsHandler : IRequestHandler<GetLowStockItemsQuery, Re
 
     public async Task<Result<IReadOnlyList<InventoryItemResponse>>> Handle(GetLowStockItemsQuery request, CancellationToken cancellationToken)
     {
-        var items = await _inventoryItemRepository.GetLowStockItemsAsync(cancellationToken);
+        var items = await _inventoryItemRepository.GetLowStockItemsAsync(request.ShopId, cancellationToken);
         var list = items.Select(i => new InventoryItemResponse(
             i.Id,
             i.ShopId,
@@ -288,7 +274,7 @@ public class GetOutOfStockItemsHandler : IRequestHandler<GetOutOfStockItemsQuery
 
     public async Task<Result<IReadOnlyList<InventoryItemResponse>>> Handle(GetOutOfStockItemsQuery request, CancellationToken cancellationToken)
     {
-        var items = await _inventoryItemRepository.GetOutOfStockItemsAsync(cancellationToken);
+        var items = await _inventoryItemRepository.GetOutOfStockItemsAsync(request.ShopId, cancellationToken);
         var list = items.Select(i => new InventoryItemResponse(
             i.Id,
             i.ShopId,
@@ -318,6 +304,36 @@ public class GetInventoryItemByShopIdAndNameHandler : IRequestHandler<GetInvento
         var item = await _inventoryItemRepository.GetByShopIdAndNameAsync(request.ShopId, request.ItemName, cancellationToken);
         if (item == null)
             return Result.Fail<InventoryItemResponse>(DomainErrors.General.NotFound("Inventory Item", new object[] { request.ShopId, request.ItemName }));
+
+        var response = new InventoryItemResponse(
+            item.Id,
+            item.ShopId,
+            item.ItemName,
+            item.Unit,
+            item.Quantity,
+            item.ReorderLevel,
+            item.SupplierId,
+            item.IsLowStock(),
+            item.IsOutOfStock());
+
+        return Result.Ok(response);
+    }
+}
+
+public class GetInventoryItemByIdHandler : IRequestHandler<GetInventoryItemByIdQuery, Result<InventoryItemResponse>>
+{
+    private readonly IInventoryItemRepository _inventoryItemRepository;
+
+    public GetInventoryItemByIdHandler(IInventoryItemRepository inventoryItemRepository)
+    {
+        _inventoryItemRepository = inventoryItemRepository;
+    }
+
+    public async Task<Result<InventoryItemResponse>> Handle(GetInventoryItemByIdQuery request, CancellationToken cancellationToken)
+    {
+        var item = await _inventoryItemRepository.GetByIdAsync(request.Id, cancellationToken);
+        if (item == null)
+            return Result.Fail<InventoryItemResponse>(DomainErrors.General.NotFound("Inventory Item", request.Id));
 
         var response = new InventoryItemResponse(
             item.Id,

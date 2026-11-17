@@ -1,7 +1,7 @@
-using CafeManagement.Application.Common.Dtos;
-using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Application.Orders.Commands;
 using CafeManagement.Application.Orders.Queries;
+using CafeManagement.Application.Common.Interfaces;
+using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Domain.Common;
 using DomainOrders = CafeManagement.Domain.Orders;
 using CafeManagement.Domain.Shared;
@@ -9,19 +9,18 @@ using FluentResults;
 using MediatR;
 using Microsoft.Extensions.Logging;
 using MongoDB.Bson;
+using System.Runtime.InteropServices;
 
 namespace CafeManagement.Application.Orders.Handlers;
 
 public class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateOrderHandler> _logger;
 
-    public UpdateOrderHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<UpdateOrderHandler> logger)
+    public UpdateOrderHandler(IOrderRepository orderRepository, ILogger<UpdateOrderHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -44,7 +43,6 @@ public class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, FluentResu
         }
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order updated: {OrderId}", order.Id);
         return FluentResults.Result.Ok();
@@ -54,13 +52,11 @@ public class UpdateOrderHandler : IRequestHandler<UpdateOrderCommand, FluentResu
 public class CancelOrderHandler : IRequestHandler<CancelOrderCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CancelOrderHandler> _logger;
 
-    public CancelOrderHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<CancelOrderHandler> logger)
+    public CancelOrderHandler(IOrderRepository orderRepository, ILogger<CancelOrderHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -75,7 +71,6 @@ public class CancelOrderHandler : IRequestHandler<CancelOrderCommand, FluentResu
             return FluentResults.Result.Fail(result.Errors);
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order cancelled: {OrderId}", order.Id);
         return FluentResults.Result.Ok();
@@ -85,13 +80,11 @@ public class CancelOrderHandler : IRequestHandler<CancelOrderCommand, FluentResu
 public class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<DeleteOrderHandler> _logger;
 
-    public DeleteOrderHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<DeleteOrderHandler> logger)
+    public DeleteOrderHandler(IOrderRepository orderRepository, ILogger<DeleteOrderHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -102,7 +95,6 @@ public class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, FluentResu
             return FluentResults.Result.Fail(DomainErrors.General.NotFound("Order", request.Id));
 
         await _orderRepository.DeleteAsync(request.Id, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order deleted: {OrderId}", order.Id);
         return FluentResults.Result.Ok();
@@ -112,13 +104,11 @@ public class DeleteOrderHandler : IRequestHandler<DeleteOrderCommand, FluentResu
 public class ProcessPaymentHandler : IRequestHandler<ProcessPaymentCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<ProcessPaymentHandler> _logger;
 
-    public ProcessPaymentHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<ProcessPaymentHandler> logger)
+    public ProcessPaymentHandler(IOrderRepository orderRepository, ILogger<ProcessPaymentHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -128,30 +118,118 @@ public class ProcessPaymentHandler : IRequestHandler<ProcessPaymentCommand, Flue
         if (order == null)
             return FluentResults.Result.Fail(DomainErrors.General.NotFound("Order", request.Id));
 
-        var paymentStatus = (DomainOrders.PaymentStatus)request.PaymentMethod;
+        // Use server-calculated total amount instead of client-supplied amount
+        var amountPaid = order.TotalAmount;
 
-        var result = order.ProcessPayment(paymentStatus);
+        var result = order.ProcessCashPayment(amountPaid);
         if (result.IsFailed)
             return FluentResults.Result.Fail(result.Errors);
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
-        _logger.LogInformation("Order payment processed: {OrderId}", order.Id);
+        _logger.LogInformation("Cash payment recorded for order: {OrderId}, amount: {Amount}", order.Id, amountPaid);
         return FluentResults.Result.Ok();
+    }
+}
+
+public class PayAndCompleteHandler : IRequestHandler<PayAndCompleteCommand, FluentResults.Result>
+{
+    private readonly IOrderRepository _orderRepository;
+    private readonly IInventoryService _inventoryService;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<PayAndCompleteHandler> _logger;
+
+    public PayAndCompleteHandler(
+        IOrderRepository orderRepository,
+        IInventoryService inventoryService,
+        IUnitOfWork unitOfWork,
+        ILogger<PayAndCompleteHandler> logger)
+    {
+        _orderRepository = orderRepository;
+        _inventoryService = inventoryService;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
+    }
+
+    public async Task<FluentResults.Result> Handle(PayAndCompleteCommand request, CancellationToken cancellationToken)
+    {
+        // Start a MongoDB transaction for atomic order completion + inventory adjustment
+        await _unitOfWork.StartTransactionAsync(cancellationToken);
+
+        try
+        {
+            var order = await _orderRepository.GetByIdAsync(request.Id, cancellationToken);
+            if (order == null)
+            {
+                await _unitOfWork.AbortTransactionAsync(cancellationToken);
+                return FluentResults.Result.Fail(DomainErrors.General.NotFound("Order", request.Id));
+            }
+
+            // Use server-calculated total amount instead of client-supplied amount
+            var amountPaid = order.TotalAmount;
+
+            var result = order.PayAndComplete(amountPaid);
+            if (result.IsFailed)
+            {
+                await _unitOfWork.AbortTransactionAsync(cancellationToken);
+                return FluentResults.Result.Fail(result.Errors);
+            }
+
+            // Deduct inventory for each order item within the transaction
+            foreach (var orderItem in order.Items)
+            {
+                var inventoryResult = await _inventoryService.GetByShopIdAndNameAsync(order.ShopId, orderItem.Name);
+                if (inventoryResult.IsSuccess)
+                {
+                    var adjustResult = await _inventoryService.AdjustQuantityAsync(
+                        inventoryResult.Value.Id,
+                        -orderItem.Quantity, // Negative to reduce inventory
+                        $"Order {order.OrderNumber} completed",
+                        order.StaffId);
+
+                    if (adjustResult.IsFailed)
+                    {
+                        await _unitOfWork.AbortTransactionAsync(cancellationToken);
+                        _logger.LogWarning("Failed to adjust inventory for item {ItemName} in order {OrderId}: {Errors}",
+                            orderItem.Name, order.Id, adjustResult.Errors);
+                        return FluentResults.Result.Fail($"Inventory adjustment failed for {orderItem.Name}: {adjustResult.Errors.FirstOrDefault()?.Message}");
+                    }
+                }
+                else
+                {
+                    await _unitOfWork.AbortTransactionAsync(cancellationToken);
+                    _logger.LogWarning("Inventory item not found for {ItemName} in shop {ShopId} when completing order {OrderId}",
+                        orderItem.Name, order.ShopId, order.Id);
+                    return FluentResults.Result.Fail($"Inventory item not found for {orderItem.Name} in shop {order.ShopId}");
+                }
+            }
+
+            // All inventory adjustments succeeded, save the completed order
+            await _orderRepository.UpdateAsync(order, cancellationToken);
+
+            // Commit the transaction
+            await _unitOfWork.CommitTransactionAsync(cancellationToken);
+
+            _logger.LogInformation("Cash payment completed for order: {OrderId}, amount: {Amount}", order.Id, amountPaid);
+            return FluentResults.Result.Ok();
+        }
+        catch (Exception ex)
+        {
+            await _unitOfWork.AbortTransactionAsync(cancellationToken);
+            _logger.LogError(ex, "Order {OrderId} completion failed, transaction aborted", request.Id);
+            return FluentResults.Result.Fail($"Order completion failed: {ex.Message}. Transaction has been rolled back.");
+        }
     }
 }
 
 public class UpdateOrderStatusHandler : IRequestHandler<UpdateOrderStatusCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateOrderStatusHandler> _logger;
 
-    public UpdateOrderStatusHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<UpdateOrderStatusHandler> logger)
+    public UpdateOrderStatusHandler(IOrderRepository orderRepository, ILogger<UpdateOrderStatusHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -166,7 +244,6 @@ public class UpdateOrderStatusHandler : IRequestHandler<UpdateOrderStatusCommand
             return FluentResults.Result.Fail(result.Errors);
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order status updated: {OrderId} to {Status}", order.Id, request.Status);
         return FluentResults.Result.Ok();
@@ -177,18 +254,22 @@ public class AddOrderItemHandler : IRequestHandler<AddOrderItemCommand, FluentRe
 {
     private readonly IOrderRepository _orderRepository;
     private readonly IMenuItemRepository _menuItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<AddOrderItemHandler> _logger;
+
+    // Vietnam timezone (UTC+7) - all shops are in Vietnam
+    // Windows uses "SE Asia Standard Time", Linux uses "Asia/Ho_Chi_Minh"
+    private static readonly TimeZoneInfo VietnamTimeZone = TimeZoneInfo.FindSystemTimeZoneById(
+        RuntimeInformation.IsOSPlatform(OSPlatform.Windows)
+            ? "SE Asia Standard Time"
+            : "Asia/Ho_Chi_Minh");
 
     public AddOrderItemHandler(
         IOrderRepository orderRepository,
         IMenuItemRepository menuItemRepository,
-        IUnitOfWork unitOfWork,
         ILogger<AddOrderItemHandler> logger)
     {
         _orderRepository = orderRepository;
         _menuItemRepository = menuItemRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -202,7 +283,10 @@ public class AddOrderItemHandler : IRequestHandler<AddOrderItemCommand, FluentRe
         if (menuItem == null)
             return FluentResults.Result.Fail(DomainErrors.General.NotFound("MenuItem", request.MenuItemId));
 
-        if (!menuItem.IsAvailableAt(DateTime.UtcNow))
+        // Get current time in Vietnam timezone for availability checks
+        var nowInVietnam = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, VietnamTimeZone);
+
+        if (!menuItem.IsAvailableAt(nowInVietnam))
             return FluentResults.Result.Fail(DomainErrors.Business.InvalidOperation($"Menu item '{menuItem.Name}' is not available at this time"));
 
         var unitPrice = new Money(menuItem.Price.Amount, menuItem.Price.Currency);
@@ -219,7 +303,6 @@ public class AddOrderItemHandler : IRequestHandler<AddOrderItemCommand, FluentRe
             return FluentResults.Result.Fail(result.Errors);
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order item added to order: {OrderId}", order.Id);
         return FluentResults.Result.Ok();
@@ -229,13 +312,11 @@ public class AddOrderItemHandler : IRequestHandler<AddOrderItemCommand, FluentRe
 public class UpdateOrderItemHandler : IRequestHandler<UpdateOrderItemCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<UpdateOrderItemHandler> _logger;
 
-    public UpdateOrderItemHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<UpdateOrderItemHandler> logger)
+    public UpdateOrderItemHandler(IOrderRepository orderRepository, ILogger<UpdateOrderItemHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -257,7 +338,6 @@ public class UpdateOrderItemHandler : IRequestHandler<UpdateOrderItemCommand, Fl
         }
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order item updated: {OrderItemId} in order: {OrderId}", request.OrderItemId, request.OrderId);
         return FluentResults.Result.Ok();
@@ -267,13 +347,11 @@ public class UpdateOrderItemHandler : IRequestHandler<UpdateOrderItemCommand, Fl
 public class RemoveOrderItemHandler : IRequestHandler<RemoveOrderItemCommand, FluentResults.Result>
 {
     private readonly IOrderRepository _orderRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RemoveOrderItemHandler> _logger;
 
-    public RemoveOrderItemHandler(IOrderRepository orderRepository, IUnitOfWork unitOfWork, ILogger<RemoveOrderItemHandler> logger)
+    public RemoveOrderItemHandler(IOrderRepository orderRepository, ILogger<RemoveOrderItemHandler> logger)
     {
         _orderRepository = orderRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -288,7 +366,6 @@ public class RemoveOrderItemHandler : IRequestHandler<RemoveOrderItemCommand, Fl
             return FluentResults.Result.Fail(result.Errors);
 
         await _orderRepository.UpdateAsync(order, cancellationToken);
-        await _unitOfWork.SaveChangesAsync(cancellationToken);
 
         _logger.LogInformation("Order item removed: {OrderItemId} from order: {OrderId}", request.OrderItemId, request.OrderId);
         return FluentResults.Result.Ok();
@@ -315,6 +392,7 @@ public class GetOrderByIdHandler : IRequestHandler<GetOrderByIdQuery, FluentResu
             order.Id,
             order.ShopId,
             order.StaffId,
+            order.OrderNumber,
             new CustomerInfoDto(order.CustomerInfo.Name, order.CustomerInfo.Contact, (CustomerType)order.CustomerInfo.Type),
             order.Items.Select(i => new OrderItemDto(
                 i.MenuItemId,
@@ -364,14 +442,18 @@ public class GetOrdersHandler : IRequestHandler<GetOrdersQuery, FluentResults.Re
 
         orders = orders.OrderByDescending(o => o.OrderTime).ToList();
 
+        var page = Math.Max(1, request.Page);
+        var pageSize = Math.Clamp(request.PageSize, 1, 500);
+
         var totalCount = orders.Count;
         var pagedOrders = orders
-            .Skip((request.Page - 1) * request.PageSize)
-            .Take(request.PageSize)
+            .Skip((page - 1) * pageSize)
+            .Take(pageSize)
             .Select(o => new OrderDto(
                 o.Id,
                 o.ShopId,
                 o.StaffId,
+                o.OrderNumber,
                 new CustomerInfoDto(o.CustomerInfo.Name, o.CustomerInfo.Contact, (CustomerType)o.CustomerInfo.Type),
                 o.Items.Select(i => new OrderItemDto(
                     i.MenuItemId,
@@ -391,7 +473,7 @@ public class GetOrdersHandler : IRequestHandler<GetOrdersQuery, FluentResults.Re
                 o.DeletedAt))
             .ToList();
 
-        var result = new PagedResult<OrderDto>(pagedOrders, totalCount, request.Page, request.PageSize);
+        var result = new PagedResult<OrderDto>(pagedOrders, totalCount, page, pageSize);
         return FluentResults.Result.Ok(result);
     }
 }
@@ -415,6 +497,7 @@ public class GetOrderReceiptHandler : IRequestHandler<GetOrderReceiptQuery, Flue
             order.Id,
             order.ShopId,
             order.StaffId,
+            order.OrderNumber,
             new CustomerInfoDto(order.CustomerInfo.Name, order.CustomerInfo.Contact, (CustomerType)order.CustomerInfo.Type),
             order.Items.Select(i => new OrderItemDto(
                 i.MenuItemId,

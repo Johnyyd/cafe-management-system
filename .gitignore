@@ -4,6 +4,8 @@
 *.cache
 *bin
 *obj
+*.pyc
+__pycache__/
 /feature
 /.claude
 /backend
@@ -11,3 +13,5 @@
 /frontend
 /docs
 /src/frontend/.vite/deps
+CLAUDE.md
+AGENTS.md

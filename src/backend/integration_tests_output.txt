@@ -1,0 +1,29 @@
+Test run for E:\GitHub\cafe-management-system\src\backend\tests\CafeManagement.IntegrationTests\bin\Debug\net8.0\CafeManagement.IntegrationTests.dll (.NETCoreApp,Version=v8.0)
+VSTest version 17.11.2 (x64)
+
+Starting test execution, please wait...
+A total of 1 test files matched the specified pattern.
+[xUnit.net 00:00:00.00] xUnit.net VSTest Adapter v2.8.2+699d445a1a (64-bit .NET 8.0.34)
+[xUnit.net 00:00:00.13]   Discovering: CafeManagement.IntegrationTests
+[xUnit.net 00:00:00.18]   Discovered:  CafeManagement.IntegrationTests
+[xUnit.net 00:00:00.18]   Starting:    CafeManagement.IntegrationTests
+[IntegrationTestFixture] Static constructor setting timeout
+[IntegrationTestFixture] ModuleInitializer starting
+[IntegrationTestFixture] DOTNET_HOST_FACTORY_RESOLVER_DEFAULT_TIMEOUT_IN_SECONDS = 14400
+[IntegrationTestFixture] Creating new CustomWebApplicationFactory
+[IntegrationTestFixture] Creating MongoDB container
+[testcontainers.org 00:00:00.11] Connected to Docker:
+  Host: npipe://./pipe/docker_engine
+  Server Version: 29.6.1
+  Kernel Version: 6.18.33.2-microsoft-standard-WSL2
+  API Version: 1.55
+  Operating System: Docker Desktop
+  Total Memory: 7.73 GB
+[testcontainers.org 00:00:00.35] Docker container 7b5572548350 created
+[testcontainers.org 00:00:00.44] Start Docker container 7b5572548350
+[testcontainers.org 00:00:00.74] Wait for Docker container 7b5572548350 to complete readiness checks
+[testcontainers.org 00:00:00.74] Docker container 7b5572548350 ready
+[testcontainers.org 00:00:00.92] Docker container 663464e9755c created
+[testcontainers.org 00:00:00.95] Start Docker container 663464e9755c
+[testcontainers.org 00:00:01.38] Wait for Docker container 663464e9755c to complete readiness checks
+[testcontainers.org 00:00:08.76] Docker container 663464e9755c ready

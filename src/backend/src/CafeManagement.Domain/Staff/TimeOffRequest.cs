@@ -108,6 +108,8 @@ public class TimeOffRequest : AggregateRoot<ObjectId>
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel a deleted time-off request"));
         if (Status == TimeOffStatus.Cancelled)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Request is already cancelled"));
+        if (Status == TimeOffStatus.Rejected)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel a rejected time-off request"));
         if (Status == TimeOffStatus.Approved && StartDate <= DateTime.UtcNow)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cancel approved time-off that has already started"));
 

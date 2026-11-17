@@ -55,9 +55,11 @@ public class MenuItemRepository : RepositoryBase<Domain.Menu.MenuItem>, IMenuIte
 
     public async Task<IReadOnlyList<string>> GetCategoriesAsync(ObjectId shopId, CancellationToken cancellationToken = default)
     {
-        var filter = Builders<Domain.Menu.MenuItem>.Filter.And(
-            Builders<Domain.Menu.MenuItem>.Filter.Eq(m => m.ShopId, shopId),
-            Builders<Domain.Menu.MenuItem>.Filter.Eq(m => m.DeletedAt, (DateTime?)null));
+        var filter = shopId == ObjectId.Empty
+            ? Builders<Domain.Menu.MenuItem>.Filter.Eq(m => m.DeletedAt, (DateTime?)null)
+            : Builders<Domain.Menu.MenuItem>.Filter.And(
+                Builders<Domain.Menu.MenuItem>.Filter.Eq(m => m.ShopId, shopId),
+                Builders<Domain.Menu.MenuItem>.Filter.Eq(m => m.DeletedAt, (DateTime?)null));
         var categories = await Collection.DistinctAsync<string>("Category", filter, cancellationToken: cancellationToken);
         return await categories.ToListAsync(cancellationToken);
     }

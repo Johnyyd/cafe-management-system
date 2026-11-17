@@ -1,4 +1,3 @@
-using CafeManagement.Application.Common.Dtos;
 using CafeManagement.Application.Common.Interfaces;
 using CafeManagement.Application.Menu.Commands;
 using CafeManagement.Domain.Common;
@@ -14,16 +13,13 @@ namespace CafeManagement.Application.Menu.Handlers;
 public class CreateMenuItemHandler : IRequestHandler<CreateMenuItemCommand, Result<ObjectId>>
 {
     private readonly IMenuItemRepository _menuItemRepository;
-    private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<CreateMenuItemHandler> _logger;
 
     public CreateMenuItemHandler(
         IMenuItemRepository menuItemRepository,
-        IUnitOfWork unitOfWork,
         ILogger<CreateMenuItemHandler> logger)
     {
         _menuItemRepository = menuItemRepository;
-        _unitOfWork = unitOfWork;
         _logger = logger;
     }
 
@@ -66,7 +62,6 @@ public class CreateMenuItemHandler : IRequestHandler<CreateMenuItemCommand, Resu
 
             // Save to repository
             await _menuItemRepository.AddAsync(menuItem, cancellationToken);
-            await _unitOfWork.SaveChangesAsync(cancellationToken);
 
             _logger.LogInformation("Menu item created successfully with Id: {MenuItemId}", menuItem.Id);
 

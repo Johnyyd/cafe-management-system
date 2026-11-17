@@ -1,44 +1,51 @@
 using CafeManagement.Application.Common.Interfaces;
-using MongoDB.Driver;
+using CafeManagement.Infrastructure.Persistence;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace CafeManagement.Infrastructure.Persistence;
 
+/// <summary>
+/// Unit of Work implementation using MongoDB transactions.
+/// Wraps IMongoDbContext to provide transaction management without exposing infrastructure details to Application layer.
+/// </summary>
 public class MongoDbUnitOfWork : IUnitOfWork
 {
-    private readonly IMongoDbContext _context;
-    private readonly IClientSessionHandle? _session;
-    private readonly bool _hasTransaction;
+    private readonly IMongoDbContext _mongoDbContext;
+    private bool _disposed;
 
-    public MongoDbUnitOfWork(IMongoDbContext context)
+    public MongoDbUnitOfWork(IMongoDbContext mongoDbContext)
     {
-        _context = context;
-        try
-        {
-            _session = context.Database.Client.StartSession();
-            _session.StartTransaction();
-            _hasTransaction = true;
-        }
-        catch (NotSupportedException)
-        {
-            _hasTransaction = false;
-        }
-        catch (Exception)
-        {
-            _hasTransaction = false;
-        }
+        _mongoDbContext = mongoDbContext;
     }
 
-    public async Task<int> SaveChangesAsync(CancellationToken cancellationToken = default)
+    public async Task StartTransactionAsync(CancellationToken cancellationToken = default)
     {
-        if (_hasTransaction && _session != null && _session.IsInTransaction)
-        {
-            await _session.CommitTransactionAsync(cancellationToken);
-        }
-        return 1;
+        await _mongoDbContext.StartTransactionAsync(cancellationToken);
+    }
+
+    public async Task CommitTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        await _mongoDbContext.CommitTransactionAsync(cancellationToken);
+    }
+
+    public async Task AbortTransactionAsync(CancellationToken cancellationToken = default)
+    {
+        await _mongoDbContext.AbortTransactionAsync(cancellationToken);
     }
 
     public void Dispose()
     {
-        _session?.Dispose();
+        Dispose(true);
+        GC.SuppressFinalize(this);
+    }
+
+    protected virtual void Dispose(bool disposing)
+    {
+        if (!_disposed && disposing)
+        {
+            // Note: We don't dispose the MongoDbContext here as it's managed by DI container
+            _disposed = true;
+        }
     }
 }

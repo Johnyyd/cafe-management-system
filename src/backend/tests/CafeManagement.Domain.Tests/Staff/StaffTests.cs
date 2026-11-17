@@ -224,4 +224,222 @@ public class StaffTests
         Assert.Single(primaryAssignments);
         Assert.Equal(shopId2, primaryAssignments[0].ShopId);
     }
+
+    [Fact]
+    public void UnassignFromShop_ValidInput_ReturnsSuccess()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+        staff.AssignToShop(shopId, true);
+
+        // Act
+        var result = staff.UnassignFromShop(shopId);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(shopId, staff.GetAssignedShopIds());
+        Assert.Null(staff.GetPrimaryShopId());
+    }
+
+    [Fact]
+    public void UnassignFromShop_NotAssigned_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.UnassignFromShop(shopId);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("not actively assigned"));
+    }
+
+    [Fact]
+    public void UnassignFromShop_EmptyShopId_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.UnassignFromShop(ObjectId.Empty);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("ShopId"));
+    }
+
+    [Fact]
+    public void SetPrimaryShop_ValidInput_ReturnsSuccess()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId1 = ObjectId.GenerateNewId();
+        var shopId2 = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+        staff.AssignToShop(shopId1, false);
+        staff.AssignToShop(shopId2, false);
+
+        // Act
+        var result = staff.SetPrimaryShop(shopId2);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(shopId2, staff.GetPrimaryShopId());
+        Assert.Contains(shopId1, staff.GetAssignedShopIds());
+        Assert.Contains(shopId2, staff.GetAssignedShopIds());
+
+        // Verify only one primary assignment exists
+        var primaryAssignments = staff.ShopAssignments.Where(a => a.IsActive && a.IsPrimary).ToList();
+        Assert.Single(primaryAssignments);
+        Assert.Equal(shopId2, primaryAssignments[0].ShopId);
+    }
+
+    [Fact]
+    public void SetPrimaryShop_NotAssigned_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.SetPrimaryShop(shopId);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("not actively assigned"));
+    }
+
+    [Fact]
+    public void SetPrimaryShop_EmptyShopId_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.SetPrimaryShop(ObjectId.Empty);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("ShopId"));
+    }
+
+    [Fact]
+    public void AssignToShop_DeletedStaff_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+        // Soft delete the staff using the proper method
+        staff.MarkAsDeleted();
+
+        // Act
+        var result = staff.AssignToShop(shopId, true);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("deleted staff member"));
+    }
+
+    [Fact]
+    public void AssignToShop_EmptyShopId_ReturnsFailure()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.AssignToShop(ObjectId.Empty, true);
+
+        // Assert
+        Assert.False(result.IsSuccess);
+        Assert.Contains(result.Errors, e => e.Message.Contains("ShopId"));
+    }
+
+    [Fact]
+    public void UnassignFromShop_RemovesPrimary_WhenPrimaryShopUnassigned()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var shopId1 = ObjectId.GenerateNewId();
+        var shopId2 = ObjectId.GenerateNewId();
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+        staff.AssignToShop(shopId1, true); // Primary
+        staff.AssignToShop(shopId2, false);
+
+        // Act - Unassign the primary shop
+        var result = staff.UnassignFromShop(shopId1);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.DoesNotContain(shopId1, staff.GetAssignedShopIds());
+        Assert.Null(staff.GetPrimaryShopId()); // Primary should be null after unassigning primary
+        Assert.Contains(shopId2, staff.GetAssignedShopIds());
+    }
+
+    [Fact]
+    public void ChangeEmploymentStatus_ToOnLeave_ReturnsSuccess()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.ChangeEmploymentStatus(EmploymentStatus.OnLeave);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(EmploymentStatus.OnLeave, staff.EmploymentStatus);
+    }
+
+    [Fact]
+    public void ChangeEmploymentStatus_FromTerminatedToActive_ReturnsSuccess()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+        staff.ChangeEmploymentStatus(EmploymentStatus.Terminated);
+
+        // Act
+        var result = staff.ChangeEmploymentStatus(EmploymentStatus.Active);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(EmploymentStatus.Active, staff.EmploymentStatus);
+    }
+
+    [Fact]
+    public void ChangeRole_SameRole_ReturnsSuccess()
+    {
+        // Arrange
+        var contact = new ContactInfo("0123456789", "test@example.com");
+        var hireDate = new DateTime(2023, 1, 15);
+        var staff = CafeManagement.Domain.Staff.Staff.Hire("John", "Doe", StaffRole.Barista, contact, hireDate).Value;
+
+        // Act
+        var result = staff.ChangeRole(StaffRole.Barista);
+
+        // Assert
+        Assert.True(result.IsSuccess);
+        Assert.Equal(StaffRole.Barista, staff.Role);
+    }
 }

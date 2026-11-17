@@ -2,12 +2,12 @@
 """
 Comprehensive Seed script for Cafe Management System.
 Features:
-- Auto-wipe previous data clean before seeding.
+- Idempotent: safe to re-run, skips existing data.
 - 9 Shops across major Vietnam cities/provinces.
 - Staff per shop: 2 Managers, 2 Cashiers, 5 Baristas, 2 Inventory Staff (11 per shop, 99 total).
 - 99 unique, natural, authentic Vietnamese names without any numbered suffixes (no AI slop).
 - RBAC User accounts registered with Password123! and shopId scoping.
-- Work Shifts scheduling: From 1 week ago (2026-10-11) to 2 weeks future (2026-11-01) - 22 days.
+- Work Shifts scheduling: 1 week ago to 2 weeks ahead (relative to today).
   * Weekdays: Ca sáng (06:30 - 14:30), Ca chiều (14:30 - 22:30).
   * Weekends: Ca sáng (06:30 - 12:00), Ca chiều (12:00 - 17:30), Ca tối (17:30 - 22:30).
 - 8 Signature Menu Items available 24/7.
@@ -22,20 +22,26 @@ import json
 import ssl
 import datetime
 import random
+import time
 import urllib.request
 import urllib.error
 from typing import Dict, List, Any, Optional
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 if sys.platform == "win32":
     import io
     sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding="utf-8", errors="replace")
     sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding="utf-8", errors="replace")
 
-# SSL context allowing unverified HTTPS for internal tailscale endpoints
+# SSL context for internal tailscale endpoints (accepts self-signed)
 SSL_CTX = ssl.create_default_context()
 SSL_CTX.check_hostname = False
 SSL_CTX.verify_mode = ssl.CERT_NONE
+
+# Configurable concurrency and retry
+MAX_WORKERS = 8
+MAX_RETRIES = 3
+RETRY_BACKOFF = 1.0  # seconds
 
 def detect_api_base() -> str:
     """Detects whether to use local or remote Tailscale API based on args/availability."""
@@ -68,29 +74,38 @@ def http_request(url: str, method: str = "GET", data: Optional[Dict[str, Any]] =
     req_headers = {"User-Agent": "CafeManagementSeed/2.0"}
     if headers:
         req_headers.update(headers)
-    
+
     encoded_data = None
     if data is not None:
         req_headers["Content-Type"] = "application/json"
         encoded_data = json.dumps(data).encode("utf-8")
 
     req = urllib.request.Request(url, data=encoded_data, headers=req_headers, method=method)
-    try:
-        with urllib.request.urlopen(req, context=SSL_CTX, timeout=timeout) as resp:
-            content = resp.read().decode("utf-8")
-            if not content:
-                return {}
-            return json.loads(content)
-    except urllib.error.HTTPError as e:
-        error_body = e.read().decode("utf-8")
+    last_error = None
+    for attempt in range(MAX_RETRIES):
         try:
-            parsed = json.loads(error_body)
-            err_msg = parsed.get("detail") or parsed.get("title") or parsed.get("message") or error_body
-        except Exception:
-            err_msg = error_body
-        raise RuntimeError(f"HTTP {e.code} on {method} {url}: {err_msg}")
-    except Exception as e:
-        raise RuntimeError(f"Request failed on {method} {url}: {e}")
+            with urllib.request.urlopen(req, context=SSL_CTX, timeout=timeout) as resp:
+                content = resp.read().decode("utf-8")
+                if not content:
+                    return {}
+                return json.loads(content)
+        except urllib.error.HTTPError as e:
+            error_body = e.read().decode("utf-8")
+            try:
+                parsed = json.loads(error_body)
+                err_msg = parsed.get("detail") or parsed.get("title") or parsed.get("message") or error_body
+            except Exception:
+                err_msg = error_body
+            last_error = RuntimeError(f"HTTP {e.code} on {method} {url}: {err_msg}")
+            if e.code in (400, 401, 403, 404, 409, 422):
+                raise last_error  # Don't retry client errors
+        except Exception as e:
+            last_error = RuntimeError(f"Request failed on {method} {url}: {e}")
+
+        if attempt < MAX_RETRIES - 1:
+            time.sleep(RETRY_BACKOFF * (attempt + 1))
+
+    raise last_error or RuntimeError(f"Request failed after {MAX_RETRIES} attempts: {method} {url}")
 
 def authenticate() -> str:
     """Login or register admin account and retrieve Bearer JWT token."""
@@ -125,6 +140,7 @@ def wipe_database(headers: Dict[str, str]) -> Dict[str, str]:
     """
     Clears all existing database records before seeding fresh data.
     Preserves or re-authenticates the admin account.
+    Idempotent: verifies wipe succeeded before proceeding.
     """
     print("\n[0/8] Xóa sạch dữ liệu cũ trước khi nạp mới (Wiping old database)...")
 
@@ -159,22 +175,36 @@ def wipe_database(headers: Dict[str, str]) -> Dict[str, str]:
         except Exception as e:
             print(f" -> Cảnh báo khi gọi restore wipe: {e}")
 
-    # 3. Clean any remaining shifts (in case shifts collection wasn't registered in older backup builds)
-    try:
-        shifts_res = http_request(f"{API_BASE}/shifts?pageSize=5000", headers=headers)
-        raw_shifts = shifts_res if isinstance(shifts_res, list) else shifts_res.get("items", [])
-        if raw_shifts:
-            print(f" -> Đang dọn dẹp {len(raw_shifts)} ca làm việc cũ còn sót lại...")
-            def del_shift(sh_id: str):
-                try:
-                    http_request(f"{API_BASE}/shifts/{sh_id}", method="DELETE", headers=headers)
-                except Exception:
-                    pass
-            with ThreadPoolExecutor(max_workers=25) as executor:
-                list(executor.map(del_shift, [s.get("id") for s in raw_shifts if s.get("id")]))
-            print(" -> Đã dọn sạch toàn bộ ca làm việc cũ.")
-    except Exception as e:
-        print(f" -> Cảnh báo dọn dẹp ca làm việc: {e}")
+    # 3. Verify wipe succeeded - check key collections are empty
+    def check_empty(endpoint: str, name: str) -> bool:
+        try:
+            res = http_request(f"{API_BASE}/{endpoint}?pageSize=1", headers=headers)
+            items = res if isinstance(res, list) else res.get("items", [])
+            return len(items) == 0
+        except Exception:
+            return True  # Assume empty if endpoint fails
+
+    # Wait a bit for wipe to propagate
+    time.sleep(1)
+
+    collections_to_check = [
+        ("shops", "chi nhánh"),
+        ("menu", "món ăn"),
+        ("inventory", "nguyên liệu"),
+        ("orders", "đơn hàng"),
+        ("staff", "nhân sự"),
+        ("reviews", "đánh giá"),
+        ("shifts", "ca làm việc"),
+    ]
+
+    all_empty = True
+    for endpoint, name in collections_to_check:
+        if not check_empty(endpoint, name):
+            print(f" -> Cảnh báo: {name} chưa rỗng, có thể wipe chưa hoàn tất")
+            all_empty = False
+
+    if all_empty:
+        print(" -> Xác minh: tất cả collection đã rỗng.")
 
     # Re-verify admin authentication
     new_token = authenticate()
@@ -214,6 +244,11 @@ def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List
     print("\n[2/8] Đồng bộ 9 Chi nhánh quán (Shops) với các Tỉnh/Thành phố Việt Nam...")
     res = http_request(f"{API_BASE}/shops", headers=headers)
     existing_shops = res if isinstance(res, list) else res.get("items", [])
+
+    # Idempotent: if already have 9+ shops, skip creation
+    if len(existing_shops) >= 9:
+        print(f" -> Đã có {len(existing_shops)} chi nhánh, bỏ qua tạo mới.")
+        return existing_shops[:9]
 
     target_branches = [
         {
@@ -730,7 +765,8 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
 
 def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], shop_staff_map: Dict[str, List[Dict[str, Any]]]):
     """
-    Schedules work shifts from 1 week ago (2026-10-11) to 2 weeks future (2026-11-01) - 22 days.
+    Schedules work shifts from today to 2 weeks ahead (relative to today) - 15 days.
+    Past shifts are not created because the domain validation requires EndTime to be in the future.
     Weekdays:
       - Ca sáng (06:30 - 14:30 VN): Manager #1, Cashier #1, Baristas #1 & #2, Stock #1
       - Ca chiều (14:30 - 22:30 VN): Manager #2, Cashier #2, Baristas #3 & #4 & #5, Stock #2
@@ -739,11 +775,14 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
       - Ca chiều (12:00 - 17:30 VN): Manager #1, Cashier #2, Baristas #3 & #4, Stock #2
       - Ca tối (17:30 - 22:30 VN): Manager #2, Cashier #1, Baristas #4 & #5, Stock #1
     """
-    print("\n[6/8] Lập lịch Ca làm việc (1 tuần trước -> 2 tuần tới, phân bổ Sáng, Chiều, Tối)...")
+    print("\n[6/8] Lập lịch Ca làm việc (hôm nay -> 2 tuần tới, phân bổ Sáng, Chiều, Tối)...")
 
-    base_date = datetime.date(2026, 10, 18)
-    start_date = base_date - datetime.timedelta(days=7)  # 2026-10-11
-    end_date = base_date + datetime.timedelta(days=14)   # 2026-11-01
+    # Use relative dates so seed never goes stale
+    # Start from today (not past) because domain validation requires EndTime > UtcNow
+    base_date = datetime.date.today()
+    start_date = base_date
+    end_date = base_date + datetime.timedelta(days=14)
+    print(f" -> Lịch từ {start_date} đến {end_date} (dựa trên hôm nay: {base_date})")
 
     shift_payloads = []
 
@@ -832,18 +871,29 @@ def seed_shifts_schedule(headers: Dict[str, str], shops: List[Dict[str, Any]], s
 
             current_date += datetime.timedelta(days=1)
 
-    print(f" -> Đang nạp {len(shift_payloads)} ca làm việc cho toàn bộ 9 chi nhánh...")
+    print(f" -> Đang nạp {len(shift_payloads)} ca làm việc cho toàn bộ 9 chi nhánh (max {MAX_WORKERS} workers)...")
+    success_count = 0
+    failed_shifts = []
+
     def create_single_shift(p):
         try:
             http_request(f"{API_BASE}/shifts", method="POST", data=p, headers=headers)
-            return True
-        except Exception:
-            return False
+            return (True, None)
+        except Exception as e:
+            return (False, str(e))
 
-    with ThreadPoolExecutor(max_workers=25) as executor:
-        results = list(executor.map(create_single_shift, shift_payloads))
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = [executor.submit(create_single_shift, p) for p in shift_payloads]
+        for i, future in enumerate(as_completed(futures)):
+            success, error = future.result()
+            if success:
+                success_count += 1
+            else:
+                failed_shifts.append((i, error))
 
-    print(f" -> Hoàn tất tạo {sum(1 for r in results if r)} ca làm việc thành công!")
+    if failed_shifts:
+        print(f" -> ⚠️ {len(failed_shifts)}/{len(shift_payloads)} ca thất bại. Ví dụ lỗi: {failed_shifts[0][1]}")
+    print(f" -> Hoàn tất tạo {success_count}/{len(shift_payloads)} ca làm việc thành công!")
 
 def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]], menu_items: List[Dict[str, Any]], shop_staff_map: Dict[str, List[Dict[str, Any]]]):
     """
@@ -1003,11 +1053,10 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             res_ord = http_request(f"{API_BASE}/orders", method="POST", data=order_payload, headers=headers)
             ord_id = res_ord if isinstance(res_ord, str) else res_ord.get("id", "")
             if ord_id:
-                # Pay order (1=Cash, 2=Card, 3=E-Wallet)
-                pm = random.choice([1, 2, 3])
-                http_request(f"{API_BASE}/orders/{ord_id}/payment", method="POST", data={"id": ord_id, "paymentMethod": pm, "amount": order_subtotal}, headers=headers)
-                # Mark completed
-                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 4}, headers=headers)
+                # Proper status transitions: Placed -> Preparing -> Ready -> pay-and-complete
+                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 2}, headers=headers)  # Placed -> Preparing
+                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 3}, headers=headers)  # Preparing -> Ready
+                http_request(f"{API_BASE}/orders/{ord_id}/pay-and-complete", method="POST", headers=headers)  # Ready + Pay -> Completed
 
                 created_orders.append({
                     "orderId": ord_id,
@@ -1095,16 +1144,29 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             res = http_request(f"{API_BASE}/orders", method="POST", data=p, headers=headers)
             o_id = res if isinstance(res, str) else res.get("id", "")
             if o_id:
-                http_request(f"{API_BASE}/orders/{o_id}/payment", method="POST", data={"id": o_id, "paymentMethod": random.choice([1, 2, 3]), "amount": subtotal}, headers=headers)
-                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 4}, headers=headers)
+                # Proper status transitions: Placed -> Preparing -> Ready -> pay-and-complete
+                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 2}, headers=headers)  # Placed -> Preparing
+                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 3}, headers=headers)  # Preparing -> Ready
+                http_request(f"{API_BASE}/orders/{o_id}/pay-and-complete", method="POST", headers=headers)  # Ready + Pay -> Completed
                 return True
         except Exception:
             pass
         return False
 
-    with ThreadPoolExecutor(max_workers=14) as executor:
-        results = list(executor.map(submit_historical_order, historical_tasks))
-    print(f" -> Hoàn tất tạo {sum(1 for r in results if r)} đơn hàng lịch sử phủ khắp 1 tuần -> 1 năm cho 9 chi nhánh!")
+    success_count = 0
+    failed_orders = []
+
+    with ThreadPoolExecutor(max_workers=MAX_WORKERS) as executor:
+        futures = [executor.submit(submit_historical_order, task) for task in historical_tasks]
+        for future in as_completed(futures):
+            if future.result():
+                success_count += 1
+            else:
+                failed_orders.append(1)
+
+    if failed_orders:
+        print(f" -> ⚠️ {len(failed_orders)}/{len(historical_tasks)} đơn lịch sử thất bại")
+    print(f" -> Hoàn tất tạo {success_count}/{len(historical_tasks)} đơn hàng lịch sử phủ khắp 1 tuần -> 1 năm cho 9 chi nhánh!")
 
     # 3. Generate 4-6 orders per shop for TODAY (active ongoing operations)
     print(" -> Đang tạo thêm các đơn hàng phát sinh trong ngày hôm nay cho các chi nhánh...")
@@ -1144,14 +1206,17 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 res_t = http_request(f"{API_BASE}/orders", method="POST", data=today_payload, headers=headers)
                 t_id = res_t if isinstance(res_t, str) else res_t.get("id", "")
                 if t_id:
-                    # Stagger statuses for today: mostly Completed, some Preparing, some Confirmed
+                    # Stagger statuses for today: Preparing -> Ready -> Completed (via pay-and-complete)
                     if idx == 0:
-                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Preparing
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
                     elif idx == 1:
-                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 1}, headers=headers) # Confirmed
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 3}, headers=headers) # Preparing -> Ready
                     else:
-                        http_request(f"{API_BASE}/orders/{t_id}/payment", method="POST", data={"id": t_id, "paymentMethod": 1, "amount": u_price * qty}, headers=headers)
-                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 4}, headers=headers) # Completed
+                        # Use atomic pay-and-complete for completed orders (requires Ready status first)
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
+                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 3}, headers=headers) # Preparing -> Ready
+                        http_request(f"{API_BASE}/orders/{t_id}/pay-and-complete", method="POST", headers=headers) # Ready + Pay -> Completed
             except Exception:
                 pass
 

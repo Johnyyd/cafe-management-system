@@ -31,6 +31,8 @@ export const OrdersPage: React.FC = () => {
   const [qrOrder, setQrOrder] = useState<Order | null>(null);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
   const [copiedLink, setCopiedLink] = useState<boolean>(false);
+  const [payingOrder, setPayingOrder] = useState<Order | null>(null);
+  const [cashReceived, setCashReceived] = useState<string>('');
   const { currentShopId, notify } = useAppStore();
 
   const {
@@ -213,7 +215,8 @@ export const OrdersPage: React.FC = () => {
   };
 
   const subTotal = cartItems.reduce((sum, item) => sum + item.unitPrice * item.quantity, 0);
-  const tax = Math.round(subTotal * 0.08);
+  // The backend has no tax concept; the order total is the sum of item prices.
+  const tax = 0;
   const total = subTotal + tax;
 
   const onSubmitOrder = async (data: OrderFormData) => {
@@ -270,6 +273,48 @@ export const OrdersPage: React.FC = () => {
     }
   };
 
+  const openCashPayment = (order: Order) => {
+    setPayingOrder(order);
+    setCashReceived(String(order.total));
+  };
+
+  const cashReceivedNumber = Number(cashReceived || 0);
+  const changeDue = payingOrder ? cashReceivedNumber - payingOrder.total : 0;
+
+  const handleCashPaymentAndComplete = async () => {
+    if (!payingOrder) return;
+    const amount = Number(cashReceived);
+    if (!Number.isFinite(amount) || amount <= 0) {
+      notify('error', 'Vui lòng nhập số tiền khách đã đưa.');
+      return;
+    }
+    if (amount < payingOrder.total) {
+      notify('error', `Số tiền khách đưa chưa đủ (cần tối thiểu ${payingOrder.total.toLocaleString('vi-VN')} ₫).`);
+      return;
+    }
+
+    setUpdatingOrderId(payingOrder.id);
+    try {
+      // Single atomic operation: pay and complete in one call (avoids race condition)
+      await api.payAndComplete(payingOrder.id, amount, 'VND');
+      setOrders((prev) =>
+        prev.map((o) => (o.id === payingOrder.id ? { ...o, status: 'Completed', paymentStatus: 'Paid' } : o))
+      );
+      notify(
+        'success',
+        `Đã thu ${amount.toLocaleString('vi-VN')} ₫ cho đơn ${payingOrder.orderNumber}${
+          changeDue > 0 ? `, thối khách ${changeDue.toLocaleString('vi-VN')} ₫` : ''
+        }.`
+      );
+      setPayingOrder(null);
+      setCashReceived('');
+    } catch (err: any) {
+      notify('error', err.message || 'Lỗi khi thu tiền đơn hàng');
+    } finally {
+      setUpdatingOrderId(null);
+    }
+  };
+
   const handleDeleteOrder = async () => {
     if (!deletingOrder) return;
     setIsDeleting(true);
@@ -286,6 +331,8 @@ export const OrdersPage: React.FC = () => {
   };
 
   const displayedOrders = currentShopId ? orders.filter((o) => o.shopId === currentShopId) : orders;
+
+  const isPaymentLoading = updatingOrderId === payingOrder?.id;
 
   return (
     <PageContainer
@@ -612,15 +659,26 @@ export const OrdersPage: React.FC = () => {
                               {updatingOrderId === o.id ? 'Đang lưu...' : 'Pha chế'}
                             </Button>
                           )}
-                          {(o.status === 'Preparing' || o.status === 'Ready') && (
+                          {o.status === 'Preparing' && (
+                            <Button
+                              variant="secondary"
+                              size="sm"
+                              disabled={updatingOrderId === o.id}
+                              icon={<Clock className="w-3 h-3" />}
+                              onClick={() => updateOrderStatus(o.id, 'Ready')}
+                            >
+                              {updatingOrderId === o.id ? 'Đang lưu...' : 'Báo xong'}
+                            </Button>
+                          )}
+                          {o.status === 'Ready' && (
                             <Button
                               variant="primary"
                               size="sm"
                               disabled={updatingOrderId === o.id}
                               icon={<CheckCircle className="w-3 h-3" />}
-                              onClick={() => updateOrderStatus(o.id, 'Completed')}
+                              onClick={() => openCashPayment(o)}
                             >
-                              {updatingOrderId === o.id ? 'Đang lưu...' : 'Hoàn tất'}
+                              {updatingOrderId === o.id ? 'Đang lưu...' : 'Thu tiền & Hoàn tất'}
                             </Button>
                           )}
                           <Button
@@ -771,6 +829,70 @@ export const OrdersPage: React.FC = () => {
                   </a>
                 )}
               </div>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Cash Payment Modal */}
+      <Modal
+        isOpen={!!payingOrder}
+        onClose={() => { setPayingOrder(null); setCashReceived(''); }}
+        title="Thanh Toán Tiền Mặt"
+        description={`Đơn hàng: ${payingOrder?.orderNumber} - Tổng tiền: ${payingOrder?.total.toLocaleString('vi-VN')} ₫`}
+      >
+        {payingOrder && (
+          <div className="space-y-4">
+            <div className="p-4 bg-neutral-50 rounded-lg border border-neutral-200 space-y-2">
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-600">Tổng hóa đơn:</span>
+                <span className="font-bold text-neutral-900">{payingOrder.total.toLocaleString('vi-VN')} ₫</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-neutral-600">Khách đưa:</span>
+                <span className="font-bold text-neutral-900">{Number(cashReceived || 0).toLocaleString('vi-VN')} ₫</span>
+              </div>
+              <div className="flex justify-between text-sm border-t border-neutral-200 pt-2">
+                <span className="text-neutral-600">Thối lại:</span>
+                <span className="font-bold text-cafe-orange">{Math.max(0, Number(cashReceived || 0) - payingOrder.total).toLocaleString('vi-VN')} ₫</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <label className="text-sm font-semibold text-neutral-700">Nhập số tiền khách đưa</label>
+              <input
+                type="number"
+                value={cashReceived}
+                onChange={(e) => setCashReceived(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && handleCashPaymentAndComplete()}
+                placeholder="VD: 100000"
+                className="w-full px-4 py-3 text-lg font-mono text-neutral-900 bg-white border border-neutral-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-cafe-orange focus:border-transparent"
+                min={payingOrder.total}
+                step={1000}
+                autoFocus
+              />
+              <p className="text-xs text-neutral-500">Nhấn Enter để xác nhận thanh toán</p>
+            </div>
+
+            <div className="flex justify-end gap-2 pt-3 border-t border-neutral-200">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => { setPayingOrder(null); setCashReceived(''); }}
+                disabled={isPaymentLoading}
+              >
+                Hủy
+              </Button>
+              <Button
+                variant="primary"
+                size="sm"
+                onClick={handleCashPaymentAndComplete}
+                isLoading={isPaymentLoading}
+                disabled={isPaymentLoading || Number(cashReceived || 0) < payingOrder.total}
+                icon={<CheckCircle className="w-3.5 h-3.5" />}
+              >
+                Xác nhận thanh toán & Hoàn tất
+              </Button>
             </div>
           </div>
         )}

@@ -1,7 +1,9 @@
 using AspNetCoreRateLimit;
+using CafeManagement.Api.Authorization;
 using CafeManagement.Api.Services;
 using CafeManagement.Application;
 using CafeManagement.Infrastructure;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 
 namespace CafeManagement.Api.Extensions;
@@ -36,7 +38,7 @@ public static class ServiceCollectionExtensions
             options.AddPolicy("CafeCorsPolicy", builder =>
             {
                 var allowedOrigins = configuration.GetSection("Cors:AllowedOrigins").Get<string[]>()
-                    ?? new[] { "http://localhost:3000", "http://localhost:5173", "https://cafe-management.example.com" };
+                    ?? new[] { "http://localhost:3000", "http://localhost:5173" };
 
                 builder.WithOrigins(allowedOrigins)
                     .AllowAnyMethod()
@@ -113,6 +115,9 @@ public static class ServiceCollectionExtensions
 
         // Health checks
         services.AddHealthChecks();
+
+        // Shop scope authorization handler
+        services.AddScoped<IAuthorizationHandler, ShopScopeAuthorizationHandler>();
 
         return services;
     }

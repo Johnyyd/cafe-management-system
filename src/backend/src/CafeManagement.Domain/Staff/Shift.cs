@@ -117,8 +117,12 @@ public class Shift : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot cover a deleted shift"));
-        if (Status != ShiftStatus.Scheduled && Status != ShiftStatus.InProgress)
+        if (Status != ShiftStatus.Scheduled)
             return Result.Fail(DomainErrors.Business.InvalidOperation($"Cannot cover shift with status {Status}"));
+        if (coveredByStaffId == ObjectId.Empty)
+            return Result.Fail(DomainErrors.Validation.Required("CoveredByStaffId"));
+        if (coveredByStaffId == StaffId)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("A staff member cannot cover their own shift"));
         if (CoveredByStaffId.HasValue)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Shift is already covered"));
 
@@ -158,6 +162,14 @@ public class Shift : AggregateRoot<ObjectId>
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot swap a deleted shift"));
         if (Status != ShiftStatus.Scheduled)
             return Result.Fail(DomainErrors.Business.InvalidOperation($"Cannot swap shift with status {Status}"));
+        if (swappedWithShiftId == ObjectId.Empty)
+            return Result.Fail(DomainErrors.Validation.Required("SwappedWithShiftId"));
+        if (swappedWithStaffId == ObjectId.Empty)
+            return Result.Fail(DomainErrors.Validation.Required("SwappedWithStaffId"));
+        if (swappedWithShiftId == Id)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot swap a shift with itself"));
+        if (swappedWithStaffId == StaffId)
+            return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot swap a shift with the same staff member"));
         if (SwappedWithShiftId.HasValue)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Shift is already swapped"));
 
@@ -174,6 +186,8 @@ public class Shift : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot unswap a deleted shift"));
+        if (Status is ShiftStatus.Completed or ShiftStatus.Cancelled)
+            return Result.Fail(DomainErrors.Business.InvalidOperation($"Cannot unswap shift with status {Status}"));
         if (!SwappedWithShiftId.HasValue)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Shift is not swapped"));
         if (!SwappedWithStaffId.HasValue)
@@ -194,6 +208,8 @@ public class Shift : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot update notes on a deleted shift"));
+        if (Status is ShiftStatus.Completed or ShiftStatus.Cancelled)
+            return Result.Fail(DomainErrors.Business.InvalidOperation($"Cannot update notes on shift with status {Status}"));
 
         Notes = notes;
         SetAuditInfo(updatedBy: updatedBy);
@@ -204,10 +220,14 @@ public class Shift : AggregateRoot<ObjectId>
     {
         if (IsDeleted)
             return Result.Fail(DomainErrors.Business.InvalidOperation("Cannot update a deleted shift"));
+        if (Status != ShiftStatus.Scheduled)
+            return Result.Fail(DomainErrors.Business.InvalidOperation($"Cannot update shift with status {Status}"));
         if (staffId == ObjectId.Empty)
             return Result.Fail(DomainErrors.Validation.Required("StaffId"));
         if (startTime >= endTime)
             return Result.Fail(DomainErrors.Validation.OutOfRange("StartTime", "before EndTime", endTime));
+        if (endTime - startTime > TimeSpan.FromHours(16))
+            return Result.Fail(DomainErrors.Validation.OutOfRange("ShiftDuration", "16 hours maximum", TimeSpan.FromHours(16)));
 
         StaffId = staffId;
         StartTime = startTime;

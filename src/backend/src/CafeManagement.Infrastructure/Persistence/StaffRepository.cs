@@ -25,7 +25,7 @@ public class StaffRepository : RepositoryBase<Staff>, IStaffRepository
     public async Task<IReadOnlyList<Staff>> GetByShopIdAsync(ObjectId shopId, CancellationToken cancellationToken = default)
     {
         var filter = Builders<Staff>.Filter.And(
-            Builders<Staff>.Filter.ElemMatch(s => s.ShopAssignments, a => a.ShopId == shopId && a.IsActive),
+            Builders<Staff>.Filter.ElemMatch(s => s.ShopAssignments, a => a.ShopId == shopId && a.UnassignedDate == null),
             Builders<Staff>.Filter.Eq(s => s.DeletedAt, (DateTime?)null));
         return await Collection.Find(filter).ToListAsync(cancellationToken);
     }

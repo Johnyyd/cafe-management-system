@@ -80,6 +80,7 @@ public class OrderRepository : RepositoryBase<Domain.Orders.Order>, IOrderReposi
 
             cm.MapMember(c => c.ShopId);
             cm.MapMember(c => c.StaffId);
+            cm.MapMember(c => c.OrderNumber);
             cm.MapMember(c => c.CustomerInfo);
             cm.MapMember(c => c.Items);
             cm.MapMember(c => c.Status);
