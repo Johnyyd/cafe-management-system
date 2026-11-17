@@ -17,8 +17,9 @@ public interface IInventoryItemRepository : IRepository<Domain.Inventory.Invento
     Task<IReadOnlyList<Domain.Inventory.InventoryItem>> GetOutOfStockItemsAsync(ObjectId? shopId = null, CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Atomically adjusts quantity using MongoDB $inc with a filter preventing negative stock.
-    /// Returns the updated item if successful, null if item not found or would go negative.
+    /// Adjusts quantity with optimistic concurrency (guarded read-modify-write) and a
+    /// filter preventing negative stock. Returns the updated item on success, or a
+    /// failure when the item is missing or the adjustment would go below zero.
     /// </summary>
     Task<Result<Domain.Inventory.InventoryItem>> AdjustQuantityAtomicAsync(
         ObjectId id,

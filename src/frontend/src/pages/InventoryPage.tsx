@@ -109,7 +109,7 @@ export const InventoryPage: React.FC = () => {
     if (!adjustingItem) return;
     try {
       const delta = data.type === 'Deduct' ? -Math.abs(data.amount) : Math.abs(data.amount);
-      const updated = await api.adjustStock(adjustingItem.id, delta, data.reason);
+      const updated = await api.adjustStock(adjustingItem.id, delta, data.reason, adjustingItem.shopId || currentShopId);
       setInventory((prev) =>
         prev.map((item) => (item.id === adjustingItem.id ? { ...item, currentStock: updated.currentStock } : item))
       );

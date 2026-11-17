@@ -3,14 +3,11 @@ import { Shop, MenuItem, InventoryItem, Order, Staff, EmploymentStatus, Shift, O
 const API_BASE = '/api/v1';
 
 async function tryRefreshSession(): Promise<boolean> {
-  const refreshToken = localStorage.getItem('cms_refresh_token');
-  if (!refreshToken) return false;
-
   try {
+    // Refresh token is now in HttpOnly cookie - just call the endpoint
     const response = await fetch(`${API_BASE}/auth/refresh`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ refreshToken }),
+      credentials: 'include', // Required for HttpOnly cookie
     });
     if (!response.ok) return false;
 
@@ -18,9 +15,7 @@ async function tryRefreshSession(): Promise<boolean> {
     if (!data?.accessToken) return false;
 
     localStorage.setItem('cms_token', data.accessToken);
-    if (data.refreshToken) {
-      localStorage.setItem('cms_refresh_token', data.refreshToken);
-    }
+    // Refresh token is stored in HttpOnly cookie by backend
     return true;
   } catch {
     return false;
@@ -41,6 +36,7 @@ async function fetchJson<T>(endpoint: string, options: RequestInit = {}, allowRe
   const response = await fetch(`${API_BASE}${endpoint}`, {
     ...options,
     headers,
+    credentials: 'include', // Required for HttpOnly cookie
   });
 
   if (response.status === 401) {
@@ -245,7 +241,7 @@ export const api = {
     }));
   },
 
-  adjustStock: async (id: string, amount: number, reason: string): Promise<InventoryItem> => {
+  adjustStock: async (id: string, amount: number, reason: string, shopId?: string): Promise<InventoryItem> => {
     await fetchJson(`/inventory/${id}/adjust-quantity`, {
       method: 'POST',
       body: JSON.stringify({
@@ -253,7 +249,7 @@ export const api = {
         reason: reason || 'Điều chỉnh thủ công từ quầy',
       }),
     });
-    const all = await api.getInventory();
+    const all = await api.getInventory(shopId);
     const found = all.find((item) => item.id === id);
     if (!found) throw new Error('Không tìm thấy nguyên liệu vừa điều chỉnh');
     return found;
@@ -345,8 +341,9 @@ export const api = {
 
   createOrder: async (data: Partial<Order>): Promise<Order> => {
     const shops = await api.getShops();
-    const staff = await api.getStaff();
     const primaryShopId = data.shopId || shops[0]?.id || '6ac517757b7bff2eb801baac';
+    // Staff and orders are shop-scoped for non-admin roles, so always pass the shop.
+    const staff = await api.getStaff(primaryShopId);
     const primaryStaffId = staff[0]?.id || '6ac518196219dfa166a10060';
 
     const customerType = data.type === 'Takeaway' ? 2 : data.type === 'Delivery' ? 3 : 1;
@@ -374,7 +371,7 @@ export const api = {
       body: JSON.stringify(payload),
     });
 
-    const orders = await api.getOrders();
+    const orders = await api.getOrders(primaryShopId);
     const found = orders.find((o) => o.id === createdId);
     if (found) return found;
 

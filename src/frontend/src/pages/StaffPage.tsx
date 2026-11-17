@@ -127,10 +127,13 @@ export const StaffPage: React.FC = () => {
   const loadData = async () => {
     setLoading(true);
     try {
+      // Non-admin roles are shop-scoped by the API: always send their shop id,
+      // otherwise the ShopScope policy rejects the request with 403.
+      const scopedShopId = isManagerOrAdmin ? undefined : user?.shopId || currentShopId || undefined;
       const [staffData, shopsData, shiftsData] = await Promise.all([
-        staffApi.getAll(),
+        staffApi.getAll(scopedShopId),
         shopsApi.getAll(),
-        shiftsApi.getAll().catch(() => []),
+        shiftsApi.getAll({ shopId: scopedShopId }).catch(() => []),
       ]);
       setStaff(staffData);
       setShops(shopsData);
@@ -149,7 +152,8 @@ export const StaffPage: React.FC = () => {
   const loadShiftsOnly = async () => {
     setLoadingShifts(true);
     try {
-      const shiftsData = await shiftsApi.getAll();
+      const scopedShopId = isManagerOrAdmin ? undefined : user?.shopId || currentShopId || undefined;
+      const shiftsData = await shiftsApi.getAll({ shopId: scopedShopId });
       setShifts(shiftsData);
       addNotification({
         type: 'success',
@@ -1467,7 +1471,7 @@ export const StaffPage: React.FC = () => {
                         <th className="py-3 px-4">Vai trò</th>
                         <th className="py-3 px-4">Chi nhánh công tác</th>
                         <th className="py-3 px-4">Trạng thái</th>
-                        <th className="py-3 px-4 text-right">Hành động</th>
+                        {isManagerOrAdmin && <th className="py-3 px-4 text-right">Hành động</th>}
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-neutral-200">
@@ -1519,42 +1523,44 @@ export const StaffPage: React.FC = () => {
                                 {member.status === 'Active' ? 'Đang hoạt động' : 'Đã khóa'}
                               </Badge>
                             </td>
-                            <td className="py-3 px-4 text-right">
-                              <div className="flex items-center justify-end gap-1.5">
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleOpenCreateShift(undefined, member.id)}
-                                  title="Xếp ca làm việc cho nhân viên này"
-                                  icon={<CalendarIcon className="w-3.5 h-3.5 text-primary-600" />}
-                                >
-                                  Xếp ca
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  onClick={() => handleToggleStatus(member)}
-                                  icon={
-                                    member.status === 'Active' ? (
-                                      <UserX className="w-3.5 h-3.5 text-amber-600" />
-                                    ) : (
-                                      <UserCheck className="w-3.5 h-3.5 text-green-600" />
-                                    )
-                                  }
-                                >
-                                  {member.status === 'Active' ? 'Khóa' : 'Mở'}
-                                </Button>
-                                <Button
-                                  variant="ghost"
-                                  size="sm"
-                                  className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
-                                  icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
-                                  onClick={() => setDeletingMember(member)}
-                                >
-                                  Xóa
-                                </Button>
-                              </div>
-                            </td>
+                            {isManagerOrAdmin && (
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleOpenCreateShift(undefined, member.id)}
+                                    title="Xếp ca làm việc cho nhân viên này"
+                                    icon={<CalendarIcon className="w-3.5 h-3.5 text-primary-600" />}
+                                  >
+                                    Xếp ca
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => handleToggleStatus(member)}
+                                    icon={
+                                      member.status === 'Active' ? (
+                                        <UserX className="w-3.5 h-3.5 text-amber-600" />
+                                      ) : (
+                                        <UserCheck className="w-3.5 h-3.5 text-green-600" />
+                                      )
+                                    }
+                                  >
+                                    {member.status === 'Active' ? 'Khóa' : 'Mở'}
+                                  </Button>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="text-red-600 hover:text-red-700 hover:bg-red-50 p-1.5 border border-transparent hover:border-red-200"
+                                    icon={<Trash2 className="w-3.5 h-3.5 text-red-500" />}
+                                    onClick={() => setDeletingMember(member)}
+                                  >
+                                    Xóa
+                                  </Button>
+                                </div>
+                              </td>
+                            )}
                           </tr>
                         );
                       })}

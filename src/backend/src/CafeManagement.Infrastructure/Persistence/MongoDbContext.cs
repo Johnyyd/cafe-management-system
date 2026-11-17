@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Extensions.Configuration;
 using MongoDB.Driver;
 
@@ -45,7 +46,20 @@ public class MongoDbContext : IMongoDbContext
         {
             await StartSessionAsync(cancellationToken);
         }
-        _currentSession!.StartTransaction();
+
+        try
+        {
+            _currentSession!.StartTransaction();
+        }
+        catch (Exception ex) when (ex is NotSupportedException or InvalidOperationException)
+        {
+            // Standalone MongoDB deployments (no replica set) cannot run multi-document
+            // transactions. Degrade gracefully: release the session and let the work run
+            // without a transaction instead of failing the whole request.
+            _currentSession!.Dispose();
+            _currentSession = null;
+        }
+
         await Task.CompletedTask;
     }
 

@@ -46,21 +46,58 @@ public class AuthService : IAuthService
 
     public async Task<Result<AuthResultDto>> RegisterAsync(string email, string password, string fullName, string? shopId = null, string? role = null)
     {
+        // Self-service callers never get to choose their role or shop. Only an
+        // authenticated Admin may provision elevated roles and shop assignments
+        // (used by admin tooling and the seed script).
+        var isAdmin = _currentUserService.IsAuthenticated
+            && _currentUserService.Roles.Any(r => string.Equals(r, "Admin", StringComparison.OrdinalIgnoreCase));
+
+        var requestedRole = isAdmin && CanonicalRoleNames.TryGetValue(role ?? string.Empty, out var canonicalRole)
+            ? canonicalRole
+            : "Barista";
+
+        ObjectId? requestedShopId = null;
+        if (isAdmin && !string.IsNullOrWhiteSpace(shopId) && ObjectId.TryParse(shopId, out var parsedShopId))
+        {
+            requestedShopId = parsedShopId;
+        }
+
         var existingUser = await _userManager.FindByEmailAsync(email);
         if (existingUser != null)
         {
-            return Result.Fail("Email already registered");
+            if (!isAdmin)
+            {
+                return Result.Fail("Email already registered");
+            }
+
+            // Admin provisioning is idempotent: re-sync the role and shop on an existing account.
+            var updated = false;
+            if (existingUser.ShopId != requestedShopId)
+            {
+                existingUser.ShopId = requestedShopId;
+                updated = true;
+            }
+            if (!string.IsNullOrWhiteSpace(fullName) && existingUser.FullName != fullName)
+            {
+                existingUser.FullName = fullName;
+                updated = true;
+            }
+            if (updated)
+            {
+                await _userManager.UpdateAsync(existingUser);
+            }
+
+            await ApplyRoleAsync(existingUser, requestedRole);
+            return await GenerateAuthResultAsync(existingUser);
         }
 
-        // Self-service registration never trusts caller-supplied role or shop.
-        // Elevated roles and shop assignments are managed by an administrator.
         var user = new ApplicationUser
         {
             UserName = email,
             Email = email,
             FullName = fullName,
             EmailConfirmed = true,
-            ShopId = null
+            ShopId = requestedShopId
         };
 
         var result = await _userManager.CreateAsync(user, password);
@@ -69,14 +106,30 @@ public class AuthService : IAuthService
             return Result.Fail("Registration failed: Invalid email or password");
         }
 
-        const string assignedRole = "Barista";
-        if (!await _roleManager.RoleExistsAsync(assignedRole))
-        {
-            await _roleManager.CreateAsync(new ApplicationRole { Name = assignedRole, NormalizedName = assignedRole.ToUpperInvariant() });
-        }
-        await _userManager.AddToRoleAsync(user, assignedRole);
+        await ApplyRoleAsync(user, requestedRole);
 
         return await GenerateAuthResultAsync(user);
+    }
+
+    private async Task ApplyRoleAsync(ApplicationUser user, string role)
+    {
+        if (!await _roleManager.RoleExistsAsync(role))
+        {
+            await _roleManager.CreateAsync(new ApplicationRole { Name = role, NormalizedName = role.ToUpperInvariant() });
+        }
+
+        var currentRoles = await _userManager.GetRolesAsync(user);
+        var staleRoles = currentRoles
+            .Where(r => !string.Equals(r, role, StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        if (staleRoles.Count > 0)
+        {
+            await _userManager.RemoveFromRolesAsync(user, staleRoles);
+        }
+        if (!currentRoles.Any(r => string.Equals(r, role, StringComparison.OrdinalIgnoreCase)))
+        {
+            await _userManager.AddToRoleAsync(user, role);
+        }
     }
 
 

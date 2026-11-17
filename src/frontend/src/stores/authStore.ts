@@ -7,7 +7,7 @@ interface AuthState {
   user: User | null;
   activeRole: StaffRole;
   isAuthenticated: boolean;
-  setAuth: (token: string, user: User, refreshToken?: string) => void;
+  setAuth: (token: string, user: User) => void;
   setActiveRole: (role: StaffRole) => void;
   login: (email: string, password?: string) => Promise<void>;
   logout: () => void;
@@ -20,6 +20,7 @@ const roleMap: Record<string, StaffRole> = {
   MANAGER: 'Manager',
   CASHIER: 'Cashier',
   BARISTA: 'Barista',
+  INVENTORYSTAFF: 'InventoryStaff',
 };
 
 const toStaffRole = (role?: string | null): StaffRole =>
@@ -49,15 +50,13 @@ export const useAuthStore = create<AuthState>((set) => ({
   activeRole: toStaffRole(initialUser?.roles?.[0]),
   isAuthenticated: !!savedToken && !!initialUser,
 
-  setAuth: (token, user, refreshToken) => {
+  setAuth: (token, user) => {
     if (user.shopId) {
       useAppStore.getState().setCurrentShopId(user.shopId);
     }
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
-    if (refreshToken) {
-      localStorage.setItem('cms_refresh_token', refreshToken);
-    }
+    // Refresh token is now stored in HttpOnly cookie, not localStorage
     set({
       token,
       user,
@@ -72,6 +71,7 @@ export const useAuthStore = create<AuthState>((set) => ({
     const res = await fetch('/api/v1/auth/login', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', // Required for HttpOnly cookie
       body: JSON.stringify({ email, password }),
     });
 
@@ -108,9 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
     localStorage.setItem('cms_token', token);
     localStorage.setItem('cms_user', JSON.stringify(user));
-    if (data.refreshToken) {
-      localStorage.setItem('cms_refresh_token', data.refreshToken);
-    }
+    // Refresh token is now in HttpOnly cookie (set by backend)
 
     set({
       token,
@@ -120,19 +118,16 @@ export const useAuthStore = create<AuthState>((set) => ({
     });
   },
 
-  logout: () => {
-    const refreshToken = localStorage.getItem('cms_refresh_token');
-    if (refreshToken) {
-      // Best-effort server-side revocation; local logout must not depend on it.
-      fetch('/api/v1/auth/logout', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken }),
-      }).catch(() => undefined);
-    }
+  logout: async () => {
+    // Call logout endpoint (reads refresh token from HttpOnly cookie)
+    await fetch('/api/v1/auth/logout', {
+      method: 'POST',
+      credentials: 'include', // Required for HttpOnly cookie
+    }).catch(() => undefined);
+
     localStorage.removeItem('cms_token');
-    localStorage.removeItem('cms_refresh_token');
     localStorage.removeItem('cms_user');
+    // Note: HttpOnly cookie is cleared by backend
     set({
       token: null,
       user: null,

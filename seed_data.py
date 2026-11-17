@@ -6,11 +6,12 @@ Features:
 - 9 Shops across major Vietnam cities/provinces.
 - Staff per shop: 2 Managers, 2 Cashiers, 5 Baristas, 2 Inventory Staff (11 per shop, 99 total).
 - 99 unique, natural, authentic Vietnamese names without any numbered suffixes (no AI slop).
-- RBAC User accounts registered with Password123! and shopId scoping.
+- Staff login accounts registered with Password123! (note: /auth/register always assigns the Barista role
+  and no shopId; the API does not accept caller-supplied role/shop).
 - Work Shifts scheduling: 1 week ago to 2 weeks ahead (relative to today).
   * Weekdays: Ca sáng (06:30 - 14:30), Ca chiều (14:30 - 22:30).
   * Weekends: Ca sáng (06:30 - 12:00), Ca chiều (12:00 - 17:30), Ca tối (17:30 - 22:30).
-- 8 Signature Menu Items available 24/7.
+- 8 Signature Menu Items available 24/7 at every branch (shop-scoped, as required by order validation).
 - Complete inventory for all 9 branches.
 - 100+ Realistic completed orders with full revenue matching 100 Customer Reviews.
 - Additional orders for today to populate active daily KPIs.
@@ -135,6 +136,21 @@ def authenticate() -> str:
     if not token:
         raise RuntimeError("Không thể lấy token sau khi đăng ký!")
     return token
+
+def complete_order(order_id: str, headers: Dict[str, str]) -> None:
+    """
+    Drives an order to Completed through the non-transactional endpoints:
+    Placed -> Preparing -> Ready -> payment -> Completed.
+
+    The atomic /pay-and-complete endpoint requires MongoDB transactions (replica set).
+    This stack runs a standalone mongod, where that endpoint fails with 500, so the
+    seed uses /payment + /status instead and still produces Paid + Completed orders.
+    """
+    http_request(f"{API_BASE}/orders/{order_id}/status", method="PUT", data={"id": order_id, "status": 2}, headers=headers)
+    http_request(f"{API_BASE}/orders/{order_id}/status", method="PUT", data={"id": order_id, "status": 3}, headers=headers)
+    http_request(f"{API_BASE}/orders/{order_id}/payment", method="POST", headers=headers)
+    http_request(f"{API_BASE}/orders/{order_id}/status", method="PUT", data={"id": order_id, "status": 4}, headers=headers)
+
 
 def wipe_database(headers: Dict[str, str]) -> Dict[str, str]:
     """
@@ -380,10 +396,12 @@ def seed_shops(headers: Dict[str, str], provinces: List[Dict[str, Any]]) -> List
         print(f"    {idx+1}. [{s.get('id')}] {s.get('name')}")
     return all_shops[:9]
 
-def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
-    print("\n[3/8] Đồng bộ Thực đơn Đồ uống & Món ăn (Menu Items)...")
-    res = http_request(f"{API_BASE}/menu", headers=headers)
+def seed_menu(headers: Dict[str, str], shops: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    print("\n[3/8] Đồng bộ Thực đơn Đồ uống & Món ăn (Menu Items) cho từng chi nhánh...")
+    res = http_request(f"{API_BASE}/menu?pageSize=500", headers=headers)
     existing_menu = res if isinstance(res, list) else res.get("items", [])
+    # The API scopes menu items to a shop, so dedupe per (shopId, name).
+    existing_keys = {(str(m.get("shopId")), m.get("name")) for m in existing_menu}
 
     items_to_add = [
         {
@@ -452,32 +470,42 @@ def seed_menu(headers: Dict[str, str], shop_id: str) -> List[Dict[str, Any]]:
         },
     ]
 
-    for item in items_to_add:
-        if any(m.get("name") == item["name"] for m in existing_menu):
-            continue
+    total_created = 0
+    for shop in shops:
+        shop_id = shop.get("id")
+        shop_name = shop.get("name")
+        created_for_shop = 0
+        for item in items_to_add:
+            if (str(shop_id), item["name"]) in existing_keys:
+                continue
 
-        payload = {
-            "shopId": shop_id,
-            "category": item["category"],
-            "name": item["name"],
-            "description": item["description"],
-            "price": {"amount": item["price"], "currency": "VND"},
-            "ingredients": item["ingredients"],
-            "allergens": item["allergens"],
-            "availability": {
-                "startTime": "00:00:00",
-                "endTime": "23:59:59",
-                "daysOfWeek": [0, 1, 2, 3, 4, 5, 6]
+            payload = {
+                "shopId": shop_id,
+                "category": item["category"],
+                "name": item["name"],
+                "description": item["description"],
+                "price": {"amount": item["price"], "currency": "VND"},
+                "ingredients": item["ingredients"],
+                "allergens": item["allergens"],
+                "availability": {
+                    "startTime": "00:00:00",
+                    "endTime": "23:59:59",
+                    "daysOfWeek": [0, 1, 2, 3, 4, 5, 6]
+                }
             }
-        }
-        try:
-            created_res = http_request(f"{API_BASE}/menu", method="POST", data=payload, headers=headers)
-            item_id = created_res if isinstance(created_res, str) else created_res.get("id", "")
-            print(f" -> Tạo thành công món: {item['name']} - {item['price']:,} ₫ [ID: {item_id}]")
-        except Exception as e:
-            print(f" -> Bỏ qua món {item['name']}: {e}")
+            try:
+                http_request(f"{API_BASE}/menu", method="POST", data=payload, headers=headers)
+                existing_keys.add((str(shop_id), item["name"]))
+                created_for_shop += 1
+                total_created += 1
+            except Exception as e:
+                print(f" -> Bỏ qua món {item['name']} tại {shop_name}: {e}")
 
-    res = http_request(f"{API_BASE}/menu", headers=headers)
+        print(f" -> {shop_name}: đã thêm {created_for_shop}/{len(items_to_add)} món vào thực đơn.")
+
+    print(f" -> Tổng cộng đã khởi tạo {total_created} món cho toàn hệ thống.")
+
+    res = http_request(f"{API_BASE}/menu?pageSize=500", headers=headers)
     return res if isinstance(res, list) else res.get("items", [])
 
 def seed_inventory_for_shops(headers: Dict[str, str], shops: List[Dict[str, Any]]):
@@ -734,7 +762,7 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 "shopId": s_id
             }
             try:
-                http_request(f"{API_BASE}/auth/register", method="POST", data=reg_payload)
+                http_request(f"{API_BASE}/auth/register", method="POST", data=reg_payload, headers=headers)
             except Exception:
                 pass
             # Also register aliases: both short slugs (q1, hn...) and unnumbered (barista.q1, manager.q1...)
@@ -746,7 +774,7 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 s_email = email.replace(f".{s_slug}@", f".{target_s}@")
                 if s_email != email:
                     try:
-                        http_request(f"{API_BASE}/auth/register", method="POST", data=dict(reg_payload, email=s_email))
+                        http_request(f"{API_BASE}/auth/register", method="POST", data=dict(reg_payload, email=s_email), headers=headers)
                     except Exception:
                         pass
 
@@ -755,7 +783,7 @@ def seed_staff_and_accounts(headers: Dict[str, str], shops: List[Dict[str, Any]]
                     if s_email.startswith(f"{pfx}."):
                         unnum_email = s_email.replace(f"{pfx}.", f"{pfx[:-1]}.")
                         try:
-                            http_request(f"{API_BASE}/auth/register", method="POST", data=dict(reg_payload, email=unnum_email))
+                            http_request(f"{API_BASE}/auth/register", method="POST", data=dict(reg_payload, email=unnum_email), headers=headers)
                         except Exception:
                             pass
 
@@ -993,6 +1021,12 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             assigned = all_staff
         shop_staff_dict[s_id] = assigned
 
+    # Menu items are shop-scoped by the API (order creation rejects items from another shop),
+    # so group them by shop and only ever pick items that belong to the order's shop.
+    menu_by_shop: Dict[str, List[Dict[str, Any]]] = {}
+    for m in menu_items:
+        menu_by_shop.setdefault(str(m.get("shopId")), []).append(m)
+
     # 1. Generate 100 Completed Orders corresponding to the 100 customer reviews (distributed across the past year)
     print(" -> Đang tạo 100 đơn hàng thực tế kèm doanh thu tương ứng cho 100 đánh giá...")
     created_orders: List[Dict[str, Any]] = []
@@ -1003,6 +1037,9 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         s_name = shop.get("name")
         staff_list = shop_staff_dict.get(s_id, [])
         assigned_staff = random.choice(staff_list) if staff_list else (all_staff[0] if all_staff else {"id": ""})
+        shop_menu = menu_by_shop.get(str(s_id), [])
+        if not shop_menu:
+            continue
 
         fn = random.choice(first_names)
         mn = random.choice(middle_names)
@@ -1012,7 +1049,7 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
 
         # 1 to 3 items
         order_items_count = random.randint(1, 3)
-        selected_menu = random.sample(menu_items, min(len(menu_items), order_items_count))
+        selected_menu = random.sample(shop_menu, min(len(shop_menu), order_items_count))
 
         items_payload = []
         order_subtotal = 0
@@ -1053,10 +1090,8 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             res_ord = http_request(f"{API_BASE}/orders", method="POST", data=order_payload, headers=headers)
             ord_id = res_ord if isinstance(res_ord, str) else res_ord.get("id", "")
             if ord_id:
-                # Proper status transitions: Placed -> Preparing -> Ready -> pay-and-complete
-                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 2}, headers=headers)  # Placed -> Preparing
-                http_request(f"{API_BASE}/orders/{ord_id}/status", method="PUT", data={"id": ord_id, "status": 3}, headers=headers)  # Preparing -> Ready
-                http_request(f"{API_BASE}/orders/{ord_id}/pay-and-complete", method="POST", headers=headers)  # Ready + Pay -> Completed
+                # Placed -> Preparing -> Ready -> Paid -> Completed (no transaction needed)
+                complete_order(ord_id, headers)
 
                 created_orders.append({
                     "orderId": ord_id,
@@ -1095,6 +1130,9 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         s_id = s.get("id")
         staff_list = shop_staff_dict.get(s_id, [])
         primary_staff = staff_list[0]["id"] if staff_list else (all_staff[0]["id"] if all_staff else "")
+        shop_menu = menu_by_shop.get(str(s_id), [])
+        if not shop_menu:
+            continue
 
         for min_days, max_days, count in period_configs:
             for _ in range(count):
@@ -1107,7 +1145,7 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 c_phone = f"09{random.randint(10000000, 99999999)}"
                 o_type = random.choice([1, 2, 3])
 
-                sel_menu = random.sample(menu_items, min(len(menu_items), random.randint(1, 3)))
+                sel_menu = random.sample(shop_menu, min(len(shop_menu), random.randint(1, 3)))
                 items = []
                 subtotal = 0
                 for mi in sel_menu:
@@ -1144,10 +1182,8 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
             res = http_request(f"{API_BASE}/orders", method="POST", data=p, headers=headers)
             o_id = res if isinstance(res, str) else res.get("id", "")
             if o_id:
-                # Proper status transitions: Placed -> Preparing -> Ready -> pay-and-complete
-                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 2}, headers=headers)  # Placed -> Preparing
-                http_request(f"{API_BASE}/orders/{o_id}/status", method="PUT", data={"id": o_id, "status": 3}, headers=headers)  # Preparing -> Ready
-                http_request(f"{API_BASE}/orders/{o_id}/pay-and-complete", method="POST", headers=headers)  # Ready + Pay -> Completed
+                # Placed -> Preparing -> Ready -> Paid -> Completed (no transaction needed)
+                complete_order(o_id, headers)
                 return True
         except Exception:
             pass
@@ -1174,10 +1210,13 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
         s_id = s.get("id")
         staff_list = shop_staff_dict.get(s_id, [])
         primary_staff = staff_list[0]["id"] if staff_list else (all_staff[0]["id"] if all_staff else "")
+        shop_menu = menu_by_shop.get(str(s_id), [])
+        if not shop_menu:
+            continue
         for idx in range(random.randint(4, 6)):
             c_name = f"{random.choice(first_names)} {random.choice(last_names)}"
             c_phone = f"09{random.randint(10000000, 99999999)}"
-            m = random.choice(menu_items)
+            m = random.choice(shop_menu)
             qty = random.randint(1, 3)
             u_price = m.get("price", {}).get("amount", 35000)
             today_time = now - datetime.timedelta(hours=random.randint(0, 8), minutes=random.randint(0, 50))
@@ -1206,17 +1245,14 @@ def seed_reviews_and_orders(headers: Dict[str, str], shops: List[Dict[str, Any]]
                 res_t = http_request(f"{API_BASE}/orders", method="POST", data=today_payload, headers=headers)
                 t_id = res_t if isinstance(res_t, str) else res_t.get("id", "")
                 if t_id:
-                    # Stagger statuses for today: Preparing -> Ready -> Completed (via pay-and-complete)
+                    # Stagger statuses for today: Preparing -> Ready -> Completed
                     if idx == 0:
                         http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
                     elif idx == 1:
                         http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
                         http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 3}, headers=headers) # Preparing -> Ready
                     else:
-                        # Use atomic pay-and-complete for completed orders (requires Ready status first)
-                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 2}, headers=headers) # Placed -> Preparing
-                        http_request(f"{API_BASE}/orders/{t_id}/status", method="PUT", data={"id": t_id, "status": 3}, headers=headers) # Preparing -> Ready
-                        http_request(f"{API_BASE}/orders/{t_id}/pay-and-complete", method="POST", headers=headers) # Ready + Pay -> Completed
+                        complete_order(t_id, headers)
             except Exception:
                 pass
 
@@ -1299,9 +1335,13 @@ def main():
         sys.exit(1)
 
     primary_shop_id = shops[0].get("id")
+    print(f" -> Chi nhánh chính: [{primary_shop_id}] {shops[0].get('name')}")
 
-    # 5. Seed Menu Items (available 24/7)
-    menu_items = seed_menu(auth_headers, primary_shop_id)
+    # 5. Seed Menu Items for every branch (available 24/7)
+    menu_items = seed_menu(auth_headers, shops)
+    if not menu_items:
+        print("Lỗi: Không thể khởi tạo thực đơn.")
+        sys.exit(1)
 
     # 6. Seed Inventory for all 9 shops
     seed_inventory_for_shops(auth_headers, shops)

@@ -39,7 +39,9 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>
                 new KeyValuePair<string, string?>("ConnectionStrings:MongoDB", connectionString),
                 new KeyValuePair<string, string?>("ConnectionStrings:DatabaseName", "cafe_management_test"),
                 new KeyValuePair<string, string?>("Serilog:MinimumLevel", "Information"),
+                // Completely override Serilog WriteTo to only use Console (disable Seq)
                 new KeyValuePair<string, string?>("Serilog:WriteTo:0:Name", "Console"),
+                new KeyValuePair<string, string?>("Serilog:WriteTo:1:Name", ""),  // Disable Seq sink
             });
         });
 

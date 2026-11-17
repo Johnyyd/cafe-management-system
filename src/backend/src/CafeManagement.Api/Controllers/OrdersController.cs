@@ -24,6 +24,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(typeof(ObjectId), StatusCodes.Status201Created)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> CreateOrder([FromBody] CreateOrderCommand command, CancellationToken cancellationToken)
@@ -61,6 +62,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id}")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -75,6 +77,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("{id}/cancel")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -89,6 +92,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpDelete("{id}")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
     public async Task<IActionResult> DeleteOrder(ObjectId id, CancellationToken cancellationToken)
@@ -132,7 +136,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id}/status")]
-    [Authorize(Roles = "Admin,Manager,Cashier")]
+    [Authorize(Roles = "Admin,Manager,Cashier,Barista")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -147,6 +151,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPost("{id}/items")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -161,6 +166,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpPut("{id}/items/{itemId}")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]
@@ -175,6 +181,7 @@ public class OrdersController : ControllerBase
     }
 
     [HttpDelete("{id}/items/{itemId}")]
+    [Authorize(Roles = "Admin,Manager,Cashier")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status400BadRequest)]
     [ProducesResponseType(typeof(ProblemDetails), StatusCodes.Status404NotFound)]

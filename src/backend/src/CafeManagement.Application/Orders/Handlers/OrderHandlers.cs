@@ -175,33 +175,53 @@ public class PayAndCompleteHandler : IRequestHandler<PayAndCompleteCommand, Flue
                 return FluentResults.Result.Fail(result.Errors);
             }
 
-            // Deduct inventory for each order item within the transaction
+            // Resolve every inventory item first so a missing ingredient fails before
+            // anything is deducted (there may be no transaction on standalone MongoDB).
+            // Menu items are not mapped to ingredients (no recipe/BOM), so items without
+            // a same-named inventory record are skipped instead of blocking payment.
+            var deductions = new List<(CafeManagement.Domain.Inventory.InventoryItem Item, DomainOrders.OrderItem OrderItem)>();
             foreach (var orderItem in order.Items)
             {
                 var inventoryResult = await _inventoryService.GetByShopIdAndNameAsync(order.ShopId, orderItem.Name);
-                if (inventoryResult.IsSuccess)
+                if (inventoryResult.IsFailed)
                 {
-                    var adjustResult = await _inventoryService.AdjustQuantityAsync(
-                        inventoryResult.Value.Id,
-                        -orderItem.Quantity, // Negative to reduce inventory
-                        $"Order {order.OrderNumber} completed",
-                        order.StaffId);
-
-                    if (adjustResult.IsFailed)
-                    {
-                        await _unitOfWork.AbortTransactionAsync(cancellationToken);
-                        _logger.LogWarning("Failed to adjust inventory for item {ItemName} in order {OrderId}: {Errors}",
-                            orderItem.Name, order.Id, adjustResult.Errors);
-                        return FluentResults.Result.Fail($"Inventory adjustment failed for {orderItem.Name}: {adjustResult.Errors.FirstOrDefault()?.Message}");
-                    }
-                }
-                else
-                {
-                    await _unitOfWork.AbortTransactionAsync(cancellationToken);
-                    _logger.LogWarning("Inventory item not found for {ItemName} in shop {ShopId} when completing order {OrderId}",
+                    _logger.LogInformation("No inventory record for {ItemName} in shop {ShopId}; skipping stock deduction for order {OrderId}",
                         orderItem.Name, order.ShopId, order.Id);
-                    return FluentResults.Result.Fail($"Inventory item not found for {orderItem.Name} in shop {order.ShopId}");
+                    continue;
                 }
+
+                deductions.Add((inventoryResult.Value, orderItem));
+            }
+
+            // Deduct inventory for each order item, rolling back what was already
+            // deducted if a later item fails (best effort when no transaction is active).
+            var applied = new List<(CafeManagement.Domain.Inventory.InventoryItem Item, DomainOrders.OrderItem OrderItem)>();
+            foreach (var (inventoryItem, orderItem) in deductions)
+            {
+                var adjustResult = await _inventoryService.AdjustQuantityAsync(
+                    inventoryItem.Id,
+                    -orderItem.Quantity, // Negative to reduce inventory
+                    $"Order {order.OrderNumber} completed",
+                    order.StaffId);
+
+                if (adjustResult.IsFailed)
+                {
+                    foreach (var (doneItem, doneOrderItem) in applied)
+                    {
+                        await _inventoryService.AdjustQuantityAsync(
+                            doneItem.Id,
+                            doneOrderItem.Quantity,
+                            $"Rollback for order {order.OrderNumber}",
+                            order.StaffId);
+                    }
+
+                    await _unitOfWork.AbortTransactionAsync(cancellationToken);
+                    _logger.LogWarning("Failed to adjust inventory for item {ItemName} in order {OrderId}: {Errors}",
+                        orderItem.Name, order.Id, adjustResult.Errors);
+                    return FluentResults.Result.Fail($"Inventory adjustment failed for {orderItem.Name}: {adjustResult.Errors.FirstOrDefault()?.Message}");
+                }
+
+                applied.Add((inventoryItem, orderItem));
             }
 
             // All inventory adjustments succeeded, save the completed order

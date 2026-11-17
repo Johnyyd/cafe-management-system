@@ -15,3 +15,5 @@ __pycache__/
 /src/frontend/.vite/deps
 CLAUDE.md
 AGENTS.md
+/.playwright-mcp
+cookies.txt
